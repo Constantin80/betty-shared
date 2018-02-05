@@ -286,7 +286,7 @@ public class Ignorable
         if (this.isTempRemoved()) {
             this.tempRemoved = false;
             this.setResetTempRemovedStamp(System.currentTimeMillis());
-            Ignorable.database.addResetIgnorable(this);
+            Ignorable.database.addResetIgnorable(this); //
 //            this.ignoredExpiration = 0L;
             modified = 1;
         } else {
