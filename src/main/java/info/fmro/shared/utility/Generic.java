@@ -1,0 +1,2677 @@
+package info.fmro.shared.utility;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.net.IDN;
+import java.net.URLDecoder;
+import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import static java.util.Arrays.asList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Random;
+import java.util.Set;
+import java.util.Stack;
+import java.util.StringTokenizer;
+import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+import java.util.zip.InflaterInputStream;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import org.reflections.Reflections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Generic {
+
+    private static final Logger logger = LoggerFactory.getLogger(Generic.class);
+    // TLDs last updated 28-12-2013 from http://data.iana.org/TLD/tlds-alpha-by-domain.txt
+    public static final LinkedHashSet<String> TLDs =
+            new LinkedHashSet<>(asList(new String[]{"AC", "ACADEMY", "AD", "AE", "AERO", "AF", "AG", "AI", "AL", "AM", "AN", "AO", "AQ", "AR", "ARPA", "AS", "ASIA", "AT", "AU",
+                "AW", "AX", "AZ", "BA", "BB", "BD", "BE", "BF", "BG", "BH", "BI", "BIKE", "BIZ", "BJ", "BM", "BN", "BO", "BR", "BS", "BT", "BUZZ", "BV", "BW", "BY", "BZ", "CA",
+                "CAB", "CAMERA", "CAMP", "CAREERS", "CAT", "CC", "CD", "CENTER", "CF", "CG", "CH", "CI", "CK", "CL", "CLOTHING", "CM", "CN", "CO", "COM", "COMPANY", "COMPUTER",
+                "CONSTRUCTION", "CONTRACTORS", "COOP", "CR", "CU", "CV", "CW", "CX", "CY", "CZ", "DE", "DIAMONDS", "DIRECTORY", "DJ", "DK", "DM", "DO", "DOMAINS", "DZ", "EC", "EDU",
+                "EE", "EG", "ENTERPRISES", "EQUIPMENT", "ER", "ES", "ESTATE", "ET", "EU", "FI", "FJ", "FK", "FM", "FO", "FR", "GA", "GALLERY", "GB", "GD", "GE", "GF", "GG", "GH",
+                "GI", "GL", "GM", "GN", "GOV", "GP", "GQ", "GR", "GRAPHICS", "GS", "GT", "GU", "GURU", "GW", "GY", "HK", "HM", "HN", "HOLDINGS", "HR", "HT", "HU", "ID", "IE", "IL",
+                "IM", "IN", "INFO", "INT", "IO", "IQ", "IR", "IS", "IT", "JE", "JM", "JO", "JOBS", "JP", "KE", "KG", "KH", "KI", "KITCHEN", "KM", "KN", "KP", "KR", "KW", "KY", "KZ",
+                "LA", "LAND", "LB", "LC", "LI", "LIGHTING", "LIMO", "LK", "LR", "LS", "LT", "LU", "LV", "LY", "MA", "MANAGEMENT", "MC", "MD", "ME", "MENU", "MG", "MH", "MIL", "MK",
+                "ML", "MM", "MN", "MO", "MOBI", "MP", "MQ", "MR", "MS", "MT", "MU", "MUSEUM", "MV", "MW", "MX", "MY", "MZ", "NA", "NAME", "NC", "NE", "NET", "NF", "NG", "NI", "NL",
+                "NO", "NP", "NR", "NU", "NZ", "OM", "ORG", "PA", "PE", "PF", "PG", "PH", "PHOTOGRAPHY", "PHOTOS", "PK", "PL", "PLUMBING", "PM", "PN", "POST", "PR", "PRO", "PS",
+                "PT", "PW", "PY", "QA", "RE", "RECIPES", "RO", "RS", "RU", "RUHR", "RW", "SA", "SB", "SC", "SD", "SE", "SEXY", "SG", "SH", "SHOES", "SI", "SINGLES", "SJ", "SK",
+                "SL", "SM", "SN", "SO", "SR", "ST", "SU", "SUPPORT", "SV", "SX", "SY", "SYSTEMS", "SZ", "TATTOO", "TC", "TD", "TECHNOLOGY", "TEL", "TF", "TG", "TH", "TIPS", "TJ",
+                "TK", "TL", "TM", "TN", "TO", "TODAY", "TP", "TR", "TRAVEL", "TT", "TV", "TW", "TZ", "UA", "UG", "UK", "UNO", "US", "UY", "UZ", "VA", "VC", "VE", "VENTURES", "VG",
+                "VI", "VIAJES", "VN", "VOYAGE", "VU", "WF", "WS", "XN--3E0B707E", "XN--45BRJ9C", "XN--55QW42G", "XN--80AO21A", "XN--80ASEHDB", "XN--80ASWG", "XN--90A3AC",
+                "XN--CLCHC0EA0B2G2A9GCD", "XN--FIQS8S", "XN--FIQZ9S", "XN--FPCRJ9C3D", "XN--FZC2C9E2C", "XN--GECRJ9C", "XN--H2BRJ9C", "XN--J1AMH", "XN--J6W193G", "XN--KPRW13D",
+                "XN--KPRY57D", "XN--L1ACC", "XN--LGBBAT1AD8J", "XN--MGB9AWBF", "XN--MGBA3A4F16A", "XN--MGBAAM7A8H", "XN--MGBAYH7GPA", "XN--MGBBH1A71E", "XN--MGBC0A9AZCG",
+                "XN--MGBERP4A5D4AR", "XN--MGBX4CD0AB", "XN--NGBC5AZD", "XN--O3CW4H", "XN--OGBPF8FL", "XN--P1AI", "XN--PGBS0DH", "XN--Q9JYB4C", "XN--S9BRJ9C", "XN--UNUP4Y",
+                "XN--WGBH1C", "XN--WGBL6A", "XN--XKC2AL3HYE2A", "XN--XKC2DL3A5EE0H", "XN--YFRO4I67O", "XN--YGBI2AMMX", "XN--ZFR164B", "XXX", "YE", "YT", "ZA", "ZM", "ZW"}));
+    public static final String USASCII_CHARSET = "US-ASCII", UTF8_CHARSET = "UTF-8", UTF16_CHARSET = "UTF-16";
+    public static final long DAY_LENGTH_MILLISECONDS = (long) 24 * 60 * 60 * 1000, HOUR_LENGTH_MILLISECONDS = (long) 60 * 60 * 1000, MINUTE_LENGTH_MILLISECONDS = (long) 60 * 1000;
+    public static final TimeZone UTC_TIMEZONE = TimeZone.getTimeZone("UTC"), BUCHAREST_TIMEZONE = TimeZone.getTimeZone("Europe/Bucharest");
+    public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
+
+    private Generic() {
+    }
+
+    public static String createStringFromCodes(int... codes) {
+        final String returnString;
+
+        if (codes == null) {
+            returnString = null;
+        } else {
+            final int codesSize = codes.length;
+            final StringBuilder stringBuilder = new StringBuilder(codesSize);
+            for (int i = 0; i < codesSize; i++) {
+                stringBuilder.appendCodePoint(codes[i]);
+            } // end for
+
+            returnString = stringBuilder.toString();
+        }
+
+        return returnString;
+    }
+
+    public static <T> T getEqualElementFromSet(Set<T> set, T searchedElement) {
+        T returnElement = null;
+
+        if (set == null || searchedElement == null) { // will just return null
+        } else {
+            for (T iteratorElement : set) {
+                if (searchedElement.equals(iteratorElement)) {
+                    returnElement = iteratorElement;
+                    break; // break from for
+                }
+            } // end for
+        }
+        return returnElement;
+    }
+
+    public static String getStringCodePointValues(String initialString) {
+        if (initialString == null) {
+            return null;
+        } else {
+            final int initialStringLength = initialString.length();
+            final StringBuilder returnStringBuilder = new StringBuilder(6 * initialStringLength);
+
+            for (int i = 0; i < initialStringLength;) {
+                final int codePoint = initialString.codePointAt(i);
+                i += Character.charCount(codePoint);
+                returnStringBuilder.append(codePoint);
+                if (i < initialStringLength) {
+                    returnStringBuilder.append(" ");
+                }
+            } // end for
+
+            return returnStringBuilder.toString();
+        }
+    }
+
+//    @SuppressWarnings("AssignmentToForLoopParameter")
+//    public static String escapeString(String initialString) {
+//        final int initialStringLength = initialString.length();
+//        final StringBuilder returnStringBuilder = new StringBuilder(6 * initialStringLength);
+//
+//        for (int i = 0; i < initialStringLength; i++) {
+//            final int codePoint = Character.codePointAt(initialString, i);
+//            final int charCount = Character.charCount(codePoint);
+//            if (charCount > 1) {
+//                i += charCount - 1; // charCount should be 2
+//                if (i >= initialStringLength) {
+//                    logger.error("truncated unexpectedly in Generic.escapeString for: {}", initialString);
+////                    throw new IllegalArgumentException("truncated unexpectedly");
+//                }
+//            }
+//
+//            if (codePoint < 128) {
+//                returnStringBuilder.appendCodePoint(codePoint);
+//            } else {
+//                returnStringBuilder.append(String.format("\\u%x", codePoint));
+//            }
+//        } // end for
+//
+//        return returnStringBuilder.toString();
+//    }
+    public static String properTimeStamp() {
+        return properTimeStamp(System.currentTimeMillis());
+    }
+
+    public static String properTimeStamp(long millis) {
+        String returnValue = new Timestamp(millis).toString();
+        int length = returnValue.length();
+        if (length < 21 || length > 23) {
+            logger.error("wrong timeStamp length {} in properTimeStamp: {}", length, returnValue);
+        } else if (length == 21) {
+            returnValue += "00";
+        } else if (length == 22) {
+            returnValue += "0";
+        } else { // length 23, nothing to be done
+        }
+
+        return returnValue;
+    }
+
+    public static void changeDefaultCharset(String newCharset) {
+        System.setProperty("file.encoding", newCharset);
+        try {
+            Field charset = Charset.class.getDeclaredField("defaultCharset");
+            charset.setAccessible(true);
+            charset.set(null, null);
+        } catch (NoSuchFieldException noSuchFieldException) {
+            logger.error("STRANGE noSuchFieldException in changeDefaultCharset for: {}", newCharset, noSuchFieldException);
+        } catch (IllegalAccessException illegalAccessException) {
+            logger.error("STRANGE illegalAccessException in changeDefaultCharset for: {}", newCharset, illegalAccessException);
+        }
+    }
+
+    public static ArrayList<? extends OutputStream> replaceStandardStreams(String outFileName, String errFileName, String logsFolderName) {
+        return replaceStandardStreams(outFileName, errFileName, logsFolderName, true); // closed by default, left open for JUnit tests
+    }
+
+    public static ArrayList<? extends OutputStream> replaceStandardStreams(String outFileName, String errFileName, String logsFolderName, boolean closeExistingStreams) {
+        ArrayList<OutputStream> list;
+        FileOutputStream outFileOutputStream = null, errFileOutputStream = null;
+        PrintStream outPrintStream = null, errPrintStream = null;
+        try {
+            new File(logsFolderName).mkdirs();
+
+            File previousFile = new File(outFileName);
+            if (previousFile.exists() && previousFile.length() > 0) { // moving existing out log file to the logs folder
+                previousFile.renameTo(new File(logsFolderName + "/" + Generic.tempFileName("outFile") + ".txt"));
+            }
+            previousFile = new File(errFileName);
+            if (previousFile.exists() && previousFile.length() > 0) { // moving existing err log file to the logs folder
+                previousFile.renameTo(new File(logsFolderName + "/" + Generic.tempFileName("errFile") + ".txt"));
+            }
+
+            list = new ArrayList<>(4);
+
+            outFileOutputStream = new FileOutputStream(outFileName);
+            list.add(outFileOutputStream);
+            outPrintStream = new PrintStream(outFileOutputStream);
+            list.add(outPrintStream);
+            errFileOutputStream = new FileOutputStream(errFileName);
+            list.add(errFileOutputStream);
+            errPrintStream = new PrintStream(errFileOutputStream);
+            list.add(errPrintStream);
+
+            @SuppressWarnings("UseOfSystemOutOrSystemErr")
+            final PrintStream existingSystemOut = System.out, existingSystemErr = System.err;
+//            if (closeExistingStreams) {
+//                Generic.closeStandardStreams();
+//            } else { // error message printed at the end of method, nothing to be done here
+//            }
+
+            System.setOut(outPrintStream);
+            System.setErr(errPrintStream);
+            if (closeExistingStreams) {
+                Generic.closeObjects(System.in, existingSystemOut, existingSystemErr);
+            } else { // error message printed at the end of method, nothing to be done here
+            }
+        } catch (FileNotFoundException fileNotFoundException) {
+            list = null;
+            logger.error("fileNotFoundException in replaceStandardStreams: {} {}", outFileName, errFileName, fileNotFoundException);
+            Generic.closeObjects(outFileOutputStream, errFileOutputStream, outPrintStream, errPrintStream);
+        }
+        logger.info("have replaced standard streams: out={} err={} logsFolder={}", outFileName, errFileName, logsFolderName);
+        if (closeExistingStreams) { // normal behaviour, nothing to be done
+        } else {
+            logger.error("not closing standardStreams in replaceStandardStreams, this is only OK during testing");
+        }
+
+        return list;
+    }
+
+    public static <T> Set<Class<? extends T>> getSubclasses(String prefix, Class<T> myInterface) {
+        Reflections reflections = new Reflections(prefix);
+        Set<Class<? extends T>> classes = reflections.getSubTypesOf(myInterface);
+        return classes;
+    }
+
+    public static <T> Collection<T> collectionKeepMultiples(Collection<T> collection, int minNMultiple) {
+        if (minNMultiple <= 1) {
+            logger.error("minNMultiple {} should be at least 2 in order to have effect in collectionKeepMultiples", minNMultiple);
+        } else {
+            HashSet<T> set = new HashSet<>(collection);
+            for (int i = 0; i < minNMultiple - 1; i++) {
+                for (T element : set) {
+                    collection.remove(element);
+                }
+            }
+        }
+        return collection;
+    }
+
+    public static boolean isPowerOfTwo(long x) { // alternative: ((value & -value) == value)
+        return x != 0 && ((x & (x - 1)) == 0);
+    }
+
+    public static void stringBuilderReplace(StringBuilder stringBuilder, String string) {
+        stringBuilder.replace(0, stringBuilder.length(), string);
+    }
+
+    public static double middleValue(double a, double b, double c) {
+        return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+    }
+
+    public static float middleValue(float a, float b, float c) {
+        return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+    }
+
+    public static int middleValue(int a, int b, int c) {
+        return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+    }
+
+    public static long middleValue(long a, long b, long c) {
+        return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+    }
+
+    public static double truncateDouble(double doubleValue, int decimals) {
+        double power10double = Math.pow(10, decimals);
+        long power10long = (long) power10double;
+        return Math.floor(doubleValue * power10double) / power10long;
+    }
+
+    public static String quotedReplaceAll(String string, String pattern, String replacement) {
+        String result;
+        if (string != null) {
+            String quotedPattern = Pattern.quote(pattern);
+            if (string.contains(pattern)) {
+                result = string.replaceAll(quotedPattern, replacement);
+            } else {
+                result = string;
+            }
+        } else {
+            result = null;
+        }
+
+        return result;
+    }
+
+    public static double stringMatchChance(String stringFirst, String stringSecond) {
+        return stringMatchChance(stringFirst, stringSecond, true, true);
+    }
+
+    public static double stringMatchChance(String stringFirst, String stringSecond, boolean ignoreCase) {
+        return stringMatchChance(stringFirst, stringSecond, ignoreCase, true);
+    }
+
+    public static double stringMatchChance(String stringFirst, String stringSecond, boolean ignoreCase, boolean trimStrings) {
+        double result;
+
+        if (stringFirst == null || stringSecond == null) {
+            result = 0;
+        } else {
+            String localFirst = stringFirst, localSecond = stringSecond;
+            if (ignoreCase) {
+                localFirst = localFirst.toLowerCase();
+                localSecond = localSecond.toLowerCase();
+            }
+            if (trimStrings) {
+                localFirst = localFirst.trim();
+                localSecond = localSecond.trim();
+            }
+
+            if (stringFirst.isEmpty() || stringSecond.isEmpty()) {
+                result = 0;
+            } else {
+                final int numberOfIterations = 3, matchedChars[] = new int[numberOfIterations], sequencedChars[] = new int[numberOfIterations],
+                        firstLength = localFirst.length(), secondLength = localSecond.length();
+                String loopLocalFirst[] = new String[numberOfIterations], loopLocalSecond[] = new String[numberOfIterations];
+                loopLocalFirst[0] = localFirst;
+                loopLocalSecond[0] = localSecond;
+                loopLocalFirst[1] = backwardString(localFirst);
+                loopLocalSecond[1] = backwardString(localSecond);
+                loopLocalFirst[2] = backwardWordsString(localFirst);
+                loopLocalSecond[2] = localSecond; // for cases of "word1 word2" compare with "word2 word1"
+
+                for (int i = 0; i < numberOfIterations; i++) {
+                    int counterFirst = 0, counterSecond = 0;
+                    boolean charSequence = false;
+
+                    do {
+                        if (loopLocalFirst[i].charAt(counterFirst) == loopLocalSecond[i].charAt(counterSecond)) {
+                            if (charSequence) {
+                                sequencedChars[i]++;
+                            }
+                            matchedChars[i]++;
+                            counterFirst++;
+                            counterSecond++;
+                            charSequence = true; // sequence starts, first char in regular sequence is not counted
+                        } else {
+                            charSequence = false;
+
+                            // search char from first into second
+                            int indexFirst = -1, indexSecond = -1, increaseSecond = 0, increaseFirst = 0;
+
+                            for (int increaseCounter = 0; counterFirst + increaseCounter < firstLength; increaseCounter++) {
+                                int tempIndex = loopLocalSecond[i].indexOf(loopLocalFirst[i].charAt(counterFirst + increaseFirst), counterSecond);
+                                if (tempIndex >= 0 && (indexSecond < 0 || tempIndex + increaseCounter < indexSecond + increaseFirst)) {
+                                    indexSecond = tempIndex;
+                                    increaseFirst = increaseCounter;
+                                }
+                            } // end for
+                            for (int increaseCounter = 0; counterSecond + increaseCounter < secondLength; increaseCounter++) {
+                                int tempIndex = loopLocalFirst[i].indexOf(loopLocalSecond[i].charAt(counterSecond + increaseSecond), counterFirst);
+                                if (tempIndex >= 0 && (indexFirst < 0 || tempIndex + increaseCounter < indexFirst + increaseSecond)) {
+                                    indexFirst = tempIndex;
+                                    increaseSecond = increaseCounter;
+                                }
+                            } // end for
+
+//                            int indexSecond = loopLocalSecond[i].indexOf(loopLocalFirst[i].charAt(counterFirst), counterSecond);
+//                            int indexFirst = loopLocalFirst[i].indexOf(loopLocalSecond[i].charAt(counterSecond), counterFirst);
+                            if (indexFirst < 0 && indexSecond < 0) { // both chars don't exist in the other string
+                                counterFirst++;
+                                counterSecond++;
+                            } else if (indexFirst < 0) {
+                                counterSecond = indexSecond;
+                                counterFirst += increaseFirst;
+                            } else if (indexSecond < 0) {
+                                counterFirst = indexFirst;
+                                counterSecond += increaseSecond;
+                            } else { // see which index is skipping more chars
+                                int skipFirst = indexFirst - counterFirst + increaseSecond;
+                                int skipSecond = indexSecond - counterSecond + increaseFirst;
+
+                                if (skipFirst < skipSecond) {
+                                    counterFirst = indexFirst;
+                                    counterSecond += increaseSecond;
+                                } else if (skipFirst > skipSecond) {
+                                    counterSecond = indexSecond;
+                                    counterFirst += increaseFirst;
+                                } else { // they're equal
+                                    int remainFirst = Math.min(firstLength - indexFirst, secondLength - counterSecond - increaseSecond);
+                                    int remainSecond = Math.min(secondLength - indexSecond, firstLength - counterFirst - increaseFirst);
+
+                                    if (remainFirst < remainSecond) {
+                                        counterSecond = indexSecond;
+                                        counterFirst += increaseFirst;
+                                    } else if (remainFirst > remainSecond) {
+                                        counterFirst = indexFirst;
+                                        counterSecond += increaseSecond;
+                                    } else if (firstLength < secondLength) {
+                                        counterFirst = indexFirst;
+                                        counterSecond += increaseSecond; // increase the smaller one, as the larger one skipped more already
+                                    } else if (firstLength > secondLength) {
+                                        counterSecond = indexSecond;
+                                        counterFirst += increaseFirst;
+                                    } else { // everything equal, just increase the first
+                                        counterFirst = indexFirst;
+                                        counterSecond += increaseSecond;
+                                    } // end else
+                                } // end else
+                            } // end else
+                        } // end else
+                    } while (counterFirst < firstLength && counterSecond < secondLength);
+                } // end for
+
+                int chosenI = -1, maxSequenced = -1, maxMatched = -1;
+                for (int i = 0; i < numberOfIterations; i++) {
+                    if (sequencedChars[i] > maxSequenced || (sequencedChars[i] == maxSequenced && matchedChars[i] > maxMatched)) {
+                        chosenI = i;
+                        maxSequenced = sequencedChars[i];
+                        maxMatched = matchedChars[i];
+                    }
+                } // end for
+
+                if (maxMatched > 0) {
+                    double unMatchedProportionFirst = (double) (firstLength - maxMatched) / firstLength,
+                            unMatchedProportionSecond = (double) (secondLength - maxMatched) / secondLength; // casting is important, else error
+
+                    // applied to the shorter string
+                    int minLength = Math.min(firstLength, secondLength), maxLength = Math.max(firstLength, secondLength);
+
+                    double minimumChanceNot = Math.abs(Math.sqrt(firstLength) - Math.sqrt(secondLength)) / maxLength;
+
+                    if (firstLength < secondLength) {
+                        unMatchedProportionFirst = unMatchedProportionFirst * (1 - minimumChanceNot) + minimumChanceNot;
+                    } else if (firstLength > secondLength) {
+                        unMatchedProportionSecond = unMatchedProportionSecond * (1 - minimumChanceNot) + minimumChanceNot;
+                    } else { // they're equal, don't change anything
+                    }
+
+                    double chanceNot = 1;
+                    chanceNot /= Math.pow((double) 4 * maxLength / (4 * maxLength - 1), maxMatched);
+                    chanceNot /= Math.pow((double) 2 * minLength / (2 * minLength - 1), maxSequenced); // higher importance for sequenced chars
+                    chanceNot *= Math.pow(unMatchedProportionFirst * unMatchedProportionSecond, .5); // sqrt to lessen the effect on chanceNot
+
+                    result = 1 - chanceNot;
+
+                    // logger.info("{} {} {} {} {} {} {} {} {} {}", firstLength, secondLength, matchedChars[0], matchedChars[1], sequencedChars[0], sequencedChars[1],
+                    //         unMatchedProportionFirst, unMatchedProportionSecond, minimumChanceNot, chanceNot);
+                } else { // not matched a single char
+                    result = 0;
+                }
+                // logger.info("stringMatchChance parsing firstString: {} , secondString: {} , matchedChars={} sequencedChars={} result={}", stringFirst, stringSecond,
+                //         matchedChars[chosenI], sequencedChars[chosenI], result);
+            }
+        }
+
+        return result;
+    }
+
+    public static int getCollectionCapacity(Collection<?> collection) { // returns a capacity that will hold that collection
+        return getCollectionCapacity(collection, 0.75f);
+    }
+
+    public static int getCollectionCapacity(Collection<?> collection, float loadFactor) {
+        int size;
+        if (collection == null) {
+            size = 0;
+        } else {
+            size = collection.size();
+        }
+        return getCollectionCapacity(size, loadFactor);
+    }
+
+    public static int getCollectionCapacity(int size) {
+        return getCollectionCapacity(size, 0.75f);
+    }
+
+    public static int getCollectionCapacity(int size, float loadFactor) {
+        return (int) Generic.ceilingPowerOf(2, size / loadFactor);
+    }
+
+    // public static void printStackTraces ()
+    // {
+    //     printStackTraces (System.out); // intentionally printed to System.out, as this doesn't represent an error, it's just used for debugging
+    // }
+    @SuppressWarnings({"BroadCatchBlock", "TooBroadCatch"})
+    public static void printStackTraces(String fileName) {
+        FileOutputStream stackFileOutputStream = null;
+        PrintStream stackPrintStream = null;
+
+        try {
+            stackFileOutputStream = new FileOutputStream(fileName);
+            stackPrintStream = new PrintStream(stackFileOutputStream);
+
+            printStackTraces(stackPrintStream);
+        } catch (Throwable throwable) {
+            logger.error("STRANGE ERROR inside printStackTraces: {}", fileName, throwable);
+        } finally {
+            Generic.closeObjects(stackPrintStream, stackFileOutputStream);
+        }
+    }
+
+    public static void printStackTraces(PrintStream printStream) {
+        printStream.println("Printing stack traces for all threads:");
+        Map<Thread, StackTraceElement[]> stacksMap = Thread.getAllStackTraces();
+
+        for (Thread thread : stacksMap.keySet()) {
+            printStream.println(thread + " " + thread.getState() + " isDaemon=" + thread.isDaemon());
+            printStackTrace(stacksMap.get(thread), printStream);
+        }
+    }
+
+    // public static void printStackTrace(StackTraceElement[] stackTraceElementsArray) {
+    //     printStackTrace(stackTraceElementsArray, System.out); // intentionally printed to System.out, as this doesn't represent an error, it's just used for debugging
+    // }
+    public static void printStackTrace(StackTraceElement[] stackTraceElementsArray, String fileName) {
+        FileOutputStream stackFileOutputStream = null;
+        PrintStream stackPrintStream = null;
+
+        try {
+            stackFileOutputStream = new FileOutputStream(fileName);
+            stackPrintStream = new PrintStream(stackFileOutputStream);
+
+            printStackTrace(stackTraceElementsArray, stackPrintStream);
+        } catch (FileNotFoundException fileNotFoundException) {
+            logger.error("STRANGE fileNotFoundException inside printStackTraces: {}", fileName, fileNotFoundException);
+            // } catch (Throwable throwable) {
+            //     logger.error("STRANGE ERROR inside printStackTraces: {}", fileName, throwable);
+        } finally {
+            Generic.closeObjects(stackPrintStream, stackFileOutputStream);
+        }
+    }
+
+    @SuppressWarnings("ThrowableInstanceNotThrown")
+    public static void printStackTrace(StackTraceElement[] stackTraceElementsArray, PrintStream printStream) {
+        if (stackTraceElementsArray != null && printStream != null) {
+            Throwable throwable = new Throwable();
+            throwable.setStackTrace(stackTraceElementsArray);
+            throwable.printStackTrace(printStream);
+        }
+    }
+
+    public static boolean[] closeObjects(Object... objects) {
+        boolean[] closeSuccess = new boolean[objects.length];
+
+        for (int i = 0; i < objects.length; i++) {
+            closeSuccess[i] = closeObject(objects[i]);
+        }
+
+        return closeSuccess;
+    }
+
+    public static boolean setSoLinger(Object object) {
+        boolean setSoLingerSuccess;
+
+        if (object != null) {
+            Class<?> objectClass = null;
+
+            try {
+                objectClass = object.getClass();
+                Method objectSetSoLingerMethod = null;
+
+                try {
+                    objectSetSoLingerMethod = objectClass.getDeclaredMethod("setSoLinger", boolean.class, int.class);
+                } catch (NoSuchMethodException noSuchMethodException) {
+                    try {
+                        objectSetSoLingerMethod = objectClass.getMethod("setSoLinger", boolean.class, int.class);
+                    } catch (NoSuchMethodException innerNoSuchMethodException) {
+                        // no setSoLinger method exists, no output required
+                    } catch (SecurityException securityException) {
+                        logger.error("Exception in setSoLinger inner: {} {}", objectClass, objectToString(object), securityException);
+                    } // catch (Throwable throwable) {
+                    //     logger.error("Exception in setSoLinger inner: {} {}", objectClass, objectToString(object), throwable);
+                    // }
+                } catch (SecurityException securityException) {
+                    logger.error("securityException in setSoLinger: {} {}", objectClass, objectToString(object), securityException);
+                } // catch (Throwable throwable) {
+                //     logger.error("Throwable in setSoLinger: {} {}", objectClass, objectToString(object), throwable);
+                // }
+                try {
+                    if (objectSetSoLingerMethod != null) {
+                        if (!objectSetSoLingerMethod.isAccessible()) {
+                            objectSetSoLingerMethod.setAccessible(true);
+                            setSoLingerSuccess = true;
+                        } else {
+                            setSoLingerSuccess = false;
+                        }
+                        objectSetSoLingerMethod.invoke(object, true, 0);
+                    } else {
+                        setSoLingerSuccess = false;
+                    }
+                } catch (java.lang.reflect.InvocationTargetException invocationTargetException) {
+                    setSoLingerSuccess = false;
+                    Throwable exceptionCause = invocationTargetException.getCause();
+
+                    if (exceptionCause instanceof java.net.SocketException) {
+                        // often setSoLinger is invoked on a closed socket, causing an exception, no output required
+                    } else {
+                        logger.error("Exception in setSoLinger invoke getCause: {}", new Object[]{objectClass, objectToString(object)}, invocationTargetException);
+                        logger.error("Exception in setSoLinger invoke getCause (exceptionCause)", exceptionCause);
+                    }
+                } catch (SecurityException | IllegalAccessException | IllegalArgumentException exception) {
+                    setSoLingerSuccess = false;
+                    logger.error("exception in setSoLinger invoke: {} {}", objectClass, objectToString(object), exception);
+                } // catch (Throwable throwable) {
+                //     setSoLingerSuccess = false;
+                //     logger.error("Throwable in setSoLinger invoke: {} {}", objectClass, objectToString(object), throwable);
+                // }
+            } catch (Exception exception) {
+                setSoLingerSuccess = false;
+                logger.error("STRANGE exception inside setSoLinger: {} {}", objectClass, objectToString(object), exception);
+            } // catch (Throwable throwable) {
+            //     setSoLingerSuccess = false;
+            //     logger.error("STRANGE ERROR inside setSoLinger: {} {}", objectClass, objectToString(object), throwable);
+            // }
+        } else {
+            setSoLingerSuccess = false;
+        }
+
+        return setSoLingerSuccess;
+    }
+
+    public static boolean closeObject(Object object) {
+        // closes an object and catches all exceptions
+        // the object.setSoLinger (true, 0) is invoked if a setSoLinger method exists
+        setSoLinger(object);
+
+        boolean closeSuccess;
+
+        if (object != null) {
+            Class<?> objectClass = null;
+
+            try {
+                objectClass = object.getClass();
+
+                // Method objectFlushMethod = null;
+                // try {
+                //     objectFlushMethod = objectClass.getDeclaredMethod ("flush");
+                // } catch (java.lang.NoSuchMethodException noSuchMethodException) {
+                //     try {
+                //         objectFlushMethod = objectClass.getMethod ("flush");
+                //     } catch (java.lang.NoSuchMethodException innerNoSuchMethodException) {
+                //         // no flush method exists, no output required
+                //     } catch (Exception exception) {
+                //         System.err.println ("Exception in closeObject flush inner: " + exception + " " + objectClass + " " + objectToString (object));
+                //         exception.printStackTrace();
+                //     }
+                // } catch (Exception exception) {
+                //     System.err.println ("Exception in closeObject flush: " + exception + " " + objectClass + " " + objectToString (object));
+                //     exception.printStackTrace();
+                // }
+                // try {
+                //     if (objectFlushMethod != null) {
+                //         if (!objectFlushMethod.isAccessible())
+                //             objectFlushMethod.setAccessible (true);
+                //         objectFlushMethod.invoke (object);
+                //     }
+                // } catch (Exception exception) {
+                //     System.err.println ("STRANGE ERROR inside closeObject() flush: " + exception + " " + objectClass);
+                //     exception.printStackTrace();
+                // }
+                Method objectCloseMethod = null;
+                try {
+                    objectCloseMethod = objectClass.getDeclaredMethod("close");
+                } catch (java.lang.NoSuchMethodException noSuchMethodException) {
+                    try {
+                        objectCloseMethod = objectClass.getMethod("close");
+                    } catch (NoSuchMethodException | SecurityException exception) {
+                        logger.error("STRANGE ERROR inside closeObject() close inner: {}", new Object[]{objectClass, objectToString(object)}, exception);
+                    }
+                } catch (SecurityException securityException) {
+                    logger.error("securityException in closeObject close: {} {}", objectClass, objectToString(object), securityException);
+                } // catch (Throwable throwable) {
+                //     logger.error("Exception in closeObject close: {} {}", objectClass, objectToString(object), throwable);
+                // }
+
+                try {
+                    if (objectCloseMethod != null) {
+                        if (!objectCloseMethod.isAccessible()) {
+                            objectCloseMethod.setAccessible(true);
+                        }
+                        objectCloseMethod.invoke(object);
+                        closeSuccess = true;
+                    } else {
+                        closeSuccess = false;
+                    }
+                } catch (SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException exception) {
+                    logger.error("STRANGE ERROR inside closeObject() close: {}", new Object[]{objectClass, objectToString(object)}, exception);
+
+                    closeSuccess = false;
+                }
+            } catch (Exception exception) {
+                logger.error("STRANGE exception inside closeObject: {} {}", objectClass, objectToString(object), exception);
+                closeSuccess = false;
+            } // catch (Throwable throwable) {
+            //     logger.error("STRANGE ERROR inside closeObject: {} {}", objectClass, objectToString(object), throwable);
+            //     closeSuccess = false;
+            // }
+        } else {
+            closeSuccess = false;
+        }
+
+        return closeSuccess;
+    }
+
+    public static byte[] concatByte(byte[] a, int startIndexA, int endIndexA, byte[] b, int startIndexB, int endIndexB) {
+        // endIndexA & endIndexB are excluded
+        int localStartIndexA, localStartIndexB, localEndIndexA, localEndIndexB;
+
+        if (startIndexA < 0) {
+            localStartIndexA = 0;
+        } else {
+            localStartIndexA = startIndexA;
+        }
+        if (endIndexA < 0) {
+            localEndIndexA = 0;
+        } else {
+            localEndIndexA = endIndexA;
+        }
+        if (startIndexB < 0) {
+            localStartIndexB = 0;
+        } else {
+            localStartIndexB = startIndexB;
+        }
+        if (endIndexB < 0) {
+            localEndIndexB = 0;
+        } else {
+            localEndIndexB = endIndexB;
+        }
+
+        byte[] resultArray = new byte[localEndIndexA - localStartIndexA + localEndIndexB - localStartIndexB];
+        System.arraycopy(a, localStartIndexA, resultArray, 0, localEndIndexA - localStartIndexA);
+        System.arraycopy(b, localStartIndexB, resultArray, localEndIndexA - localStartIndexA, localEndIndexB - localStartIndexB);
+
+        return resultArray;
+    }
+
+    public static String encryptString(String string, int encryptKey) {
+        String result = string;
+
+        if (string != null) {
+            char[] tempCharArray = string.toCharArray();
+            int tempInt = tempCharArray.length;
+
+            for (int i = 0; i < tempInt; i++) {
+                if (tempCharArray[i] != '\r' && tempCharArray[i] != '\n') {
+                    tempCharArray[i] += encryptKey;
+                }
+            }
+            result = new String(tempCharArray);
+        }
+
+        return result;
+    }
+
+    public static boolean encryptFile(String fileName, int encryptKey) {
+        // encrypts and replaces a file
+        boolean success = false;
+
+        if (new File(fileName).exists()) {
+            SynchronizedReader synchronizedReader = null;
+            SynchronizedWriter synchronizedWriter = null;
+            String fileLine = null, tempFileName = tempFileName(fileName);
+
+            try {
+                synchronizedReader = new SynchronizedReader(fileName);
+                synchronizedWriter = new SynchronizedWriter(tempFileName, false);
+
+                fileLine = synchronizedReader.readLine();
+                while (fileLine != null) {
+                    synchronizedWriter.write(encryptString(fileLine, encryptKey) + "\r\n");
+                    fileLine = synchronizedReader.readLine();
+                } // end while
+                synchronizedWriter.flush();
+                success = true;
+            } catch (IOException iOException) {
+                logger.error("STRANGE ERROR inside encryptFile: {} {}", new Object[]{fileName, fileLine}, iOException);
+            } finally {
+                Generic.closeObjects(synchronizedReader, synchronizedWriter);
+            }
+
+            try {
+                new File(fileName).delete();
+                new File(tempFileName).renameTo(new File(fileName));
+            } catch (Exception exception) {
+                logger.error("STRANGE exception inside readInputFile() File.delete: {} {}", fileName, tempFileName, exception);
+            }
+        } else {
+            logger.error("STRANGE file doesn't exist in encryptFile, fileName={}", fileName);
+        }
+
+        return success;
+    }
+
+    public static String tempFileName(String fileName) {
+        int nameTrailer = -1;
+        long time = System.currentTimeMillis();
+
+        try {
+            Random generator = new Random();
+            nameTrailer = generator.nextInt();
+
+            while (new File(fileName + time + "." + nameTrailer).exists()) {
+                nameTrailer = generator.nextInt();
+            }
+        } catch (Exception exception) {
+            logger.error("STRANGE ERROR inside tempFileNameRandom: {} {} {}", fileName, time, nameTrailer, exception);
+        }
+
+        return fileName + time + "." + nameTrailer;
+    }
+
+    public static Object readObjectFromFile(String fileName) {
+        Object object = null;
+        ObjectInputStream objectInputStream = null;
+        BufferedInputStream bufferedInputStream = null;
+        FileInputStream fileInputStream = null;
+
+        if (fileName != null) {
+            try {
+                if (new File(fileName).exists()) {
+                    fileInputStream = new FileInputStream(fileName);
+                    bufferedInputStream = new BufferedInputStream(fileInputStream);
+                    objectInputStream = new ObjectInputStream(bufferedInputStream);
+                    object = objectInputStream.readObject();
+                } else {
+                    logger.warn("Can't read object, file {} does not exist!", fileName);
+                }
+            } catch (IOException | ClassNotFoundException exception) {
+                logger.error("STRANGE ERROR inside readObjectFromFile: {}", fileName, exception);
+            } finally {
+                closeObjects(objectInputStream, bufferedInputStream, fileInputStream);
+            }
+        } else {
+            logger.error("STRANGE fileName null in readObjectFromFile, timeStamp={}", System.currentTimeMillis());
+        }
+
+        return object;
+    }
+
+    public static void synchronizedWriteObjectToFile(Object object, String fileName) {
+        synchronizedWriteObjectToFile(object, fileName, false);
+    }
+
+    public static void synchronizedWriteObjectToFile(Object object, String fileName, boolean appendFile) {
+        synchronized (object) {
+            writeObjectToFile(object, fileName, appendFile);
+        }
+    }
+
+    public static void synchronizedWriteObjectsToFiles(Map<Object, String> fileNamesMap) {
+        // should not be used if objects in keyset are collections; strange behaviour results
+        Set<Object> keySet = fileNamesMap.keySet();
+        for (Object key : keySet) {
+            synchronizedWriteObjectToFile(key, fileNamesMap.get(key));
+        }
+    }
+
+    public static void writeObjectToFile(Object object, String fileName) {
+        writeObjectToFile(object, fileName, false);
+    }
+
+    public static void writeObjectToFile(Object object, String fileName, boolean appendFile) {
+        ObjectOutputStream objectOutputStream = null;
+        BufferedOutputStream bufferedOutputStream = null;
+        FileOutputStream fileOutputStream = null;
+
+        try {
+            fileOutputStream = new FileOutputStream(fileName, appendFile);
+            bufferedOutputStream = new BufferedOutputStream(fileOutputStream);
+            objectOutputStream = new ObjectOutputStream(bufferedOutputStream);
+            objectOutputStream.writeObject(object);
+        } catch (IOException iOException) {
+            logger.error("STRANGE iOException inside writeObjectToFile: {}", fileName, iOException);
+            // } catch (Throwable throwable) {
+            //     logger.error("STRANGE ERROR inside writeObjectToFile: {}", fileName, throwable);
+        } finally {
+            closeObjects(objectOutputStream, bufferedOutputStream, fileOutputStream);
+        }
+    }
+
+    public static void writeObjectsToFiles(Map<Object, String> fileNamesMap) {
+        // should not be used if objects in keyset are collections; strange behaviour results
+        Set<Object> keySet = fileNamesMap.keySet();
+        for (Object key : keySet) {
+            writeObjectToFile(key, fileNamesMap.get(key));
+        }
+    }
+
+    public static String getHexString(byte[] b) {
+        // convert a byte array to a Hex string
+        StringBuilder result = new StringBuilder(b.length);
+        for (int i = 0; i < b.length; i++) {
+            result.append(Integer.toString((b[i] & 0xff) + 0x100, 16).substring(1));
+        }
+
+        return result.toString();
+    }
+
+    public static String backwardWordsString(String string) {
+        // returns the string with words ordered in reverse; words are bordered by spaces
+        String result;
+
+        if (string != null) {
+            StringTokenizer stringTokenizer = new StringTokenizer(string, " ", true);
+            Stack<String> stack = new Stack<>();
+            StringBuilder stringBuilder = new StringBuilder(string.length());
+            while (stringTokenizer.hasMoreElements()) {
+                String word = stringTokenizer.nextToken();
+                if (!word.isEmpty()) {
+                    stack.push(word);
+                }
+            }
+            while (!stack.isEmpty()) {
+                stringBuilder.append(stack.pop());
+            }
+
+            result = stringBuilder.toString();
+        } else {
+            logger.error("STRANGE string null in backwardString, timeStamp={}", System.currentTimeMillis());
+            result = string;
+        }
+
+        return result;
+    }
+
+    public static String backwardString(String string) {
+        // returns the string in reverse
+        String result;
+
+        if (string != null) {
+            char[] charArray = string.toCharArray();
+            int arrayLength = charArray.length;
+
+            for (int i = 0; i < arrayLength; i++) {
+                charArray[i] = string.charAt(arrayLength - 1 - i);
+            }
+            result = new String(charArray);
+        } else {
+            logger.error("STRANGE string null in backwardString, timeStamp={}", System.currentTimeMillis());
+            result = string;
+        }
+
+        return result;
+    }
+
+    public static String trimIP(String IP) {
+        // removes heading zeros from IP values
+        boolean isIP = true;
+        int numberOfDots = 0;
+        StringBuilder resultStringBuilder = new StringBuilder(IP);
+
+        try {
+            for (int i = 0; i < IP.length(); i++) {
+                if ((IP.charAt(i) < '0' || IP.charAt(i) > '9') && IP.charAt(i) != '.') {
+                    isIP = false;
+                    break;
+                }
+                if (IP.charAt(i) == '.') {
+                    numberOfDots++;
+                    if (numberOfDots > 3) {
+                        break;
+                    }
+                }
+            }
+            if (isIP && numberOfDots == 3) {
+                int IP1, IP2, IP3, IP4;
+                IP1 = Integer.parseInt(IP.substring(0, IP.indexOf('.')));
+                IP2 = Integer.parseInt(IP.substring(IP.indexOf('.') + ".".length(), IP.indexOf('.', IP.indexOf('.') + ".".length())));
+                IP3 = Integer.parseInt(IP.substring(IP.indexOf('.', IP.indexOf('.') + ".".length()) + ".".length(),
+                        IP.indexOf('.', IP.indexOf('.', IP.indexOf('.') + ".".length()) + ".".length())));
+                IP4 = Integer.parseInt(IP.substring(IP.indexOf('.', IP.indexOf('.', IP.indexOf('.') + ".".length()) + ".".length()) + ".".length()));
+                resultStringBuilder = new StringBuilder(String.valueOf(IP1)).append('.').append(IP2).append('.').append(IP3).append('.').append(IP4);
+            } else {
+                logger.error("not IP in trimIP: {}", IP);
+            }
+        } catch (NumberFormatException numberFormatException) {
+            logger.error("STRANGE numberFormatException inside trimIP: {}", IP, numberFormatException);
+        } // catch (Throwable throwable) {
+        //     logger.error("STRANGE ERROR inside trimIP: {}", IP, throwable);
+        // }
+
+        return resultStringBuilder.toString();
+    }
+
+    public static boolean goodPort(String tempPort) {
+        boolean isGood = false;
+        int port;
+
+        try {
+            port = Integer.parseInt(tempPort);
+            if (port > 65535) {
+                port %= 65536;
+            }
+            if (port >= 1) {
+                isGood = true;
+            }
+        } catch (NumberFormatException numberFormatException) {
+            isGood = false;
+        } // catch (Throwable throwable) {
+        //     logger.error("STRANGE ERROR inside goodPort: {}", tempPort, throwable);
+        //     isGood = false;
+        // }
+
+        return isGood;
+    }
+
+    public static boolean goodDomain(String host) {
+        boolean isGood = false;
+
+        if (host == null || !isPureAscii(host) || host.indexOf('.') <= 0 || host.lastIndexOf('.') >= host.length() - 1) {
+            return isGood;
+        } else {
+            try {
+                String modifiedHost = URLDecoder.decode(host, "UTF-8");
+
+                if (modifiedHost.indexOf('/') >= 0 || modifiedHost.indexOf('?') >= 0 || modifiedHost.indexOf(' ') >= 0) {
+                    return isGood;
+                } else {
+                    try {
+                        modifiedHost = IDN.toASCII(modifiedHost, IDN.ALLOW_UNASSIGNED);
+                        // } catch (IndexOutOfBoundsException indexOutOfBoundsException) {
+                    } catch (IllegalArgumentException illegalArgumentException) {
+                    } catch (Exception exception) {
+                        logger.error("STRANGE ERROR inside goodDomain() IDN.toASCII: {}", modifiedHost, exception);
+                    }
+
+                    modifiedHost = modifiedHost.toLowerCase().trim();
+
+                    isGood = true;
+
+                    for (int i = 0; i < modifiedHost.length(); i++) {
+                        if ((modifiedHost.charAt(i) < '0' || modifiedHost.charAt(i) > '9') && (modifiedHost.charAt(i) < 'a' || modifiedHost.charAt(i) > 'z') &&
+                                modifiedHost.charAt(i) != '.' && modifiedHost.charAt(i) != '-' && modifiedHost.charAt(i) != '_') {
+                            // '_' is not standard but it is sometimes, rarely, used
+                            isGood = false;
+                            break;
+                        }
+                    }
+
+                    if (isGood) {
+                        boolean isIP = true;
+                        int numberOfDots = 0;
+
+                        for (int i = 0; i < modifiedHost.length(); i++) {
+                            if ((modifiedHost.charAt(i) < '0' || modifiedHost.charAt(i) > '9') && modifiedHost.charAt(i) != '.') {
+                                isIP = false;
+                            }
+                            if (modifiedHost.charAt(i) == '.') {
+                                numberOfDots++;
+                            }
+                        }
+
+                        if (isIP) {
+                            if (numberOfDots == 3) {
+                                try {
+                                    int IP1, IP2, IP3, IP4;
+                                    IP1 = Integer.parseInt(modifiedHost.substring(0, modifiedHost.indexOf('.')));
+                                    IP2 = Integer.parseInt(modifiedHost.substring(modifiedHost.indexOf('.') + ".".length(),
+                                            modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length())));
+                                    IP3 = Integer.parseInt(modifiedHost.substring(modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length()) + ".".length(),
+                                            modifiedHost.indexOf('.', modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length()) +
+                                                    ".".length())));
+                                    IP4 = Integer.parseInt(modifiedHost.substring(modifiedHost.indexOf('.', modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length()) +
+                                            ".".length()) + ".".length()));
+                                    if (IP1 <= 0 || IP1 >= 224 || IP1 == 7 || IP1 == 10 || IP1 == 127 || IP2 < 0 || IP2 > 255 || IP3 < 0 || IP3 > 255 || IP4 < 0 || IP4 > 255) {
+                                        isGood = false;
+                                    } else if (IP1 == 169 && IP2 == 254) {
+                                        isGood = false;
+                                    } else if (IP1 == 192 && IP2 == 168) {
+                                        isGood = false;
+                                    } else if (IP1 == 172 && IP2 >= 16 && IP2 <= 31) {
+                                        isGood = false;
+                                    } else if (IP1 == 203 && IP2 == 0 && IP3 == 113) {
+                                        isGood = false;
+                                    } else if (IP1 == 198 && IP2 == 51 && IP3 == 100) {
+                                        isGood = false;
+                                    } else if (IP1 == 192 && IP2 == 88 && IP3 == 99) {
+                                        isGood = false;
+                                    } else if (IP1 == 192 && IP2 == 0 && IP3 == 0) {
+                                        isGood = false;
+                                    } else if (IP1 == 192 && IP2 == 0 && IP3 == 2) {
+                                        isGood = false;
+                                    } else if (IP1 == 198 && IP2 >= 18 && IP2 <= 19) {
+                                        isGood = false;
+                                    } else { // isGood is true, nothing to be done
+                                    }
+                                    // last updated 30-12-2013 from http://en.wikipedia.org/wiki/Reserved_IP_addresses#Reserved_IPv4_addresses and
+                                    //     http://www.iana.org/assignments/ipv4-address-space/
+                                    // (only reserved ranges were taken out, not the unallocated ones)
+                                } catch (NumberFormatException numberFormatException) {
+                                    logger.error("NumberFormatException inside goodDomain() isIP: {}", modifiedHost, numberFormatException);
+                                    isGood = false;
+                                } // catch (Throwable throwable) {
+                                //     logger.error("STRANGE ERROR inside goodDomain isIP: {}", modifiedHost, throwable);
+                                //     isGood = false;
+                                // }
+                            } else {
+                                isGood = false;
+                            }
+                        } else {
+                            if (modifiedHost.length() > 253) {
+                                isGood = false;
+                            } else {
+                                int pointIndex1 = 0, pointIndex2;
+
+                                pointIndex2 = modifiedHost.indexOf('.', pointIndex1 + 1);
+                                while (pointIndex2 > 0) {
+                                    if (pointIndex2 - pointIndex1 > 63) {
+                                        isGood = false;
+                                        break;
+                                    }
+                                    pointIndex1 = pointIndex2;
+
+                                    pointIndex2 = modifiedHost.indexOf('.', pointIndex1 + 1);
+                                } // end while
+
+                                if (isGood) {
+                                    if (modifiedHost.length() - pointIndex1 > 63) {
+                                        isGood = false;
+                                    } else {
+
+                                        String lastLabel = modifiedHost.substring(modifiedHost.lastIndexOf('.') + ".".length()).toUpperCase();
+                                        if (lastLabel.length() == 0 || !TLDs.contains(lastLabel)) {
+                                            isGood = false;
+                                        } else { // it seems I reached the end of checking and isGood is true
+                                        }
+                                    }
+                                } else { // isGood already false, nothing to be done
+                                }
+                            }
+                        }
+                    } else { // isGood already false, nothing to be done
+                    }
+                }
+            } catch (UnsupportedEncodingException unsupportedEncodingException) {
+                logger.error("STRANGE unsupportedEncodingException inside goodDomain: {}", host, unsupportedEncodingException);
+                isGood = false;
+            } // catch (Throwable throwable) {
+            //     logger.error("STRANGE ERROR inside goodDomain: {}", host, throwable);
+            //     isGood = false;
+            // }
+
+            return isGood;
+        }
+    }
+
+    public static String getUserAgent() {
+        String userAgent = "Mozilla/";
+
+        try {
+            switch ((int) (3 * Math.random())) {
+                case 0:
+                    userAgent += "4.0 (compatible; MSIE 7.0; ";
+                    break;
+                case 1:
+                    userAgent += "4.0 (compatible; MSIE 8.0; ";
+                    break;
+                case 2:
+                    userAgent += "5.0 (Windows; U; ";
+                    break;
+            }
+            switch ((int) (7 * Math.random())) {
+                case 0:
+                    userAgent += "Windows NT 6.0";
+                    break;
+                case 1:
+                    userAgent += "Windows NT 5.2";
+                    break;
+                case 2:
+                    userAgent += "Windows NT 5.1";
+                    break;
+                case 3:
+                    userAgent += "Windows NT 5.01";
+                    break;
+                case 4:
+                    userAgent += "Windows NT 5.0";
+                    break;
+                case 5:
+                    userAgent += "Windows NT 4.0";
+                    break;
+                case 6:
+                    userAgent += "Windows 98";
+                    break;
+            }
+            userAgent += ")";
+        } catch (Exception exception) {
+            logger.error("STRANGE ERROR inside getUserAgent: {}", userAgent, exception);
+        }
+
+        return userAgent;
+    }
+
+    public static byte getSocksType(String proxyType) {
+        byte socksType;
+
+        if (proxyType.equalsIgnoreCase("socks4")) {
+            socksType = 4;
+        } else if (proxyType.equalsIgnoreCase("socks5")) {
+            socksType = 5;
+        } else {
+            socksType = 5;
+            logger.warn("Strange socks proxy type: {}", proxyType);
+        }
+
+        return socksType;
+    }
+
+    public static String linkRemoveProtocol(String link) {
+        String result;
+
+        if (link != null && link.contains("://")) {
+            result = new String(link.substring(link.indexOf("://") + "://".length()));
+        } else {
+            result = link;
+        }
+
+        return result;
+    }
+
+    public static String linkRemovePort(String link) {
+        String result;
+
+        if (link != null) {
+            String modifiedLink = link;
+
+            if (modifiedLink.contains("://")) {
+                result = modifiedLink.substring(0, modifiedLink.indexOf("://") + "://".length());
+                modifiedLink = modifiedLink.substring(modifiedLink.indexOf("://") + "://".length());
+            } else {
+                result = "";
+            }
+
+            if (modifiedLink.indexOf(':') >= 0 &&
+                    (modifiedLink.indexOf(':') < modifiedLink.indexOf('/') ||
+                    (modifiedLink.indexOf('/') < 0 && modifiedLink.indexOf(':') < modifiedLink.indexOf('?')) || (modifiedLink.indexOf('/') < 0 && modifiedLink.indexOf('?') < 0))) {
+                if (modifiedLink.indexOf(':') < modifiedLink.indexOf('/')) {
+                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + modifiedLink.substring(modifiedLink.indexOf('/'));
+                } else if (modifiedLink.indexOf('/') < 0 && modifiedLink.indexOf(':') < modifiedLink.indexOf('?')) {
+                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + "/" + modifiedLink.substring(modifiedLink.indexOf('?'));
+                } else {
+                    // the case when: modifiedLink.indexOf ("/") < 0 && modifiedLink.indexOf ("?") < 0
+                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + "/";
+                }
+            } else {
+                result += modifiedLink;
+            }
+        } else {
+            result = link;
+        }
+
+        return result;
+    }
+
+    public static String linkRemoveQuery(String link) {
+        String result;
+
+        if (link != null && link.indexOf('?') >= 0) {
+            result = new String(link.substring(0, link.indexOf('?')));
+        } else {
+            result = link;
+        }
+
+        return result;
+    }
+
+    @SuppressWarnings("null")
+    public static String getLinkHost(String link) {
+        String result;
+        String modifiedLink = link;
+        modifiedLink = linkRemoveProtocol(modifiedLink);
+        modifiedLink = linkRemovePort(modifiedLink);
+        modifiedLink = linkRemoveQuery(modifiedLink);
+
+        if (modifiedLink != null && modifiedLink.indexOf('/') >= 0) {
+            result = new String(modifiedLink.substring(0, modifiedLink.indexOf('/')));
+        } else {
+            result = modifiedLink;
+        }
+
+        if (goodDomain(result)) {
+            result = result.toLowerCase();
+        } else {
+            result = null;
+        }
+
+        return result;
+    }
+
+    public static boolean linkMatches(String path, String checkedLink) {
+        // all subdomains are taken
+        // if path is a folder, only links to that folder and subfolders are taken
+        // if path is a particular page, only that page is taken
+        boolean linkMatches;
+        String checkedHost, modifiedLink = checkedLink, modifiedPath = path;
+
+        // no support for protocol, so protocol is removed
+        modifiedLink = linkRemoveProtocol(modifiedLink);
+        modifiedPath = linkRemoveProtocol(modifiedPath);
+
+        // no support for port, so port is removed
+        modifiedLink = linkRemovePort(modifiedLink);
+        modifiedPath = linkRemovePort(modifiedPath);
+
+        // no support for query, so query is removed
+        modifiedLink = linkRemoveQuery(modifiedLink);
+        modifiedPath = linkRemoveQuery(modifiedPath);
+
+        checkedHost = getLinkHost(modifiedLink);
+
+        if (checkedHost != null) {
+            if (modifiedLink.indexOf('/') >= 0) {
+                modifiedLink = checkedHost + modifiedLink.substring(modifiedLink.indexOf('/'));
+            } else {
+                modifiedLink = checkedHost + '/';
+            }
+
+            if (goodDomain(modifiedPath)) {
+                modifiedPath = modifiedPath.toLowerCase();
+
+                // check if link is on same domain or a subdomain
+                linkMatches = checkedHost.equalsIgnoreCase(modifiedPath) || checkedHost.endsWith("." + modifiedPath);
+            } else if (modifiedPath.indexOf('/') >= 0 && goodDomain(modifiedPath.substring(0, modifiedPath.indexOf('/')))) {
+                modifiedPath = modifiedPath.substring(0, modifiedPath.indexOf('/')).toLowerCase() + modifiedPath.substring(modifiedPath.indexOf('/'));
+
+                if (modifiedPath.endsWith("/")) {
+                    // path is folder, check if link is in the same folder or subfolders (same domain as well)
+                    linkMatches = modifiedLink.startsWith(modifiedPath);
+                } else { // path is a particular page and has to be identical with link in this case
+                    linkMatches = modifiedLink.equals(modifiedPath);
+                }
+            } else {
+                logger.warn("Bogus path in linkMatches: {}", path);
+                linkMatches = false;
+            }
+        } else {
+            linkMatches = false;
+
+            if (modifiedLink.startsWith("XXXXXXXXXXX") || modifiedLink.startsWith("static.+") || modifiedLink.startsWith("%2568") || modifiedLink.startsWith("%01%25")) {
+                // known bogus or unavailable links, no need to fill logs with trash
+            } else {
+                logger.warn("Bogus modifiedLink in linkMatches: {}", modifiedLink);
+            }
+        }
+
+        return linkMatches;
+    }
+
+    // public static String hexToAscii (String host)
+    // {
+    //     // returns the unmodified host in case of error, or if host.indexOf ("%") < 0
+    //     // %E0%B9%81%E0%B8%AB%E0%B8%A7%E0%B8%99%E0%B9%81%E0%B8%9F%E0%B8%8A%E0%B8%B1%E0%B9%88%E0%B8%99.com
+    //     String resultString;
+    //     try {
+    //         if (host.indexOf ("%") >= 0) {
+    //             String[] hostLabelsArray = host.split ("\\.");
+    //             resultString = "";
+    //             for (String hostLabel : hostLabelsArray)
+    //                 if (hostLabel.startsWith ("%")) {
+    //                 String[] hexChunksArray = hostLabel.split ("\\%");
+    //                 byte[] byteArray = new byte [hexChunksArray.length];
+    //                 int byteArrayIndex = 0;
+    //                 for (String hexCode : hexChunksArray)
+    //                     if (hexCode.length() > 0) {
+    //                     byteArray [byteArrayIndex] = (byte) Integer.parseInt (hexCode, 16);
+    //                     byteArrayIndex ++;
+    //                 }
+    //                 resultString += new String (byteArray, 0, byteArrayIndex, UTF8_CHARSET) + ".";
+    //             }   else resultString += hostLabel + ".";
+    //             resultString = resultString.substring (0, resultString.lastIndexOf ("."));
+    //         } else resultString = host;
+    //     } catch (NumberFormatException numberFormatException) {
+    //         resultString = host;
+    //     } catch (Exception exception) {
+    //         System.err.println ("STRANGE ERROR inside hexToAscii: " + exception + " " + host);
+    //         exception.printStackTrace();
+    //         resultString = host;
+    //     }
+    //     return new String (resultString);
+    // }
+    //
+    public static String addSpaces(Object object, int finalSize, boolean inFront) {
+        String returnString;
+
+        if (object != null) {
+            returnString = String.valueOf(object);
+        } else {
+            returnString = "";
+        }
+
+        String spacesString = "";
+        int spacesNeeded = finalSize - returnString.length();
+
+        for (int i = 0; i < spacesNeeded; i++) {
+            spacesString += " ";
+        }
+
+        if (inFront) {
+            returnString = spacesString + returnString;
+        } else {
+            returnString += spacesString;
+        }
+
+        return returnString;
+    }
+
+    public static String containsSubstring(String string, String[] substrings) {
+        String foundSubstring = null;
+
+        if (string != null && substrings != null) {
+            for (int i = 0; i < substrings.length && foundSubstring == null; i++) {
+                if (substrings[i] != null && string.contains(substrings[i])) {
+                    foundSubstring = substrings[i];
+                }
+            }
+        }
+
+        return foundSubstring;
+    }
+
+    public static String convertMillisToDate(long millis, String timeZoneName) {
+        // 12.08.2010 23:45:19.342
+        DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
+        dateFormat.setTimeZone(TimeZone.getTimeZone(timeZoneName));
+
+        return dateFormat.format(new Date(millis));
+    }
+
+    public static String convertMillisToDate(long millis) {
+        return convertMillisToDate(millis, "UTC");
+    }
+
+    public static String getFormattedDate() {
+        return getFormattedDate("UTC"); // defaults to UTC, not local time zone
+    }
+
+    public static String getFormattedDate(String timeZoneName) {
+        // 12.08.2010 23:45:19.342
+        DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
+        dateFormat.setTimeZone(TimeZone.getTimeZone(timeZoneName));
+
+        return dateFormat.format(new Date());
+    }
+
+    public static String addCommas(Object value) {
+        return addCommas(String.valueOf(value), (byte) 3, ",", ".");
+    }
+
+    public static String addCommas(double value, int nDecimals) {
+        return addCommas(String.format("%." + nDecimals + "f", value), (byte) 3, ",", ".");
+    }
+
+    public static String addCommas(String string, byte groupSize, String commaDelimiter, String periodDelimiter) {
+        int periodIndex = string.indexOf(periodDelimiter);
+
+        if (periodIndex < 0) {
+            periodIndex = string.length();
+        }
+        int nCommas = (periodIndex - 1) / groupSize, firstCommaIndex = periodIndex - nCommas * groupSize;
+
+        String resultString = string.substring(0, firstCommaIndex);
+
+        for (int i = 0; i < nCommas; i++) {
+            resultString += commaDelimiter + string.substring(firstCommaIndex + i * groupSize, firstCommaIndex + (i + 1) * groupSize);
+        }
+        if (periodIndex < string.length()) {
+            resultString += string.substring(periodIndex);
+        }
+
+        return resultString;
+    }
+
+    public static boolean isPureAscii(String string) {
+        // return USASCII_CHARSET.newEncoder().canEncode (string);
+        return Charset.forName(USASCII_CHARSET).newEncoder().canEncode(string);
+    }
+
+    public static int byteArrayIndexOf(byte[] data, byte[] pattern) {
+        return byteArrayIndexOf(data, pattern, 0);
+    }
+
+    public static int byteArrayIndexOf(byte[] data, byte[] pattern, int beginIndex) {
+        // Search the data byte array for the first occurrence of the byte array pattern.
+        int[] failure = byteArrayComputeFailure(pattern);
+        int j = 0;
+
+        for (int i = beginIndex; i < data.length; i++) {
+            while (j > 0 && pattern[j] != data[i]) {
+                j = failure[j - 1];
+            }
+            if (pattern[j] == data[i]) {
+                j++;
+            }
+            if (j == pattern.length) {
+                return i - pattern.length + 1;
+            }
+        }
+
+        return -1;
+    }
+
+    public static int[] byteArrayComputeFailure(byte[] pattern) {
+        // Computes the failure function using a boot-strapping process, where the pattern is matched against itself.
+        int[] failure = new int[pattern.length];
+        int j = 0;
+
+        for (int i = 1; i < pattern.length; i++) {
+            while (j > 0 && pattern[j] != pattern[i]) {
+                j = failure[j - 1];
+            }
+            if (pattern[j] == pattern[i]) {
+                j++;
+            }
+            failure[i] = j;
+        }
+
+        return failure;
+    }
+
+    public static double logOfBase(double base, double num) {
+        return Math.log(num) / Math.log(base);
+    }
+
+    public static double ceilingPowerOf(double base, double num) {
+        // returns the closest higher or equal power of the base to the given num
+        return Math.pow(base, Math.ceil(logOfBase(base, num)));
+    }
+
+    public static <K, V> boolean compareLinkedHashMap(LinkedHashMap<K, V> firstMap, LinkedHashMap<K, V> secondMap) {
+        boolean areEqual;
+
+        areEqual = firstMap.equals(secondMap);
+        if (areEqual) {
+            List<Map.Entry<K, V>> firstList = new ArrayList<>(firstMap.entrySet()), secondList = new ArrayList<>(secondMap.entrySet());
+            Iterator<Map.Entry<K, V>> firstIterator = firstList.iterator(), secondIterator = secondList.iterator();
+
+            while (areEqual && firstIterator.hasNext() && secondIterator.hasNext()) {
+                Map.Entry<K, V> firstEntry = firstIterator.next(), secondEntry = secondIterator.next();
+                if (!firstEntry.getKey().equals(secondEntry.getKey()) || !firstEntry.getValue().equals(secondEntry.getValue())) {
+                    areEqual = false; // no need for break, condition is checked by while
+                }
+            }
+        } else { // areEqual already false, nothing to be done
+        }
+
+        return areEqual;
+    }
+
+    // @SuppressWarnings ("unchecked")
+    public static <K, V> LinkedHashMap<K, V> sortByValue(LinkedHashMap<K, V> map, final boolean ascendingOrder) {
+        List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());
+
+        Collections.sort(list, new Comparator<Object>() {
+            @Override
+            public int compare(Object o1, Object o2) {
+                @SuppressWarnings("unchecked")
+                int result = ((Comparable) ((Map.Entry) (o1)).getValue()).compareTo(((Map.Entry) (o2)).getValue());
+
+                if (!ascendingOrder) {
+                    result = -result;
+                }
+
+                return result;
+            }
+        });
+
+        // logger.info (list);
+        LinkedHashMap<K, V> result = new LinkedHashMap<>((int) ceilingPowerOf(2, map.size() / 0.75), 0.75f);
+
+        for (Map.Entry<K, V> entry : list) {
+            result.put(entry.getKey(), entry.getValue());
+        }
+
+        return result;
+    }
+
+    public static <E> E getRandomElementFromSet(Set<E> set) {
+        int setSize = set.size(), randomPosition = new Random().nextInt(setSize), counter = 0;
+
+        for (E element : set) {
+            if (counter == randomPosition) {
+                return element;
+            }
+            counter++;
+        }
+
+        return null; // no object found for some reason
+    }
+
+    public static void copyFile(File sourceFile, File destFile)
+            throws java.io.IOException {
+        if (!destFile.exists()) {
+            destFile.createNewFile();
+        }
+
+        FileChannel source = null, destination = null;
+
+        try {
+            source = new FileInputStream(sourceFile).getChannel();
+            destination = new FileOutputStream(destFile).getChannel();
+            destination.transferFrom(source, 0, source.size());
+        } finally {
+            closeObjects(source, destination);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T[] concatArrays(T[] firstArray, T[]... restArrays) {
+        // because this works with generic type, it won't work with primitive types
+        int totalLength = firstArray.length;
+
+        for (T[] array : restArrays) {
+            totalLength += array.length;
+        }
+
+        T[] resultArray = Arrays.copyOf(firstArray, totalLength);
+        int offset = firstArray.length;
+
+        for (T[] array : restArrays) {
+            System.arraycopy(array, 0, resultArray, offset, array.length);
+            offset += array.length;
+        }
+
+        return resultArray;
+    }
+
+    public static byte[] compressByteArray(byte[] byteArray, String compressionFormat)
+            throws IOException {
+        // gzip & deflate compression formats accepted
+        byte[] returnValue;
+        ByteArrayOutputStream byteArrayOutputStream = null;
+        GZIPOutputStream gzipOutputStream = null;
+        DeflaterOutputStream deflaterOutputStream = null;
+
+        try {
+            byteArrayOutputStream = new ByteArrayOutputStream();
+
+            boolean knownFormat;
+            if (compressionFormat != null) {
+                if (compressionFormat.equalsIgnoreCase("gzip")) {
+                    gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
+                    gzipOutputStream.write(byteArray);
+                    gzipOutputStream.close(); // close() finishes the compression task
+
+                    knownFormat = true;
+                } else if (compressionFormat.equalsIgnoreCase("deflate")) {
+                    deflaterOutputStream = new DeflaterOutputStream(byteArrayOutputStream);
+                    deflaterOutputStream.write(byteArray);
+                    deflaterOutputStream.close(); // close() finishes the compression task
+
+                    knownFormat = true;
+                } else {
+                    knownFormat = false;
+                }
+            } else {
+                knownFormat = false;
+            }
+
+            if (knownFormat) {
+                returnValue = byteArrayOutputStream.toByteArray();
+            } else {
+                returnValue = byteArray;
+            }
+        } finally {
+            closeObjects(gzipOutputStream, deflaterOutputStream, byteArrayOutputStream);
+        }
+        if (byteArrayOutputStream != null && byteArray != null && byteArray.length != 0) {
+            logger.debug("compressByteArray using {} , compression ratio {}", compressionFormat,
+                    String.format("%.2f %%", (double) byteArrayOutputStream.size() / byteArray.length * 100));
+        } else {
+            logger.error("byteArrayOutputStream null or byteArray null or byteArray.length zero in compressByteArray: {} {}", byteArrayOutputStream, byteArray);
+        }
+
+        return returnValue;
+    }
+
+    public static byte[] decompressByteArray(byte[] byteArray, String compressionFormat)
+            throws IOException {
+        // gzip & deflate compression formats accepted
+        byte[] returnValue;
+        BufferedInputStream bufferedInputStream = null;
+        ByteArrayInputStream byteArrayInputStream = null;
+        ByteArrayOutputStream byteArrayOutputStream = null;
+        GZIPInputStream gZIPInputStream = null;
+        InflaterInputStream inflaterInputStream = null;
+
+        try {
+            byteArrayInputStream = new ByteArrayInputStream(byteArray);
+            boolean knownFormat;
+
+            if (compressionFormat != null) {
+                if (compressionFormat.equalsIgnoreCase("gzip")) {
+                    gZIPInputStream = new GZIPInputStream(byteArrayInputStream);
+                    bufferedInputStream = new BufferedInputStream(gZIPInputStream);
+                    knownFormat = true;
+                } else if (compressionFormat.equalsIgnoreCase("deflate")) {
+                    inflaterInputStream = new InflaterInputStream(byteArrayInputStream);
+                    bufferedInputStream = new BufferedInputStream(inflaterInputStream);
+                    knownFormat = true;
+                } else {
+                    knownFormat = false;
+                }
+            } else {
+                knownFormat = false;
+            }
+
+            if (knownFormat) {
+                byteArrayOutputStream = new ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+
+                @SuppressWarnings("null")
+                int readLength = bufferedInputStream.read(buffer);
+                while (readLength > 0) {
+                    byteArrayOutputStream.write(buffer, 0, readLength);
+                    readLength = bufferedInputStream.read(buffer);
+                }
+
+                returnValue = byteArrayOutputStream.toByteArray();
+            } else {
+                returnValue = byteArray;
+            }
+            // catch (Exception exception) {
+            //     FileOutputStream fileOutputStream = null;
+            //     try {
+            //         File dumpFile = File.createTempFile ("bad", ".gz", new File ("data"));
+            //         fileOutputStream = new FileOutputStream (dumpFile);
+            //         fileOutputStream.write (bytes);
+            //     } finally {
+            //         closeObject (fileOutputStream);
+            //         throw exception; // thrown further, no output required here
+            //     }
+        } finally {
+            closeObject(byteArrayInputStream);
+
+            if (!closeObject(bufferedInputStream)) {
+                closeObjects(gZIPInputStream, inflaterInputStream);
+            }
+            closeObject(byteArrayOutputStream);
+        }
+
+        return returnValue;
+    }
+
+    public static LinkedList<String> getSubstrings(String inputString, String firstDelimiter, String secondDelimiter) {
+        return getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, false, -1);
+    }
+
+    public static LinkedList<String> getSubstrings(String inputString, String firstDelimiter, String secondDelimiter, boolean getInterSubstrings) {
+        return getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, getInterSubstrings, -1);
+    }
+
+    public static LinkedList<String> getSubstrings(String harvestInputString, String searchInputString, String firstDelimiter, String secondDelimiter, boolean getInterSubstrings,
+            int nSubstrings) {
+        // harvestInputString is the string the substrings will be harvested from
+        // searchInputString is the string the searches will be made on
+        //     - this would usually be the same as harvestInputString, but there can be exceptions, for example when we want the letterCase to differ
+        // excluding the delimiters
+        // if getInterSubstrings flag is set, odd positions, including first and last position, are interSubstrings, while even positions are substrings
+        // maximum nSubstrings are taken
+        //     - interSubstrings are counted as well
+        //     - negative nSubstrings takes maximum possible
+        LinkedList<String> returnSet = new LinkedList<>();
+
+        if (harvestInputString != null && searchInputString != null) {
+            int beginIndex = 0, firstDelimiterIndex, secondDelimiterIndex, substringsCounter = 0;
+
+            firstDelimiterIndex = searchInputString.indexOf(firstDelimiter, beginIndex);
+            secondDelimiterIndex = firstDelimiterIndex >= 0 ? searchInputString.indexOf(secondDelimiter, firstDelimiterIndex + firstDelimiter.length()) : -1;
+
+            while ((nSubstrings < 0 || substringsCounter < nSubstrings) && firstDelimiterIndex >= 0 && secondDelimiterIndex >= 0) {
+                if (getInterSubstrings) {
+                    substringsCounter++;
+                    returnSet.add(new String(harvestInputString.substring(beginIndex, firstDelimiterIndex)));
+                }
+                if (nSubstrings < 0 || substringsCounter < nSubstrings) {
+                    substringsCounter++;
+                    returnSet.add(new String(harvestInputString.substring(firstDelimiterIndex + firstDelimiter.length(), secondDelimiterIndex)));
+
+                    beginIndex = searchInputString.indexOf(secondDelimiter, firstDelimiterIndex + firstDelimiter.length()) + secondDelimiter.length();
+
+                    firstDelimiterIndex = searchInputString.indexOf(firstDelimiter, beginIndex);
+                    secondDelimiterIndex = firstDelimiterIndex >= 0 ? searchInputString.indexOf(secondDelimiter, firstDelimiterIndex + firstDelimiter.length()) : -1;
+                }
+            } // end while
+
+            if (getInterSubstrings && (nSubstrings < 0 || substringsCounter < nSubstrings)) {
+                returnSet.add(new String(harvestInputString.substring(beginIndex)));
+            }
+        }
+
+        return returnSet;
+    }
+
+    public static LinkedList<String> getSubstringsIgnoreCase(String inputString, String firstDelimiter, String secondDelimiter) {
+        return getSubstrings(inputString, inputString.toLowerCase(), firstDelimiter.toLowerCase(), secondDelimiter.toLowerCase(), false, -1);
+    }
+
+    public static String getSubstring(String inputString, String firstDelimiter, String secondDelimiter) {
+        String returnString = null;
+
+        try {
+            returnString = getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, false, 1).iterator().next();
+        } catch (java.util.NoSuchElementException noSuchElementException) {
+        } catch (Exception exception) {
+            logger.error("STRANGE ERROR inside getSubstring: {}", new Object[]{inputString, firstDelimiter, secondDelimiter}, exception);
+        }
+
+        return returnString;
+    }
+
+    public static <T extends Serializable> T serializedDeepCopy(T sourceObject) {
+        // sourceObject must be serializable
+        ObjectOutputStream objectOutputStream = null;
+        ObjectInputStream objectInputStream = null;
+        ByteArrayOutputStream byteArrayOutputStream = null;
+        ByteArrayInputStream byteArrayInputStream = null;
+        T returnValue = null;
+
+        if (sourceObject != null) {
+            try {
+                byteArrayOutputStream = new ByteArrayOutputStream();
+                objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+
+                // serialize and write sourceObject to byteArrayOutputStream
+                objectOutputStream.writeObject(sourceObject);
+
+                // always flush your stream
+                objectOutputStream.flush();
+                byteArrayInputStream = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+                objectInputStream = new ObjectInputStream(byteArrayInputStream);
+
+                // read the serialized, and deep copied, object
+                @SuppressWarnings("unchecked")
+                T temporaryReturnValue = (T) objectInputStream.readObject(); // the temporary var is created only to attach the SuppressWarnings annotation
+                returnValue = temporaryReturnValue;
+            } catch (IOException | ClassNotFoundException exception) {
+                logger.error("STRANGE ERROR inside serializedDeepCopy: {}", new Object[]{sourceObject.getClass(), sourceObject}, exception);
+            } finally {
+                // always close your streams in finally clauses
+                if (!closeObject(objectOutputStream)) {
+                    closeObject(byteArrayOutputStream);
+                }
+                if (!closeObject(objectInputStream)) {
+                    closeObject(byteArrayInputStream);
+                }
+            }
+        } else {
+            logger.error("STRANGE sourceObject null in serializedDeepCopy, timeStamp={}", System.currentTimeMillis());
+        }
+
+        return returnValue;
+    }
+
+    public static <T> void synchronizedCopyObjectFields(T sourceObject, T destinationObject) {
+        try {
+            if (sourceObject != null && destinationObject != null) {
+                try {
+                    Class<?> sourceClass = sourceObject.getClass();
+                    Object tempObject = sourceClass.newInstance();
+
+                    synchronized (sourceObject) {
+                        copyObjectFields(sourceObject, tempObject);
+                    }
+                    synchronized (destinationObject) {
+                        copyObjectFields(tempObject, destinationObject);
+                    }
+                } catch (InstantiationException instantiationException) {
+                    logger.warn("InstantiationException in synchronizedCopyObjectFields ({} might not be public)", sourceObject.getClass(), instantiationException);
+                    copyObjectFields(sourceObject, destinationObject);
+                }
+            } else {
+                logger.error("STRANGE sourceObject or destinationObject null in synchronizedCopyObjectFields, {} {} timeStamp={}", sourceObject, destinationObject,
+                        System.currentTimeMillis());
+            }
+        } catch (IllegalAccessException illegalAccessException) {
+            logger.error("IllegalAccessException in synchronizedCopyObjectFields", illegalAccessException);
+        }
+    }
+
+    public static <T> void copyObjectFields(T sourceObject, T destinationObject) {
+        // not synchronized
+        // fields from sourceObject are copied one by one to destinationObject
+        // if either of the objects is null, no action is taken
+        // shallow copy
+        // doesn't work for static or final fields
+        try {
+            if (sourceObject != null && destinationObject != null) {
+                Class<?> sourceClass = sourceObject.getClass(), destinationClass = destinationObject.getClass();
+                Field[] sourceFieldsArray = sourceClass.getDeclaredFields(), destinationFieldsArray = destinationClass.getDeclaredFields();
+                LinkedHashSet<String> destinationFieldNamesSet = new LinkedHashSet<>((int) ceilingPowerOf(2, destinationFieldsArray.length / 0.75), 0.75f);
+
+                for (Field destinationField : destinationFieldsArray) {
+                    destinationFieldNamesSet.add(destinationField.getName());
+                }
+                for (Field sourceField : sourceFieldsArray) {
+                    sourceField.setAccessible(true);
+                    String sourceFieldName = sourceField.getName();
+                    if (destinationFieldNamesSet.contains(sourceFieldName)) {
+                        Field destinationField = destinationClass.getDeclaredField(sourceFieldName);
+                        destinationField.setAccessible(true);
+                        int destinationModifiers = destinationField.getModifiers();
+                        Class<?> fieldClass = sourceField.getType();
+
+                        if (fieldClass.equals(destinationField.getType()) && !Modifier.isFinal(destinationModifiers) && !Modifier.isStatic(destinationModifiers) &&
+                                !Modifier.isTransient(destinationModifiers)) {
+                            if (fieldClass.equals(boolean.class)) {
+                                destinationField.setBoolean(destinationObject, sourceField.getBoolean(sourceObject));
+                            } else if (fieldClass.equals(byte.class)) {
+                                destinationField.setByte(destinationObject, sourceField.getByte(sourceObject));
+                            } else if (fieldClass.equals(char.class)) {
+                                destinationField.setChar(destinationObject, sourceField.getChar(sourceObject));
+                            } else if (fieldClass.equals(double.class)) {
+                                destinationField.setDouble(destinationObject, sourceField.getDouble(sourceObject));
+                            } else if (fieldClass.equals(float.class)) {
+                                destinationField.setFloat(destinationObject, sourceField.getFloat(sourceObject));
+                            } else if (fieldClass.equals(int.class)) {
+                                destinationField.setInt(destinationObject, sourceField.getInt(sourceObject));
+                            } else if (fieldClass.equals(long.class)) {
+                                destinationField.setLong(destinationObject, sourceField.getLong(sourceObject));
+                            } else if (fieldClass.equals(short.class)) {
+                                destinationField.setShort(destinationObject, sourceField.getShort(sourceObject));
+                            } else {
+                                destinationField.set(destinationObject, sourceField.get(sourceObject));
+                            }
+                        }
+                    } // end if set.contains
+                } // end for
+            } else {
+                logger.error("STRANGE sourceObject or destinationObject null in copyObjectFields, {} {} timeStamp={}", sourceObject, destinationObject, System.currentTimeMillis());
+            }
+        } catch (SecurityException | NoSuchFieldException | IllegalArgumentException | IllegalAccessException exception) {
+            logger.error("STRANGE ERROR inside copyObjectFields: {}", new Object[]{sourceObject.getClass(), sourceObject, destinationObject.getClass(), destinationObject},
+                    exception);
+        }
+    }
+
+    public static String objectToString(Object object, String... excludePatterns) {
+        // default to printing default value fields and final fields, but not use toString method
+        return objectToString(object, true, true, true, 0, excludePatterns);
+    }
+
+    public static String objectToString(Object object) {
+        // default to printing default value fields and final fields, but not use toString method
+        return objectToString(object, true, true, true, 0);
+    }
+
+    public static String objectToString(Object object, boolean printDefaultValueFields) {
+        return objectToString(object, printDefaultValueFields, true, true, 0);
+    }
+
+    public static String objectToString(Object object, boolean printDefaultValueFields, boolean printFinalFields) {
+        return objectToString(object, printDefaultValueFields, printFinalFields, true, 0);
+    }
+
+    public static String objectToString(Object object, boolean printDefaultValueFields, boolean printFinalFields, boolean useToStringMethod, int recursionCounter,
+            String... excludePatterns) {
+        // synchronized on object
+        // has option to use the default toString() method, disabled by default
+        // does check to print final type fields
+        // does check to print fields with the default value (null, 0, false)
+        // has failsafe against infinite recursion, max 10 levels
+        // out of memory protection, max 4Mb
+        StringBuilder returnStringBuilder;
+
+        if (recursionCounter > 10) {
+            returnStringBuilder = new StringBuilder("STRANGE RECURSION ERROR!!!");
+        } else {
+            try {
+                if (object != null) {
+                    Class<?> objectClass = object.getClass();
+                    Method toStringMethod;
+
+                    if (useToStringMethod) {
+                        try {
+                            toStringMethod = objectClass.getDeclaredMethod("toString");
+                            // some default toString methods have undesired print, better leave them unused                            
+//                            if (!toStringMethod.isAccessible()) {
+//                                toStringMethod.setAccessible(true);
+//                            }
+                        } catch (NoSuchMethodException noSuchMethodException) {
+                            toStringMethod = null;
+                        } catch (SecurityException securityException) {
+                            logger.error("STRANGE securityException inside objectToString getDeclaredMethod: {} {}", objectClass, object, securityException);
+                            toStringMethod = null;
+                        } // catch (Throwable throwable) {
+                        //     logger.error("STRANGE ERROR inside objectToString getDeclaredMethod: {} {}", objectClass, object, throwable);
+                        //     toStringMethod = null;
+                        // }
+                    } else {
+                        toStringMethod = null;
+                    }
+
+                    if (toStringMethod == null || !toStringMethod.isAccessible()) {
+                        returnStringBuilder = new StringBuilder(32);
+
+                        if (object instanceof Collection<?>) {
+                            Object[] arrayValue = ((Collection<?>) object).toArray(); // never null due to instanceof always being false for null
+                            returnStringBuilder.append(
+                                    objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
+                        } else if (object instanceof Map<?, ?>) {
+                            Object[] arrayValue = ((Map<?, ?>) object).entrySet().toArray(); // never null due to instanceof always being false for null
+                            returnStringBuilder.append(
+                                    objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
+                        } else if (object instanceof Entry<?, ?>) {
+                            Entry<?, ?> entry = (Entry<?, ?>) object;
+                            Object key = entry.getKey(); // never null due to instanceof always being false for null
+                            Object value = entry.getValue(); // never null due to instanceof always being false for null
+                            returnStringBuilder.append("(key=").
+                                    append(objectToString(key, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).
+                                    append(" value=").
+                                    append(objectToString(value, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).append(") ");
+                        } else if (objectClass.equals(Date.class)) {
+                            String stringValue = object.toString();
+                            returnStringBuilder.append(stringValue).append(" ");
+                        } else if (objectClass.equals(String.class)) {
+                            String stringValue = object.toString();
+                            returnStringBuilder.append(stringValue).append(" ");
+                        } else if (objectClass.equals(boolean.class) || objectClass.equals(byte.class) || objectClass.equals(char.class) || objectClass.equals(double.class) ||
+                                objectClass.equals(float.class) || objectClass.equals(int.class) || objectClass.equals(long.class) || objectClass.equals(short.class)) {
+                            returnStringBuilder.append(object).append(" ");
+                        } else if (objectClass.equals(Boolean.class)) {
+                            Boolean booleanValue = (Boolean) object;
+                            returnStringBuilder.append(booleanValue.booleanValue()).append(" ");
+                        } else if (objectClass.equals(Byte.class)) {
+                            Byte byteValue = (Byte) object;
+                            returnStringBuilder.append(byteValue.byteValue()).append(" ");
+                        } else if (objectClass.equals(Double.class)) {
+                            Double doubleValue = (Double) object;
+                            returnStringBuilder.append(doubleValue.doubleValue()).append(" ");
+                        } else if (objectClass.equals(Float.class)) {
+                            Float floatValue = (Float) object;
+                            returnStringBuilder.append(floatValue.floatValue()).append(" ");
+                        } else if (objectClass.equals(Integer.class)) {
+                            Integer integerValue = (Integer) object;
+                            returnStringBuilder.append(integerValue.intValue()).append(" ");
+                        } else if (objectClass.equals(Long.class)) {
+                            Long longValue = (Long) object;
+                            returnStringBuilder.append(longValue.longValue()).append(" ");
+                        } else if (objectClass.equals(Short.class)) {
+                            Short shortValue = (Short) object;
+                            returnStringBuilder.append(shortValue.shortValue()).append(" ");
+                        } else {
+                            if (objectClass.equals(char[].class)) {
+                                returnStringBuilder.append((char[]) object).append(" ");
+                            } else if (objectClass.equals(byte[].class)) {
+                                returnStringBuilder.append(new String((byte[]) object, USASCII_CHARSET)).append(" ");
+                            } else if (objectClass.equals(boolean[].class)) {
+                                returnStringBuilder.append(Arrays.toString((boolean[]) object)).append(" ");
+                            } else if (objectClass.equals(double[].class)) {
+                                returnStringBuilder.append(Arrays.toString((double[]) object)).append(" ");
+                            } else if (objectClass.equals(float[].class)) {
+                                returnStringBuilder.append(Arrays.toString((float[]) object)).append(" ");
+                            } else if (objectClass.equals(int[].class)) {
+                                returnStringBuilder.append(Arrays.toString((int[]) object)).append(" ");
+                            } else if (objectClass.equals(long[].class)) {
+                                returnStringBuilder.append(Arrays.toString((long[]) object)).append(" ");
+                            } else if (objectClass.equals(short[].class)) {
+                                returnStringBuilder.append(Arrays.toString((short[]) object)).append(" ");
+                            } else if (objectClass.isArray()) {
+                                returnStringBuilder.append("[");
+
+                                Object[] objectArray = (Object[]) object;
+                                int objectArrayLength = objectArray.length, appendedCounter = 0;
+                                for (int i = 0; i < objectArrayLength; i++) {
+                                    if (objectArray[i] != null) {
+                                        if (appendedCounter > 0) {
+                                            returnStringBuilder.append(", ");
+                                        }
+                                        returnStringBuilder.append(objectToString(objectArray[i], printDefaultValueFields, printFinalFields, useToStringMethod,
+                                                recursionCounter + 1, excludePatterns));
+                                        appendedCounter++;
+                                    }
+                                }
+                                returnStringBuilder.append("] ");
+                            } else if (object instanceof Enum<?>) {
+                                String name = ((Enum<?>) object).name(); // never null due to instanceof always being false for null
+                                returnStringBuilder.append(name).append(" ");
+                            } else if (object instanceof Class<?>) {
+                                String name = ((Class<?>) object).getName(); // never null due to instanceof always being false for null
+                                returnStringBuilder.append(name).append(" ");
+                            } else { // regular object
+                                returnStringBuilder.append("(");
+
+                                List<Class<?>> classList = new ArrayList<>(2);
+                                Class<?> localClass = objectClass;
+                                do {
+                                    classList.add(localClass);
+                                    localClass = localClass.getSuperclass();
+                                } while (localClass != null && localClass != Object.class);
+
+                                for (int counter = classList.size() - 1; counter >= 0; counter--) {
+                                    Field[] fieldsArray = classList.get(counter).getDeclaredFields();
+
+                                    // synchronized (object) {
+                                    // synchronization removed as it's deadlock prone; it can be added externally
+                                    for (Field field : fieldsArray) {
+                                        if (!field.isAccessible()) {
+                                            field.setAccessible(true);
+                                        }
+                                        Class<?> fieldClass = field.getType();
+                                        String fieldName = field.getName();
+                                        int fieldModifiers = field.getModifiers();
+
+                                        boolean excludeField = false;
+                                        if (excludePatterns != null && excludePatterns.length > 0) {
+                                            for (String excludePattern : excludePatterns) {
+                                                if (fieldName.contains(excludePattern)) {
+                                                    excludeField = true;
+                                                    break;
+                                                }
+                                            } // end for
+                                        } else { // no excludePatterns
+                                        }
+
+                                        if (excludeField || field.isSynthetic() ||
+                                                ((Modifier.isTransient(fieldModifiers) || Modifier.isStatic(fieldModifiers) || fieldName.contains("$") || fieldName.equals("logger")) &&
+                                                Modifier.isFinal(fieldModifiers))) {
+                                            // no need to print these fields
+                                        } else if (printFinalFields || !Modifier.isFinal(fieldModifiers)) {
+                                            if (Collection.class.isAssignableFrom(fieldClass)) {
+                                                Object objectValue = field.get(object);
+                                                Object[] arrayValue = objectValue == null ? null : ((Collection<?>) objectValue).toArray();
+                                                returnStringBuilder.append(fieldName).append("=").
+                                                        append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
+                                                                        excludePatterns)).append(" ");
+                                            } else if (Map.class.isAssignableFrom(fieldClass)) {
+                                                Object objectValue = field.get(object);
+                                                Object[] arrayValue = objectValue == null ? null : ((Map<?, ?>) objectValue).entrySet().toArray();
+                                                returnStringBuilder.append(fieldName).append("=").
+                                                        append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
+                                                                        excludePatterns)).append(" ");
+                                            } else if (Entry.class.isAssignableFrom(fieldClass)) {
+                                                Entry<?, ?> entry = (Entry<?, ?>) field.get(object);
+                                                Object key = entry == null ? null : entry.getKey();
+                                                Object value = entry == null ? null : entry.getValue();
+                                                returnStringBuilder.append(fieldName).append("=(key=").
+                                                        append(objectToString(key, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
+                                                                        excludePatterns)).append(" value=").
+                                                        append(objectToString(value, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
+                                                                        excludePatterns)).append(") ");
+                                            } else if (fieldClass.equals(String.class)) {
+                                                Object objectValue = field.get(object);
+                                                String stringValue = objectValue == null ? null : objectValue.toString();
+                                                if (printDefaultValueFields || stringValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(stringValue).append(" ");
+                                                } else { // !printDefaultValueFields && stringValue == null , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(Date.class)) {
+                                                Object objectValue = field.get(object);
+                                                String stringValue = objectValue == null ? null : objectValue.toString();
+                                                if (printDefaultValueFields || stringValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(stringValue).append(" ");
+                                                } else { // !printDefaultValueFields && stringValue == null , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(boolean.class)) {
+                                                boolean booleanValue = field.getBoolean(object);
+                                                if (printDefaultValueFields || booleanValue) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(booleanValue).append(" ");
+                                                } else { // !printDefaultValueFields && !booleanValue , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(byte.class)) {
+                                                byte byteValue = field.getByte(object);
+                                                if (printDefaultValueFields || byteValue != 0) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(byteValue).append(" ");
+                                                } else { // !printDefaultValueFields && byteValue == 0 , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(char.class)) {
+                                                char charValue = field.getChar(object);
+                                                if (printDefaultValueFields || charValue != 0) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(charValue).append(" ");
+                                                } else { // !printDefaultValueFields && charValue == 0 , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(double.class)) {
+                                                double doubleValue = field.getDouble(object);
+                                                if (printDefaultValueFields || doubleValue != 0) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(doubleValue).append(" ");
+                                                } else { // !printDefaultValueFields && doubleValue == 0 , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(float.class)) {
+                                                float floatValue = field.getFloat(object);
+                                                if (printDefaultValueFields || floatValue != 0) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(floatValue).append(" ");
+                                                } else { // !printDefaultValueFields && floatValue == 0 , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(int.class)) {
+                                                int intValue = field.getInt(object);
+                                                if (printDefaultValueFields || intValue != 0) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(intValue).append(" ");
+                                                } else { // !printDefaultValueFields && intValue == 0 , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(long.class)) {
+                                                long longValue = field.getLong(object);
+                                                if (printDefaultValueFields || longValue != 0) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(longValue).append(" ");
+                                                } else { // !printDefaultValueFields && longValue == 0 , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(short.class)) {
+                                                short shortValue = field.getShort(object);
+                                                if (printDefaultValueFields || shortValue != 0) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(shortValue).append(" ");
+                                                } else { // !printDefaultValueFields && shortValue == 0 , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(Boolean.class)) {
+                                                Boolean booleanValue = (Boolean) field.get(object);
+                                                if (printDefaultValueFields || booleanValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(booleanValue == null ? null : booleanValue.booleanValue()).append(" ");
+                                                } else { // !printDefaultValueFields && booleanValue == null , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(Byte.class)) {
+                                                Byte byteValue = (Byte) field.get(object);
+                                                if (printDefaultValueFields || byteValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(byteValue == null ? null : byteValue.byteValue()).append(" ");
+                                                } else { // !printDefaultValueFields && byteValue == null , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(Double.class)) {
+                                                Double doubleValue = (Double) field.get(object);
+                                                if (printDefaultValueFields || doubleValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(doubleValue == null ? null : doubleValue.doubleValue()).append(" ");
+                                                } else { // !printDefaultValueFields && doubleValue == null , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(Float.class)) {
+                                                Float floatValue = (Float) field.get(object);
+                                                if (printDefaultValueFields || floatValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(floatValue == null ? null : floatValue.floatValue()).append(" ");
+                                                } else { // !printDefaultValueFields && floatValue == null , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(Integer.class)) {
+                                                Integer integerValue = (Integer) field.get(object);
+                                                if (printDefaultValueFields || integerValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(integerValue == null ? null : integerValue.intValue()).append(" ");
+                                                } else { // !printDefaultValueFields && integerValue == null , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(Long.class)) {
+                                                Long longValue = (Long) field.get(object);
+                                                if (printDefaultValueFields || longValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(longValue == null ? null : longValue.longValue()).append(" ");
+                                                } else { // !printDefaultValueFields && longValue == null , this won't be printed
+                                                }
+                                            } else if (fieldClass.equals(Short.class)) {
+                                                Short shortValue = (Short) field.get(object);
+                                                if (printDefaultValueFields || shortValue != null) {
+                                                    returnStringBuilder.append(fieldName).append("=").append(shortValue == null ? null : shortValue.shortValue()).append(" ");
+                                                } else { // !printDefaultValueFields && shortValue == null , this won't be printed
+                                                }
+                                            } else {
+                                                Object objectValue = field.get(object);
+                                                if (objectValue == object) {
+                                                    objectValue = "SAME OBJECT"; // avoid infinite recursion
+                                                }
+                                                if (printDefaultValueFields || objectValue != null) {
+                                                    if (fieldClass.equals(char[].class)) {
+                                                        returnStringBuilder.append(fieldName).append("=").append((char[]) objectValue).append(" ");
+                                                    } else if (fieldClass.equals(byte[].class)) {
+                                                        returnStringBuilder.append(fieldName).append("=").append(objectValue == null ? null : new String((byte[]) objectValue,
+                                                                USASCII_CHARSET)).append(" ");
+                                                    } else if (fieldClass.equals(boolean[].class)) {
+                                                        returnStringBuilder.append(fieldName).append("=").append(Arrays.toString((boolean[]) objectValue)).append(" ");
+                                                    } else if (fieldClass.equals(double[].class)) {
+                                                        returnStringBuilder.append(fieldName).append("=").append(Arrays.toString((double[]) objectValue)).append(" ");
+                                                    } else if (fieldClass.equals(float[].class)) {
+                                                        returnStringBuilder.append(fieldName).append("=").append(Arrays.toString((float[]) objectValue)).append(" ");
+                                                    } else if (fieldClass.equals(int[].class)) {
+                                                        returnStringBuilder.append(fieldName).append("=").append(Arrays.toString((int[]) objectValue)).append(" ");
+                                                    } else if (fieldClass.equals(long[].class)) {
+                                                        returnStringBuilder.append(fieldName).append("=").append(Arrays.toString((long[]) objectValue)).append(" ");
+                                                    } else if (fieldClass.equals(short[].class)) {
+                                                        returnStringBuilder.append(fieldName).append("=").append(Arrays.toString((short[]) objectValue)).append(" ");
+                                                    } else if (fieldClass.isArray()) {
+                                                        returnStringBuilder.append(fieldName).append("[");
+
+                                                        Object[] objectArray = (Object[]) objectValue;
+                                                        int objectArrayLength = objectArray == null ? -1 : objectArray.length, appendedCounter = 0;
+                                                        for (int i = 0; i < objectArrayLength; i++) {
+                                                            if (objectArray[i] != null) {
+                                                                if (appendedCounter > 0) {
+                                                                    returnStringBuilder.append(", ");
+                                                                }
+                                                                returnStringBuilder.append(objectToString(objectArray[i], printDefaultValueFields, printFinalFields,
+                                                                        useToStringMethod, recursionCounter + 1, excludePatterns));
+                                                                appendedCounter++;
+                                                            }
+                                                        }
+                                                        returnStringBuilder.append("] ");
+                                                    } else {
+                                                        returnStringBuilder.append(fieldName).append("=").
+                                                                append(objectToString(objectValue, printDefaultValueFields, printFinalFields, useToStringMethod,
+                                                                                recursionCounter + 1, excludePatterns)).append(" ");
+                                                    }
+                                                } else { // !printDefaultValueFields && objectValue == null , this won't be printed
+                                                }
+                                            } // end else
+                                        } else { // !printFinalFields && Modifier.isFinal(fieldModifiers , this won't be printed
+                                        }
+                                    } // end for
+                                } // end for
+                                // } // end synchronized block    
+                                int length = returnStringBuilder.length();
+                                if (length > 0 && returnStringBuilder.charAt(length - 1) == ' ') {
+                                    returnStringBuilder.setLength(length - 1);
+                                }
+                                returnStringBuilder.append(")");
+                            } // end else regular object
+                        } // end else
+
+                        // returnStringBuilder = new StringBuilder(returnStringBuilder.toString().trim());
+                        // I trim in the end, as I return the value
+                    } else {
+                        // this is supposedly already synchronized on object in the classes I create
+                        returnStringBuilder = new StringBuilder((String) toStringMethod.invoke(object));
+                    }
+                } else {
+                    returnStringBuilder = null;
+                }
+            } catch (SecurityException | IllegalArgumentException | IllegalAccessException | UnsupportedEncodingException | InvocationTargetException exception) {
+                logger.error("STRANGE ERROR inside objectToString: {}", new Object[]{object.getClass(), object}, exception);
+                returnStringBuilder = null;
+            }
+        }
+        if (returnStringBuilder != null) {
+            // out of memory protection
+            int returnStringBuilderLength = returnStringBuilder.length();
+            if (returnStringBuilderLength > 4194304) {
+                // logger.error("objectTooLarge: {}", returnStringBuilder.toString()); // printing this would fill the HDD fairly fast in case of error
+                returnStringBuilder = new StringBuilder("STRANGE OUT OF MEMORY ERROR!!!");
+            }
+        }
+
+        return returnStringBuilder == null ? null : returnStringBuilder.toString().trim();
+    }
+
+    public static void disableHTTPSValidation() {
+        // Create a trust manager that does not validate certificate chains
+        TrustManager[] trustAllCertsManager = new TrustManager[]{
+            new X509TrustManager() {
+                @Override
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                @Override
+                public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {
+                }
+
+                @Override
+                public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {
+                }
+            }
+        };
+
+        // Install the all-trusting trust manager
+        try {
+            SSLContext sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(null, trustAllCertsManager, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
+        } catch (NoSuchAlgorithmException | KeyManagementException exception) {
+            logger.error("STRANGE ERROR inside disableHTTPSValidation()", exception);
+        }
+
+        // should avoid the "HTTPS hostname wrong" exception
+        HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+            @Override
+            public boolean verify(String string, SSLSession sslSession) {
+                return true;
+            }
+        });
+    }
+
+    @SuppressWarnings("RedundantStringConstructorCall")
+    public static String specialCharParser(String line) {
+        String result = line;
+
+        if (line != null) {
+            try {
+                LinkedHashMap<String, String> breakPoints = new LinkedHashMap<>(8, 0.75f);
+                breakPoints.put("&nbsp;", " ");
+                breakPoints.put("&amp;", "&");
+                breakPoints.put("&quot;", "\"");
+                breakPoints.put("&lt;", "<");
+                breakPoints.put("&gt;", ">");
+
+                int modified = 1;
+                while (modified > 0) {
+                    modified = 0;
+
+                    while (result.contains("&#") && result.indexOf(';', result.indexOf("&#") + "&#".length()) >= 0) {
+                        String tempString = result.substring(result.indexOf("&#") + "&#".length(), result.indexOf(';', result.indexOf("&#") + "&#".length()));
+                        int tempInt;
+
+                        try {
+                            if (tempString.indexOf('x') == 0) {
+                                tempInt = Integer.parseInt(tempString.substring(tempString.indexOf('x') + "x".length()), 16);
+                            } else {
+                                tempInt = Integer.parseInt(tempString);
+                            }
+
+                            result = result.substring(0, result.indexOf("&#")) + (char) tempInt +
+                                    result.substring(result.indexOf(';', result.indexOf("&#") + "&#".length()) + ";".length());
+                            modified++;
+                        } catch (NumberFormatException numberFormatException) {
+                            // if (Statics.debugger.getDebugLevel() >= 2) {
+                            //     String writeString = "STRANGE ERROR 2 inside SpecialCharParser: " + exception + "\r\n";
+                            //     Statics.debugVarsSynchronizedWriter.write (writeString, Statics.ENCRYPTION_KEY);
+                            // }
+                            result = result.substring(0, result.indexOf("&#")) + " " + result.substring(result.indexOf("&#") + "&#".length());
+                            modified++;
+                        } // catch (Throwable throwable) {
+                        //     logger.error("STRANGE ERROR inside specialCharParser: {}", resultStringBuilder, throwable);
+                        //     resultStringBuilder = resultStringBuilder.substring(0, resultStringBuilder.indexOf("&#")) + " " + resultStringBuilder.substring(resultStringBuilder.indexOf("&#") + "&#".length());
+                        //     modified++;
+                        // }
+                    }
+
+                    for (String element : breakPoints.keySet()) {
+                        if (result.contains(element)) {
+                            result = result.replace(element, breakPoints.get(element));
+                            modified++;
+                        }
+                    }
+                } // end while
+            } catch (Exception exception) {
+                logger.error("STRANGE ERROR inside SpecialCharParser: {}", result, exception);
+            }
+        } else {
+            logger.error("STRANGE line null in specialCharParser, timeStamp={}", System.currentTimeMillis());
+        }
+
+        if (result != null) {
+            result = new String(result);
+        }
+
+        return result;
+    }
+
+    @SuppressWarnings("UseOfSystemOutOrSystemErr")
+    public static void closeStandardStreams() {
+        closeObjects(System.in, System.out, System.err);
+    }
+
+    public static boolean checkAtomicBooleans(AtomicBoolean... atomicBooleans) {
+        return checkAtomicBooleans(true, atomicBooleans);
+    }
+
+    public static boolean checkAtomicBooleans(boolean valueToCheck, AtomicBoolean... atomicBooleans) {
+        boolean found = false;
+        for (AtomicBoolean atomicBoolean : atomicBooleans) {
+            if (atomicBoolean.get() == valueToCheck) {
+                found = true;
+                break;
+            }
+        }
+        return found;
+    }
+
+    public static boolean checkObjects(Object... objects) {
+        boolean found = false;
+        for (Object object : objects) {
+            if (object.getClass().equals(AtomicBoolean.class)) {
+                AtomicBoolean atomicBoolean = (AtomicBoolean) object;
+                if (atomicBoolean.get()) {
+                    found = true;
+                    break;
+                }
+            } else if (object.getClass().equals(AtomicReference.class)) {
+                AtomicReference<?> atomicReference = (AtomicReference) object;
+                if (atomicReference.get() != null) {
+                    found = true;
+                    break;
+                }
+            } else {
+                logger.error("unsupported class in checkObjects: {}", object.getClass());
+            }
+        }
+        return found;
+    }
+
+    // public static void threadSleepSegmented(long totalSleepMillis, Object... atomicBooleans) {
+    //     threadSleepSegmented(totalSleepMillis, 100L, atomicBooleans);
+    // }
+    public static void threadSleepSegmented(long totalSleepMillis, long segmentMillis, Object... objects) {
+        if (totalSleepMillis > 0L && segmentMillis > 0L) {
+            final long endTime = System.currentTimeMillis() + totalSleepMillis;
+            int segments = (int) (totalSleepMillis / segmentMillis);
+
+            whileLoop:
+            do {
+                for (int i = 0; i < segments && i < 100; i++) {
+                    if (checkObjects(objects)) {
+                        break whileLoop;
+                    }
+                    threadSleep(segmentMillis);
+                }
+                long leftTime = endTime - System.currentTimeMillis();
+
+                if (leftTime <= 0) {
+                    segments = 0;
+                } else if (leftTime <= segmentMillis) {
+                    if (checkObjects(objects)) {
+                        break; // breaks from while
+                    }
+                    threadSleep(leftTime);
+                    segments = 0;
+                } else {
+                    segments = (int) (leftTime / segmentMillis);
+                }
+            } while (segments > 0);
+        } else { // negative or zero variables, nothing to be done; no error message needs to be printed as this is expected to be managed inside this method
+        }
+    }
+
+    @SuppressWarnings("SleepWhileInLoop")
+    public static void threadSleep(long millis) {
+        if (millis > 0L) {
+            try {
+                Thread.sleep(millis);
+            } catch (InterruptedException interruptedException) {
+                logger.error("InterruptedException in threadSleep()", interruptedException);
+            }
+        } else { // nothing to be done
+        }
+    }
+
+    public static void setFinalStatic(Field field, Object newValue)
+            throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
+        // to be used only in tests; it only works in some circumstances
+        Field modifiersField = Field.class.getDeclaredField("modifiers");
+        boolean fieldAccessible = field.isAccessible(), modifiersAccessible = modifiersField.isAccessible();
+        int modifiersValue = field.getModifiers();
+
+        try {
+            if (!fieldAccessible) {
+                field.setAccessible(true);
+            }
+            if (!modifiersAccessible) {
+                modifiersField.setAccessible(true);
+            }
+            if (Modifier.isFinal(modifiersValue)) {
+                modifiersField.setInt(field, modifiersValue & ~Modifier.FINAL);
+            }
+
+            field.set(null, newValue);
+        } finally {
+            if (field.getModifiers() != modifiersValue) {
+                modifiersField.setInt(field, modifiersValue);
+            }
+            if (modifiersField.isAccessible() != modifiersAccessible) {
+                modifiersField.setAccessible(modifiersAccessible);
+            }
+            if (field.isAccessible() != fieldAccessible) {
+                field.setAccessible(fieldAccessible);
+            }
+        }
+    }
+
+    public static Object getField(Object object, String fieldName) {
+        Object result = null;
+
+        if (object != null && fieldName != null) {
+            final Class<?> clazz;
+            if (object instanceof Class<?>) {
+                clazz = (Class<?>) object;
+            } else {
+                clazz = object.getClass();
+            }
+
+            Field field = null;
+            boolean fieldAccessible = true;
+            try {
+                field = clazz.getDeclaredField(fieldName);
+                fieldAccessible = field.isAccessible();
+                if (!fieldAccessible) {
+                    field.setAccessible(true);
+                }
+
+                result = field.get(object); // if static field, .get() argument is ignored
+            } catch (NoSuchFieldException noSuchFieldException) {
+                logger.error("NoSuchFieldException in getField: {}", new Object[]{clazz, fieldName}, noSuchFieldException);
+            } catch (IllegalAccessException illegalAccessException) {
+                logger.error("IllegalAccessException in getField: {}", new Object[]{clazz, fieldName}, illegalAccessException);
+            } finally {
+                if (field != null && field.isAccessible() != fieldAccessible) {
+                    field.setAccessible(fieldAccessible);
+                }
+            }
+        } else {
+            logger.error("STRANGE object or fieldName null in getField, {} {} timeStamp={}", object, fieldName, System.currentTimeMillis());
+        }
+
+        return result;
+    }
+
+    public static boolean setField(Object object, String fieldName, Object value) {
+        boolean setSuccess = false;
+
+        if (object != null && fieldName != null) {
+            Field field = null;
+            boolean fieldAccessible = true;
+            try {
+                field = object.getClass().getDeclaredField(fieldName);
+                fieldAccessible = field.isAccessible();
+                if (!fieldAccessible) {
+                    field.setAccessible(true);
+                }
+                field.set(object, value);
+
+                setSuccess = true;
+            } catch (NoSuchFieldException noSuchFieldException) {
+                logger.error("NoSuchFieldException in setField: {}", new Object[]{object.getClass(), fieldName, value}, noSuchFieldException);
+            } catch (IllegalAccessException illegalAccessException) {
+                logger.error("IllegalAccessException in setField: {}", new Object[]{object.getClass(), fieldName, value}, illegalAccessException);
+            } finally {
+                if (field != null && field.isAccessible() != fieldAccessible) {
+                    field.setAccessible(fieldAccessible);
+                }
+            }
+        } else {
+            logger.error("STRANGE object or fieldName null in setField, {} {} {} timeStamp={}", object, fieldName, value, System.currentTimeMillis());
+        }
+
+        return setSuccess;
+    }
+
+    public static void turnOffHtmlUnitLogger() {
+        java.util.logging.Logger.getLogger("com.gargoylesoftware").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.DefaultCssErrorHandler").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.html.InputElementFactory").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.dom.Document").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.background.DefaultJavaScriptExecutor").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.IncorrectnessListenerImpl").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.WebConsole").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.StrictErrorReporter").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.ActiveXObject").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.html.HTMLDocument").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.html.HtmlScript").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.xml.XMLHttpRequest").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("org.apache.http.client.protocol.ResponseProcessCookies").setLevel(java.util.logging.Level.OFF);
+        System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
+        System.setProperty("org.apache.commons.logging.simplelog.defaultlog", "org.apache.commons.logging.impl.NoOpLog");
+        System.getProperties().put("org.apache.commons.logging.simplelog.defaultlog", "fatal");
+    }
+}
