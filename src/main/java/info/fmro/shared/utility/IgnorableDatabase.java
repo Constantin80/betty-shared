@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class IgnorableDatabase
-      --  implements Serializable {
+      ---  implements Serializable {
 //fixme dsalkdjaskld
 //todo faklfjalfkaj
 //todo fdaslfjkdklfjklfjalkfjasldkfjaslfkajsdfklajsf
