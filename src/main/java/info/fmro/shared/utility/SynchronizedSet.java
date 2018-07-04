@@ -1,15 +1,16 @@
 package info.fmro.shared.utility;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Objects;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SynchronizedSet<E>
-        extends Ignorable
+//        extends Ignorable
         implements Serializable {
 
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedSet.class);
@@ -55,8 +56,8 @@ public class SynchronizedSet<E>
         return this.set.add(element);
     }
 
-    public synchronized void addAll(Collection<? extends E> c) {
-        this.set.addAll(c);
+    public synchronized boolean addAll(Collection<? extends E> c) {
+        return this.set.addAll(c);
     }
 
     public synchronized void clear() {
@@ -83,8 +84,9 @@ public class SynchronizedSet<E>
         return returnValue;
     }
 
-    public synchronized boolean contains(E element) {
-        return this.set.contains(element);
+    public synchronized boolean contains(Object object) {
+        //noinspection SuspiciousMethodCalls
+        return this.set.contains(object);
     }
 
     public synchronized boolean containsAll(Collection<?> c) {
@@ -95,8 +97,9 @@ public class SynchronizedSet<E>
         return this.set.isEmpty();
     }
 
-    public synchronized boolean remove(E element) {
-        return this.set.remove(element);
+    public synchronized boolean remove(Object object) {
+        //noinspection SuspiciousMethodCalls
+        return this.set.remove(object);
     }
 
     public synchronized boolean removeAll(Collection<?> c) {

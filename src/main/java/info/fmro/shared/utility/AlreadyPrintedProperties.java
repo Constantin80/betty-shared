@@ -1,9 +1,10 @@
 package info.fmro.shared.utility;
 
-import java.io.Serializable;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.util.UUID;
 
 public class AlreadyPrintedProperties
         implements Serializable {
@@ -16,7 +17,7 @@ public class AlreadyPrintedProperties
     private long lastTimeStamp;
     private int nAppeared;
 
-//    public AlreadyPrintedProperties(long initialTimeStamp) {
+    //    public AlreadyPrintedProperties(long initialTimeStamp) {
 //        this.initialTimeStamp = initialTimeStamp;
 //        this.lastTimeStamp = initialTimeStamp;
 //        this.nAppeared = 1;
@@ -42,7 +43,11 @@ public class AlreadyPrintedProperties
         this.lastTimeStamp = Math.max(this.lastTimeStamp, timeStamp);
     }
 
-    public synchronized void print() {
-        logger.info("AlreadyPrintedProperties with id {} was seen {} times during a {} ms period", this.id, this.nAppeared, this.lastTimeStamp - this.initialTimeStamp);
+    public synchronized void print(String printedString) {
+        if (this.nAppeared > 1) {
+            logger.info("AlreadyPrintedProperties with id {} was seen {} times during a {} ms period: {}", this.id, Generic.addCommas(this.nAppeared), Generic.addCommas(this.lastTimeStamp - this.initialTimeStamp), printedString);
+        } else {
+            logger.info("AlreadyPrintedProperties with id {} was seen {} times during a {} ms period", this.id, this.nAppeared, Generic.addCommas(this.lastTimeStamp - this.initialTimeStamp));
+        }
     }
 }

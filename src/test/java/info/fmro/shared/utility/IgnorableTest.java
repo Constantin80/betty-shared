@@ -1,39 +1,116 @@
 package info.fmro.shared.utility;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-import org.junit.rules.TestWatcher;
-import org.junit.runner.Description;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.InvocationTargetException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class IgnorableTest {
-
-    private static final Logger logger = LoggerFactory.getLogger(IgnorableTest.class);
-
-    @Rule
-    @SuppressWarnings("PublicField")
-    public TestRule watchman = new TestWatcher() {
-        @Override
-        public void starting(Description description) {
-            logger.info("{} being run...", description.getMethodName());
-        }
-    };
-
-//    @Test
-//    public void testGetIgnorableClass() {
-//        SynchronizedSet<String> instance = new SynchronizedSet<>();
-//
-//        Class<SynchronizedSet> clazz = SynchronizedSet.class;
-//        Class<? extends Ignorable> result = instance.getIgnorableClass();
-//        assertEquals(clazz, result);
-//    }
     @Test
-    public void testGetIgnoredExpiration() {
+    void timeSinceSetIgnored() {
+        final long currentTime = System.currentTimeMillis();
+        final Ignorable instance = new Ignorable();
+        instance.setIgnored(1_000L);
+        long result = instance.timeSinceSetIgnored();
+        assertTrue(Math.abs(result) < 1_000L, "no argument");
+        result = instance.timeSinceSetIgnored(currentTime);
+        assertTrue(Math.abs(result) < 1_000L, "with argument");
+    }
+
+    @Test
+    void timeSinceResetIgnored()
+            throws InterruptedException {
+        long currentTime = System.currentTimeMillis();
+        final Ignorable instance = new Ignorable();
+        instance.setIgnored(10L);
+        long result = instance.timeSinceResetIgnored();
+        assertTrue(Math.abs(result - currentTime) < 1_000L, "before sleep, no argument");
+        result = instance.timeSinceResetIgnored(currentTime);
+        assertEquals(currentTime, result, "before sleep, with argument");
+
+        Thread.sleep(1_000);
+        currentTime = System.currentTimeMillis();
+        instance.isIgnored();
+        result = instance.timeSinceResetIgnored();
+        assertTrue(Math.abs(result) < 1_000L, "after sleep, no argument");
+        result = instance.timeSinceResetIgnored(currentTime);
+        assertTrue(Math.abs(result) < 1_000L, "after sleep, with argument");
+    }
+
+    @Test
+    void getSetIgnoredStamp() {
+        final Ignorable instance = new Ignorable();
+        long result = instance.getSetIgnoredStamp();
+        assertEquals(0L, result, "default");
+
+        instance.setIgnored(10L);
+        final long currentTime = System.currentTimeMillis();
+        result = instance.getSetIgnoredStamp();
+        assertTrue(Math.abs(result - currentTime) < 1_000L, "modified");
+    }
+
+    @Test
+    void isSetIgnoredRecent() {
+        final Ignorable instance = new Ignorable();
+        final long currentTime = System.currentTimeMillis();
+        instance.setIgnored(10L);
+
+        boolean result = instance.isSetIgnoredRecent();
+        assertTrue(result, "no argument");
+        result = instance.isSetIgnoredRecent(currentTime);
+        assertTrue(result, "1 argument");
+        result = instance.isSetIgnoredRecent(currentTime + 10_000L, 2_000L);
+        assertFalse(result, "2 arguments");
+    }
+
+    @Test
+    void getResetIgnoredStamp()
+            throws InterruptedException {
+        final Ignorable instance = new Ignorable();
+        instance.setIgnored(10L);
+        long result = instance.getResetIgnoredStamp();
+        assertEquals(0L, result, "before sleep");
+
+        Thread.sleep(1_000);
+        long currentTime = System.currentTimeMillis();
+        instance.isIgnored();
+        result = instance.getResetIgnoredStamp();
+        assertTrue(Math.abs(result - currentTime) < 1_000L, "after sleep");
+    }
+
+    @Test
+    void isResetIgnoredRecent()
+            throws InterruptedException {
+        final Ignorable instance = new Ignorable();
+        instance.setIgnored(10L);
+        long currentTime = System.currentTimeMillis();
+
+        boolean result = instance.isResetIgnoredRecent();
+        assertFalse(result, "no argument");
+        result = instance.isResetIgnoredRecent(currentTime);
+        assertFalse(result, "1 argument");
+        result = instance.isResetIgnoredRecent(currentTime + 10_000L, 2_000L);
+        assertFalse(result, "2 arguments");
+
+        Thread.sleep(1_000);
+        currentTime = System.currentTimeMillis();
+        instance.isIgnored();
+
+        result = instance.isResetIgnoredRecent();
+        assertTrue(result, "after sleep, no argument");
+        result = instance.isResetIgnoredRecent(currentTime);
+        assertTrue(result, "after sleep, 1 argument");
+        result = instance.isResetIgnoredRecent(currentTime + 10_000L, 2_000L);
+        assertFalse(result, "after sleep, 2 arguments");
+    }
+
+    @Test
+    void getIgnoredExpiration() {
         Ignorable instance = new Ignorable();
         long expResult = 0L;
         long result = instance.getIgnoredExpiration();
@@ -41,63 +118,7 @@ public class IgnorableTest {
     }
 
     @Test
-    public void testIsTempDeleted() {
-        Ignorable instance = new Ignorable();
-        boolean expResult = false;
-        boolean result = instance.isTempRemoved();
-        assertEquals(expResult, result);
-    }
-
-    @Test
-    public void testResetTempDeleted() {
-        Ignorable instance = new Ignorable();
-        instance.setTempRemoved();
-        int expResult = 1;
-        int result = instance.resetTempRemoved();
-        assertEquals("modified", expResult, result);
-
-        boolean expBooleanResult = false;
-        boolean booleanResult = instance.isTempRemoved();
-        assertEquals("isTempDeleted", expBooleanResult, booleanResult);
-    }
-
-    @Test
-    public void testSetTempDeleted() {
-        Ignorable instance = new Ignorable();
-        int expResult = 1;
-        int result = instance.setTempRemoved();
-        assertEquals("modified", expResult, result);
-
-//        long expLongResult = Long.MAX_VALUE;
-//        long longResult = instance.getIgnoredExpiration();
-//        assertEquals("ignoredExpiration", expLongResult, longResult);
-        boolean expBooleanResult = true;
-        boolean booleanResult = instance.isTempRemoved();
-        assertEquals("isTempDeleted", expBooleanResult, booleanResult);
-    }
-
-    @Test
-    public void testIsIgnoredOrTempRemoved() {
-        Ignorable instance = new Ignorable();
-        instance.setIgnored(Long.MAX_VALUE); // value too big, it won't be set
-        boolean result = instance.isIgnoredOrTempRemoved();
-        assertFalse("ignored too big period", result);
-
-        instance.setIgnored(3_600_000L);
-        result = instance.isIgnoredOrTempRemoved();
-        assertTrue("ignored", result);
-
-        instance.resetIgnored();
-        result = instance.isIgnoredOrTempRemoved();
-        assertFalse("not ignored", result);
-
-        instance.setTempRemoved();
-        result = instance.isIgnoredOrTempRemoved();
-        assertTrue("tempRemoved", result);
-    }
-
-    @Test
-    public void testIsIgnored_0args() {
+    void isIgnored_0args() {
         Ignorable instance = new Ignorable();
         boolean expResult = false;
         boolean result = instance.isIgnored();
@@ -105,7 +126,7 @@ public class IgnorableTest {
     }
 
     @Test
-    public void testIsIgnored_long() {
+    void isIgnored_long() {
         Ignorable instance = new Ignorable();
         instance.setIgnored(60_000L);
 
@@ -116,65 +137,60 @@ public class IgnorableTest {
     }
 
     @Test
-    public void testResetIgnored() {
-        Ignorable instance = new Ignorable();
-        instance.setIgnored(60_000L);
-
-        int expResult = 1;
-        int result = instance.resetIgnored();
-        assertEquals("modified", expResult, result);
-
-        boolean expBooleanResult = false;
-        boolean booleanResult = instance.isIgnored();
-        assertEquals("isIgnored", expBooleanResult, booleanResult);
-    }
-
-    @Test
-    public void testSetIgnored_long() {
+    void setIgnored_long() {
         long period = 60_000L;
         Ignorable instance = new Ignorable();
         int expResult = 1;
         int result = instance.setIgnored(period);
-        assertEquals("modifed", expResult, result);
+        assertEquals(expResult, result, "modifed");
 
         boolean expBooleanResult = true;
         boolean booleanResult = instance.isIgnored();
-        assertEquals("isIgnored", expBooleanResult, booleanResult);
+        assertEquals(expBooleanResult, booleanResult, "isIgnored");
     }
 
     @Test
-    public void testSetIgnored_long_long() {
+    void setIgnored_long_long() {
         long period = 60_000L;
         long currentTime = System.currentTimeMillis();
         Ignorable instance = new Ignorable();
 
         int expResult = 1;
         int result = instance.setIgnored(period, currentTime);
-        assertEquals("modifed", expResult, result);
+        assertEquals(expResult, result, "modifed");
 
         result = instance.setIgnored(currentTime, period);
-        assertTrue("error modifed", result < 0);
+        assertTrue(result < 0, "error modifed");
 
         boolean expBooleanResult = true;
         boolean booleanResult = instance.isIgnored();
-        assertEquals("isIgnored", expBooleanResult, booleanResult);
+        assertEquals(expBooleanResult, booleanResult, "isIgnored");
     }
 
     @Test
-    public void testUpdateIgnorable() {
-        Ignorable newIgnorable = new Ignorable(Long.MAX_VALUE);
-        newIgnorable.setTempRemoved();
-        Ignorable instance = new Ignorable();
-        int expResult = 2;
-        int result = instance.updateIgnorable(newIgnorable);
-        assertEquals("modified", expResult, result);
+    void updateIgnorable() {
+        try {
+            final Ignorable firstIgnorable = Generic.createAndFill(Ignorable.class), secondIgnorable = Generic.createAndFill(Ignorable.class);
+            firstIgnorable.updateIgnorable(secondIgnorable);
+            assertThat(firstIgnorable).as("updated object different").isEqualToIgnoringGivenFields(secondIgnorable, "ignored", "ignoredExpiration", "resetIgnoredStamp", "setIgnoredStamp");
 
-        boolean expBooleanResult = true;
-        boolean booleanResult = instance.isIgnored();
-        assertEquals("isIgnored", expBooleanResult, booleanResult);
-
-        expBooleanResult = true;
-        booleanResult = instance.isTempRemoved();
-        assertEquals("isTempDeleted", expBooleanResult, booleanResult);
+            // resetIgnoredStamp test need to happen before ignored test, as isIgnored() can modify the stamp
+            assertTrue(firstIgnorable.getResetIgnoredStamp() >= secondIgnorable.getResetIgnoredStamp(),
+                       "resetIgnoredStamp " + firstIgnorable.getResetIgnoredStamp() + " " + secondIgnorable.getResetIgnoredStamp() + " " + firstIgnorable.isIgnored() + " " + secondIgnorable.isIgnored());
+            if (secondIgnorable.isIgnored()) {
+                assertTrue(firstIgnorable.isIgnored(), "ignored");
+            }
+            assertTrue(firstIgnorable.getIgnoredExpiration() >= secondIgnorable.getIgnoredExpiration(), "ignoredExpiration");
+            assertTrue(firstIgnorable.getSetIgnoredStamp() >= secondIgnorable.getSetIgnoredStamp(), "setIgnoredStamp");
+        } catch (IllegalAccessException e) {
+            fail("IllegalAccessException");
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            fail("InvocationTargetException");
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            fail("InstantiationException");
+            e.printStackTrace();
+        }
     }
 }

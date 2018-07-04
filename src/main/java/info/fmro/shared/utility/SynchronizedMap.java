@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SynchronizedMap<K, V>
-        extends Ignorable
         implements Serializable {
 
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedMap.class);
