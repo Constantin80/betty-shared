@@ -2671,20 +2671,32 @@ public class Generic {
     public static boolean checkObjects(Object... objects) {
         boolean found = false;
         for (Object object : objects) {
-            if (object.getClass().equals(AtomicBoolean.class)) {
-                AtomicBoolean atomicBoolean = (AtomicBoolean) object;
-                if (atomicBoolean.get()) {
-                    found = true;
-                    break;
-                }
-            } else if (object.getClass().equals(AtomicReference.class)) {
-                AtomicReference<?> atomicReference = (AtomicReference) object;
-                if (atomicReference.get() != null) {
-                    found = true;
-                    break;
-                }
+            if (object == null) {
+                logger.error("null object in checkObjects: {}", objectToString(objects));
             } else {
-                logger.error("unsupported class in checkObjects: {}", object.getClass());
+                final Class<?> clazz = object.getClass();
+                if (clazz.equals(AtomicBoolean.class)) {
+                    final AtomicBoolean atomicBoolean = (AtomicBoolean) object;
+                    if (atomicBoolean.get()) {
+                        found = true;
+                        break;
+                    }
+                } else if (clazz.equals(AtomicReference.class)) {
+                    final AtomicReference<?> atomicReference = (AtomicReference) object;
+                    if (atomicReference.get() != null) {
+                        found = true;
+                        break;
+                    }
+                    // boolean support is useless and can be confusing; primitive boolean has a value that doesn't change
+//                } else if (clazz.equals(Boolean.class)) {
+//                    final Boolean boo = (Boolean) object;
+//                    if (boo) {
+//                        found = true;
+//                        break;
+//                    }
+                } else {
+                    logger.error("unsupported class in checkObjects: {}", object.getClass());
+                }
             }
         }
         return found;

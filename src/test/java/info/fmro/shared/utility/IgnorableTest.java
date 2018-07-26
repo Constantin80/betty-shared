@@ -177,7 +177,7 @@ public class IgnorableTest {
             // resetIgnoredStamp test need to happen before ignored test, as isIgnored() can modify the stamp
             assertTrue(firstIgnorable.getResetIgnoredStamp() >= secondIgnorable.getResetIgnoredStamp(),
                        "resetIgnoredStamp " + firstIgnorable.getResetIgnoredStamp() + " " + secondIgnorable.getResetIgnoredStamp() + " " + firstIgnorable.isIgnored() + " " + secondIgnorable.isIgnored());
-            if (secondIgnorable.isIgnored()) {
+            if (secondIgnorable.isIgnored() && secondIgnorable.getIgnoredExpiration() >= firstIgnorable.getIgnoredExpiration()) {
                 assertTrue(firstIgnorable.isIgnored(), "ignored");
             }
             assertTrue(firstIgnorable.getIgnoredExpiration() >= secondIgnorable.getIgnoredExpiration(), "ignoredExpiration");
