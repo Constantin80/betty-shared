@@ -106,6 +106,17 @@ class GenericTest {
     }
 
     @Test
+    void getMiddleIndex() {
+        int expected = 7;
+        int result = Generic.getMiddleIndex("SGI/SSK/SGI/SSK", "/");
+        assertEquals(expected, result, "1");
+
+        expected = 3;
+        result = Generic.getMiddleIndex("SGI/SGI", "/");
+        assertEquals(expected, result, "2");
+    }
+
+    @Test
     void createAndFill()
             throws InvocationTargetException, InstantiationException, IllegalAccessException {
         LocalTestObject result = new LocalTestObject();

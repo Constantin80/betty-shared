@@ -1,5 +1,6 @@
 package info.fmro.shared.utility;
 
+import org.apache.commons.lang3.StringUtils;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,6 +153,20 @@ public class Generic {
     public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
 
     private Generic() {
+    }
+
+    public static int getMiddleIndex(String string, String subString) {
+        final int result;
+        if (string == null || subString == null) {
+            logger.error("null string in getMiddleIndex for: {} {}", string, subString);
+            result = -1;
+        } else {
+            final int nMatches = StringUtils.countMatches(string, subString);
+            final int middle = (nMatches + 1) / 2;
+            result = StringUtils.ordinalIndexOf(string, subString, middle);
+        }
+
+        return result;
     }
 
     public static <T> T createAndFill(Class<T> clazz)
