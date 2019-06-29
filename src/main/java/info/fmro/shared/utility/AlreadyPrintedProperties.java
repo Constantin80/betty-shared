@@ -8,7 +8,6 @@ import java.util.UUID;
 
 public class AlreadyPrintedProperties
         implements Serializable {
-
     private static final Logger logger = LoggerFactory.getLogger(AlreadyPrintedProperties.class);
     private static final long serialVersionUID = 1139020933506122249L;
     private final boolean propertiesAreImportant;
@@ -25,7 +24,7 @@ public class AlreadyPrintedProperties
 //
 //        logger.info("new AlreadyPrintedProperties created with id: {}", this.id);
 //    }
-    public AlreadyPrintedProperties(long initialTimeStamp, boolean propertiesAreImportant) {
+    public AlreadyPrintedProperties(final long initialTimeStamp, final boolean propertiesAreImportant) {
         this.initialTimeStamp = initialTimeStamp;
         this.lastTimeStamp = initialTimeStamp;
         this.nAppeared = 1;
@@ -38,12 +37,12 @@ public class AlreadyPrintedProperties
         return this.propertiesAreImportant;
     }
 
-    public synchronized void appeared(long timeStamp) {
+    public synchronized void appeared(final long timeStamp) {
         nAppeared++;
         this.lastTimeStamp = Math.max(this.lastTimeStamp, timeStamp);
     }
 
-    public synchronized void print(String printedString) {
+    public synchronized void print(final String printedString) {
         if (this.nAppeared > 1) {
             logger.info("AlreadyPrintedProperties with id {} was seen {} times during a {} ms period: {}", this.id, Generic.addCommas(this.nAppeared), Generic.addCommas(this.lastTimeStamp - this.initialTimeStamp), printedString);
         } else {

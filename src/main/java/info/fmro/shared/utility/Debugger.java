@@ -13,39 +13,39 @@ public class Debugger {
     private LinkedHashMap<SynchronizedWriter, Integer> writersMap = new LinkedHashMap<>(4, 0.75f); // sorted by values at all times
     private long timeLastCheckDiskSpace;
 
-    public Debugger(int debugLevel, int encryption) {
+    public Debugger(final int debugLevel, final int encryption) {
         this.debugLevel = debugLevel;
         this.encryption = encryption;
     }
 
-    public Debugger(int encryption) {
+    public Debugger(final int encryption) {
         this.encryption = encryption;
     }
 
     public Debugger() {
     }
 
-    public synchronized void setDebugLevel(int newValue) {
+    public synchronized void setDebugLevel(final int newValue) {
         this.debugLevel = newValue;
     }
 
-    public synchronized void setEncryption(int newValue) {
+    public synchronized void setEncryption(final int newValue) {
         this.encryption = newValue;
     }
 
-    public synchronized void addWriter(String fileName, boolean append, String charsetName, int bufferSize, String id, int minDebugLevel)
+    public synchronized void addWriter(final String fileName, final boolean append, final String charsetName, final int bufferSize, final String id, final int minDebugLevel)
             throws java.io.FileNotFoundException {
         this.writersMap.put(new SynchronizedWriter(fileName, append, charsetName, bufferSize, id), minDebugLevel);
         this.writersMap = Generic.sortByValue(this.writersMap, true);
     }
 
-    public synchronized void addWriter(String fileName, boolean append, String id, int minDebugLevel)
+    public synchronized void addWriter(final String fileName, final boolean append, final String id, final int minDebugLevel)
             throws java.io.FileNotFoundException {
         this.writersMap.put(new SynchronizedWriter(fileName, append, id), minDebugLevel);
         this.writersMap = Generic.sortByValue(this.writersMap, true);
     }
 
-    public synchronized void addWriter(String fileName, boolean append, int minDebugLevel)
+    public synchronized void addWriter(final String fileName, final boolean append, final int minDebugLevel)
             throws java.io.FileNotFoundException {
         this.writersMap.put(new SynchronizedWriter(fileName, append), minDebugLevel);
         this.writersMap = Generic.sortByValue(this.writersMap, true);
@@ -77,7 +77,7 @@ public class Debugger {
         }
     }
 
-    public synchronized boolean enoughAvailableSpace(long neededSpace) {
+    public synchronized boolean enoughAvailableSpace(final long neededSpace) {
         boolean enoughSpace = true;
 
         for (SynchronizedWriter writer : this.writersMap.keySet()) {
@@ -109,7 +109,7 @@ public class Debugger {
         this.timeLastCheckDiskSpace = System.currentTimeMillis();
     }
 
-    public synchronized boolean write(String writeString, String writerId, int minDebugLevel) {
+    public synchronized boolean write(final String writeString, final String writerId, final int minDebugLevel) {
         if (this.debugLevel >= minDebugLevel) {
             return write(writeString, writerId);
         } else {
@@ -117,7 +117,7 @@ public class Debugger {
         }
     }
 
-    public synchronized boolean write(String writeString, String writerId) {
+    public synchronized boolean write(final String writeString, final String writerId) {
         boolean success = false;
         for (SynchronizedWriter writer : this.writersMap.keySet()) {
             if (this.writersMap.get(writer) <= this.debugLevel) {
@@ -139,7 +139,7 @@ public class Debugger {
         return success;
     }
 
-    public synchronized void flush(int minDebugLevel, int maxDebugLevel)
+    public synchronized void flush(final int minDebugLevel, final int maxDebugLevel)
             throws java.io.IOException {
         for (SynchronizedWriter writer : this.writersMap.keySet()) {
             int writerDebugLevel = this.writersMap.get(writer);

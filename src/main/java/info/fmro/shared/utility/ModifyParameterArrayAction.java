@@ -14,20 +14,20 @@ public class ModifyParameterArrayAction<T>
     private final int parameterIndex, arrayIndex;
     private final T value;
 
-    public ModifyParameterArrayAction(int parameterIndex, int arrayIndex, T value) {
+    public ModifyParameterArrayAction(final int parameterIndex, final int arrayIndex, final T value) {
         this.arrayIndex = arrayIndex;
         this.parameterIndex = parameterIndex;
         this.value = value;
     }
 
     @Override
-    public void describeTo(Description description) {
+    public void describeTo(final Description description) {
         description.appendText("modifies array element");
     }
 
     @SuppressWarnings({"unchecked", "SuspiciousSystemArraycopy"})
     @Override
-    public Object invoke(Invocation invocation)
+    public Object invoke(final Invocation invocation)
             throws Throwable {
         if (value.getClass().equals(Byte.class)) {
             // System.out.println("byte");

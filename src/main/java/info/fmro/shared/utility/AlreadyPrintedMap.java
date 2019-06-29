@@ -12,7 +12,6 @@ import java.util.HashSet;
 public class AlreadyPrintedMap
 //        extends SynchronizedMap<String, Long>
         implements Serializable {
-
     private static final Logger logger = LoggerFactory.getLogger(AlreadyPrintedMap.class);
     private static final long serialVersionUID = -8093683012072045094L;
     public static final String NOT_IMPORTANT_PREFIX = "(notImportant)"; // matters for printing the properties or not when the value expires
@@ -24,36 +23,36 @@ public class AlreadyPrintedMap
     public AlreadyPrintedMap() {
     }
 
-    public synchronized String logOnce(Logger logger, LogLevel logLevel, String format, Object... objects) {
+    public synchronized String logOnce(final Logger logger, final LogLevel logLevel, final String format, final Object... objects) {
         return logOnce(false, 0L, null, logger, logLevel, format, objects);
     }
 
-    public synchronized String logOnce(long expiryPeriod, Logger logger, LogLevel logLevel, String format, Object... objects) {
+    public synchronized String logOnce(final long expiryPeriod, final Logger logger, final LogLevel logLevel, final String format, final Object... objects) {
         return logOnce(false, expiryPeriod, null, logger, logLevel, format, objects);
     }
 
-    public synchronized String logOnce(boolean printAnyway, Logger logger, LogLevel logLevel, String format, Object... objects) {
+    public synchronized String logOnce(final boolean printAnyway, final Logger logger, final LogLevel logLevel, final String format, final Object... objects) {
         return logOnce(printAnyway, 0L, null, logger, logLevel, format, objects);
     }
 
-    public synchronized String logOnce(boolean printAnyway, long expiryPeriod, Logger logger, LogLevel logLevel, String format, Object... objects) {
+    public synchronized String logOnce(final boolean printAnyway, final long expiryPeriod, final Logger logger, final LogLevel logLevel, final String format, final Object... objects) {
         return logOnce(printAnyway, expiryPeriod, null, logger, logLevel, format, objects);
     }
 
-    public synchronized String logOnce(SynchronizedWriter synchronizedWriter, Logger logger, LogLevel logLevel, String format, Object... objects) {
+    public synchronized String logOnce(final SynchronizedWriter synchronizedWriter, final Logger logger, final LogLevel logLevel, final String format, final Object... objects) {
         return logOnce(false, 0L, synchronizedWriter, logger, logLevel, format, objects);
     }
 
-    public synchronized String logOnce(long expiryPeriod, SynchronizedWriter synchronizedWriter, Logger logger, LogLevel logLevel, String format, Object... objects) {
+    public synchronized String logOnce(final long expiryPeriod, final SynchronizedWriter synchronizedWriter, final Logger logger, final LogLevel logLevel, final String format, final Object... objects) {
         return logOnce(false, expiryPeriod, synchronizedWriter, logger, logLevel, format, objects);
     }
 
-    public synchronized String logOnce(boolean printAnyway, SynchronizedWriter synchronizedWriter, Logger logger, LogLevel logLevel, String format, Object... objects) {
+    public synchronized String logOnce(final boolean printAnyway, final SynchronizedWriter synchronizedWriter, final Logger logger, final LogLevel logLevel, final String format, final Object... objects) {
         return logOnce(printAnyway, 0L, synchronizedWriter, logger, logLevel, format, objects);
     }
 
     @SuppressWarnings("AssignmentToMethodParameter")
-    public synchronized String logOnce(boolean printAnyway, long expiryPeriod, SynchronizedWriter synchronizedWriter, Logger logger, LogLevel logLevel, String format, Object... objects) {
+    public synchronized String logOnce(final boolean printAnyway, final long expiryPeriod, final SynchronizedWriter synchronizedWriter, final Logger logger, final LogLevel logLevel, final String format, Object... objects) {
         final Throwable throwable;
         if (logLevel == LogLevel.ERROR && objects != null && objects.length > 0) {
             final Object object = objects[objects.length - 1];
@@ -123,19 +122,19 @@ public class AlreadyPrintedMap
 //    private synchronized Long add(String string, long expiryPeriod) {
 //        return this.put(string, expiryPeriod); // current time will be added in the modified put method
 //    }
-    private synchronized Long add(boolean isImportant, String string, long expiryPeriod) {
+    private synchronized Long add(final boolean isImportant, final String string, final long expiryPeriod) {
         return this.put(isImportant, string, expiryPeriod); // current time will be added in the modified put method
     }
 
-    public synchronized boolean containsOrAdd(String string) {
+    public synchronized boolean containsOrAdd(final String string) {
         return this.containsOrAdd(defaultIsImportant, string, defaultExpirationPeriod);
     }
 
-    public synchronized boolean containsOrAdd(String string, long expiryPeriod) {
+    public synchronized boolean containsOrAdd(final String string, final long expiryPeriod) {
         return containsOrAdd(defaultIsImportant, string, expiryPeriod);
     }
 
-    public synchronized boolean containsOrAdd(boolean isImportant, String string, long expiryPeriod) {
+    public synchronized boolean containsOrAdd(final boolean isImportant, final String string, final long expiryPeriod) {
         final boolean contains = this.contains(string);
         if (!contains) {
             this.add(isImportant, string, expiryPeriod);
@@ -145,7 +144,7 @@ public class AlreadyPrintedMap
         return contains;
     }
 
-    public synchronized boolean contains(String string) { // also updates properties
+    public synchronized boolean contains(final String string) { // also updates properties
         final boolean result;
         if (this.map.containsKey(string)) {
             final Long value = this.map.get(string);
@@ -170,7 +169,7 @@ public class AlreadyPrintedMap
         return result;
     }
 
-    private synchronized void updateProperties(boolean isImportant, String string, long currentTime, boolean shouldExist) {
+    private synchronized void updateProperties(final boolean isImportant, final String string, final long currentTime, final boolean shouldExist) {
         final AlreadyPrintedProperties properties;
         if (this.propertiesMap.containsKey(string)) {
             properties = this.propertiesMap.get(string);
@@ -187,11 +186,11 @@ public class AlreadyPrintedMap
         }
     }
 
-    public synchronized Long put(String string, Long expiryPeriod) {
+    public synchronized Long put(final String string, final Long expiryPeriod) {
         return put(defaultIsImportant, string, expiryPeriod);
     }
 
-    public synchronized Long put(boolean isImportant, String string, Long expiryPeriod) { // boolean is first argument, as boolean as last argument exists in super.put overload
+    public synchronized Long put(final boolean isImportant, final String string, final Long expiryPeriod) { // boolean is first argument, as boolean as last argument exists in super.put overload
         final long currentTime = System.currentTimeMillis();
         final Long existingValue = this.map.put(string, currentTime + expiryPeriod);
         if (existingValue != null) {
@@ -204,7 +203,7 @@ public class AlreadyPrintedMap
         return existingValue;
     }
 
-    public synchronized Long remove(String string) {
+    public synchronized Long remove(final String string) {
         final Long existingValue = this.map.remove(string);
         final AlreadyPrintedProperties properties = this.propertiesMap.remove(string);
         if (properties == null) {

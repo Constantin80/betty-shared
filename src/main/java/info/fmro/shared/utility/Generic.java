@@ -30,11 +30,16 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.net.IDN;
 import java.net.URLDecoder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
@@ -155,7 +160,37 @@ public class Generic {
     private Generic() {
     }
 
-    public static int getMiddleIndex(String string, String subString) {
+    public static int booleanToInt(final boolean boo) {
+        return boo ? 1 : 0;
+    }
+
+    public static double roundDouble(final double value, int places, final RoundingMode roundingMode) {
+        if (places < 0) {
+            logger.error("negative places in roundDouble: {} {} {}", value, places, roundingMode);
+            places = 0;
+        } else { // no error, the method will continue, nothing to be done on branch
+        }
+
+        final BigDecimal bd = new BigDecimal(value);
+        final BigDecimal result = bd.setScale(places, roundingMode);
+        return result.doubleValue();
+    }
+
+    public static double roundDouble(final double value, final int places) {
+        return roundDouble(value, places, RoundingMode.HALF_DOWN);
+    }
+
+    public static double roundDoubleAmount(double value) {
+        if (value < 0d) {
+            logger.error("negative value in roundDoubleAmount: {}", value);
+            value = 0d;
+        } else { // no error, the method will continue, nothing to be done on branch
+        }
+
+        return roundDouble(value, 2, RoundingMode.HALF_DOWN);
+    }
+
+    public static int getMiddleIndex(final String string, final String subString) {
         final int result;
         if (string == null || subString == null) {
             logger.error("null string in getMiddleIndex for: {} {}", string, subString);
@@ -169,12 +204,12 @@ public class Generic {
         return result;
     }
 
-    public static <T> T createAndFill(Class<T> clazz)
+    public static <T> T createAndFill(final Class<T> clazz)
             throws IllegalAccessException, InvocationTargetException, InstantiationException {
         return createAndFill(clazz, 0);
     }
 
-    public static <T> T createAndFill(Class<T> clazz, int recursionCounter)
+    public static <T> T createAndFill(final Class<T> clazz, final int recursionCounter)
             throws IllegalAccessException, InvocationTargetException, InstantiationException {
         // fills a class with random value for fields, using reflection; in case of no arguments in the constructor; used in tests
         // final or static fields are not touched; also this might not work with every class, depending on field types; and it only works with classes that can be instantiated by this method
@@ -202,12 +237,64 @@ public class Generic {
         return instance;
     }
 
-    public static void fillRandom(Object instance)
+    @SuppressWarnings("unchecked")
+    public static <T> T createAndFillWithPrimitiveCheck(final Class<T> clazz, final int recursionCounter)
+            throws IllegalAccessException, InvocationTargetException, InstantiationException {
+        T instance;
+        final Random random = new Random();
+
+        if (clazz.isEnum()) {
+            final Object[] enumValues = clazz.getEnumConstants();
+            instance = (T) enumValues[random.nextInt(enumValues.length)];
+        } else if (clazz.equals(Boolean.TYPE) || clazz.equals(Boolean.class)) {
+            instance = (T) Boolean.valueOf(random.nextBoolean());
+        } else if (clazz.equals(Double.TYPE) || clazz.equals(Double.class)) {
+            instance = (T) Double.valueOf(random.nextDouble());
+        } else if (clazz.equals(Float.TYPE) || clazz.equals(Float.class)) {
+            instance = (T) Float.valueOf(random.nextFloat());
+        } else if (clazz.equals(Integer.TYPE) || clazz.equals(Integer.class)) {
+            instance = (T) Integer.valueOf(random.nextInt());
+        } else if (clazz.equals(Long.TYPE) || clazz.equals(Long.class)) {
+            instance = (T) Long.valueOf(random.nextLong());
+        } else if (clazz.equals(String.class)) {
+            instance = (T) UUID.randomUUID().toString();
+        } else if (clazz.equals(BigInteger.class)) {
+            instance = (T) BigInteger.valueOf(random.nextInt());
+        } else if (clazz.equals(Date.class)) {
+            // Get an Epoch value roughly between 1940 and 2040
+            // -946771200000L = January 1, 1940
+            // Add up to approx 100 years to it (using modulus on the next long)
+            instance = (T) new Date(-946771200000L + (Math.abs(random.nextLong()) % (100L * 365 * 24 * 60 * 60 * 1000)));
+        } else {
+            try {
+                instance = clazz.getConstructor().newInstance();
+            } catch (NoSuchMethodException e) {
+                instance = null;
+                logger.warn("class {} doesn't have constructor without arguments in Generic.createAndFill", clazz.getSimpleName());
+            }
+            if (instance != null) {
+                for (Field field : clazz.getDeclaredFields()) {
+                    final int fieldModifiers = field.getModifiers();
+                    if (Modifier.isFinal(fieldModifiers) || Modifier.isStatic(fieldModifiers)) {
+                        // I won't touch final or static fields; nothing to be done
+                    } else {
+                        Object value = getRandomValueForField(field, recursionCounter); // recursionCounter gets increased in getRandomValueForField
+                        field.set(instance, value);
+                    }
+                }
+            } else { // instance == null, error message was already printed, nothing to be done
+            }
+        }
+
+        return instance;
+    }
+
+    public static void fillRandom(final Object instance)
             throws IllegalAccessException, InvocationTargetException, InstantiationException {
         fillRandom(instance, 0);
     }
 
-    public static void fillRandom(Object instance, int recursionCounter)
+    public static void fillRandom(final Object instance, final int recursionCounter)
             throws IllegalAccessException, InvocationTargetException, InstantiationException {
         // fills a class object with random value for fields, using reflection; used in tests
         // final or static fields are not touched; also this might not work with every class, depending on field types
@@ -216,17 +303,18 @@ public class Generic {
             if (Modifier.isFinal(fieldModifiers) || Modifier.isStatic(fieldModifiers)) {
                 // I won't touch final or static fields; nothing to be done
             } else {
-                Object value = getRandomValueForField(field, recursionCounter); // recursionCounter gets increased in getRandomValueForField
+                final Object value = getRandomValueForField(field, recursionCounter); // recursionCounter gets increased in getRandomValueForField
                 field.set(instance, value);
             }
         }
     }
 
-    public static Object getRandomValueForField(Field field, int recursionCounter)
+    @SuppressWarnings("unchecked")
+    public static Object getRandomValueForField(final Field field, final int recursionCounter)
             throws IllegalAccessException, InvocationTargetException, InstantiationException { // used in tests; for field null will throw null exception, as null is not acceptable
         final Object result;
         field.setAccessible(true);
-        Class<?> type = field.getType();
+        final Class<?> type = field.getType();
 
         if (recursionCounter < 0 || recursionCounter > 10) {
             logger.error("bogus recursionCounter in getRandomValueForField: {} {}", recursionCounter, type);
@@ -235,12 +323,10 @@ public class Generic {
             logger.warn("recursionCounter maximum reached in getRandomValueForField: {} {}", recursionCounter, type);
             result = type.isPrimitive() ? type.equals(Boolean.TYPE) ? false : 0 : null;
         } else {
-            Random random = new Random();
+            final Random random = new Random();
 
-            // Note that we must handle the different types here! This is just an
-            // example, so this list is not complete! Adapt this to your needs!
             if (type.isEnum()) {
-                Object[] enumValues = type.getEnumConstants();
+                final Object[] enumValues = type.getEnumConstants();
                 result = enumValues[random.nextInt(enumValues.length)];
             } else if (type.equals(Boolean.TYPE) || type.equals(Boolean.class)) {
                 result = random.nextBoolean();
@@ -261,6 +347,26 @@ public class Generic {
                 // -946771200000L = January 1, 1940
                 // Add up to approx 100 years to it (using modulus on the next long)
                 result = new Date(-946771200000L + (Math.abs(random.nextLong()) % (100L * 365 * 24 * 60 * 60 * 1000)));
+            } else if (type.equals(ArrayList.class)) {
+                final ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
+                final Class<?> parameterClass = convertTypeToClass(parameterizedType.getActualTypeArguments()[0]);
+                final int randomListSize = random.nextInt(16);
+                final ArrayList arrayList = new ArrayList<>(randomListSize);
+                for (int i = 0; i < randomListSize; i++) {
+                    arrayList.add(i, createAndFillWithPrimitiveCheck(parameterClass, recursionCounter + 1));
+                }
+                result = arrayList;
+            } else if (type.equals(LinkedHashMap.class)) {
+                final ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
+                final Type[] parameterTypes = parameterizedType.getActualTypeArguments();
+                final Class<?> parameterClass0 = convertTypeToClass(parameterTypes[0]);
+                final Class<?> parameterClass1 = convertTypeToClass(parameterTypes[1]);
+                final int randomListSize = random.nextInt(16);
+                final LinkedHashMap map = new LinkedHashMap<>(randomListSize);
+                for (int i = 0; i < randomListSize; i++) {
+                    map.put(createAndFillWithPrimitiveCheck(parameterClass0, recursionCounter + 1), createAndFillWithPrimitiveCheck(parameterClass1, recursionCounter + 1));
+                }
+                result = map;
             } else {
                 result = createAndFill(type, recursionCounter + 1);
             }
@@ -269,7 +375,17 @@ public class Generic {
         return result;
     }
 
-    public static String createStringFromCodes(int... codes) {
+    public static Class<?> convertTypeToClass(final Type type) {
+        Class<?> result;
+        try {
+            result = (Class<?>) type;
+        } catch (ClassCastException e) { // normal, sometimes type is not a class, but a generic
+            result = Object.class;
+        }
+        return result;
+    }
+
+    public static String createStringFromCodes(final int... codes) {
         final String returnString;
 
         if (codes == null) {
@@ -287,7 +403,7 @@ public class Generic {
         return returnString;
     }
 
-    public static <T> T getEqualElementFromSet(Set<T> set, T searchedElement) {
+    public static <T> T getEqualElementFromSet(final Set<T> set, final T searchedElement) {
         T returnElement = null;
 
         if (set == null || searchedElement == null) { // will just return null
@@ -302,7 +418,7 @@ public class Generic {
         return returnElement;
     }
 
-    public static String getStringCodePointValues(String initialString) {
+    public static String getStringCodePointValues(final String initialString) {
         if (initialString == null) {
             return null;
         } else {
@@ -351,7 +467,7 @@ public class Generic {
         return properTimeStamp(System.currentTimeMillis());
     }
 
-    public static String properTimeStamp(long millis) {
+    public static String properTimeStamp(final long millis) {
         String returnValue = new Timestamp(millis).toString();
         int length = returnValue.length();
         if (length < 21 || length > 23) {
@@ -366,7 +482,7 @@ public class Generic {
         return returnValue;
     }
 
-    public static void changeDefaultCharset(String newCharset) {
+    public static void changeDefaultCharset(final String newCharset) {
         System.setProperty("file.encoding", newCharset);
         try {
             Field charset = Charset.class.getDeclaredField("defaultCharset");
@@ -379,25 +495,26 @@ public class Generic {
         }
     }
 
-    public static ArrayList<? extends OutputStream> replaceStandardStreams(String outFileName, String errFileName, String logsFolderName) {
+    public static ArrayList<? extends OutputStream> replaceStandardStreams(final String outFileName, final String errFileName, final String logsFolderName) {
         return replaceStandardStreams(outFileName, errFileName, logsFolderName, true); // closed by default, left open for JUnit tests
     }
 
-    public static ArrayList<? extends OutputStream> replaceStandardStreams(String outFileName, String errFileName, String logsFolderName, boolean closeExistingStreams) {
+    public static ArrayList<? extends OutputStream> replaceStandardStreams(final String outFileName, final String errFileName, final String logsFolderName, final boolean closeExistingStreams) {
         ArrayList<OutputStream> list;
         FileOutputStream outFileOutputStream = null, errFileOutputStream = null;
         PrintStream outPrintStream = null, errPrintStream = null;
         try {
-            new File(logsFolderName).mkdirs();
-
-            File previousFile = new File(outFileName);
-            if (previousFile.exists() && previousFile.length() > 0) { // moving existing out log file to the logs folder
-                previousFile.renameTo(new File(logsFolderName + "/" + Generic.tempFileName("outFile") + ".txt"));
-            }
-            previousFile = new File(errFileName);
-            if (previousFile.exists() && previousFile.length() > 0) { // moving existing err log file to the logs folder
-                previousFile.renameTo(new File(logsFolderName + "/" + Generic.tempFileName("errFile") + ".txt"));
-            }
+            backupFiles(logsFolderName, true, outFileName, errFileName);
+//            new File(logsFolderName).mkdirs();
+//
+//            File previousFile = new File(outFileName);
+//            if (previousFile.exists() && previousFile.length() > 0) { // moving existing out log file to the logs folder
+//                previousFile.renameTo(new File(logsFolderName + "/" + Generic.tempFileName("outFile") + ".txt"));
+//            }
+//            previousFile = new File(errFileName);
+//            if (previousFile.exists() && previousFile.length() > 0) { // moving existing err log file to the logs folder
+//                previousFile.renameTo(new File(logsFolderName + "/" + Generic.tempFileName("errFile") + ".txt"));
+//            }
 
             list = new ArrayList<>(4);
 
@@ -436,13 +553,39 @@ public class Generic {
         return list;
     }
 
-    public static <T> Set<Class<? extends T>> getSubclasses(String prefix, Class<T> myInterface) {
+    public static void backupFiles(final String backupFolderName, final String... fileNames) {
+        backupFiles(backupFolderName, false, fileNames);
+    }
+
+    public static void backupFiles(final String backupFolderName, final boolean removeOriginal, final String... fileNames) {
+        new File(backupFolderName).mkdirs();
+        for (String fileName : fileNames) {
+            final File previousFile = new File(fileName);
+            if (previousFile.exists() && previousFile.length() > 0) { // moving existing out log file to the logs folder
+                final String fileNameWithoutFolder = previousFile.getName();
+                final String backupFileName = Generic.tempFileName(backupFolderName + "/" + fileNameWithoutFolder);
+                final File backupFile = new File(backupFileName);
+                if (removeOriginal) {
+                    previousFile.renameTo(backupFile);
+                } else {
+                    try {
+                        Files.copy(previousFile.toPath(), backupFile.toPath());
+                    } catch (IOException e) {
+                        logger.error("IOException in backupfile for: {} {} {} {} {}", backupFolderName, removeOriginal, fileName, fileNameWithoutFolder, backupFileName, e);
+                    }
+                }
+            } else { // file does not exist, or is empty; it's sometimes normal
+            }
+        } // end for
+    }
+
+    public static <T> Set<Class<? extends T>> getSubclasses(final String prefix, final Class<T> myInterface) {
         Reflections reflections = new Reflections(prefix);
         Set<Class<? extends T>> classes = reflections.getSubTypesOf(myInterface);
         return classes;
     }
 
-    public static <T> Collection<T> collectionKeepMultiples(Collection<T> collection, int minNMultiple) {
+    public static <T> Collection<T> collectionKeepMultiples(final Collection<T> collection, final int minNMultiple) {
         if (minNMultiple <= 1) {
             logger.error("minNMultiple {} should be at least 2 in order to have effect in collectionKeepMultiples", minNMultiple);
         } else {
@@ -456,37 +599,37 @@ public class Generic {
         return collection;
     }
 
-    public static boolean isPowerOfTwo(long x) { // alternative: ((value & -value) == value)
+    public static boolean isPowerOfTwo(final long x) { // alternative: ((value & -value) == value)
         return x != 0 && ((x & (x - 1)) == 0);
     }
 
-    public static void stringBuilderReplace(StringBuilder stringBuilder, String string) {
+    public static void stringBuilderReplace(final StringBuilder stringBuilder, final String string) {
         stringBuilder.replace(0, stringBuilder.length(), string);
     }
 
-    public static double middleValue(double a, double b, double c) {
+    public static double middleValue(final double a, final double b, final double c) {
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
     }
 
-    public static float middleValue(float a, float b, float c) {
+    public static float middleValue(final float a, final float b, final float c) {
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
     }
 
-    public static int middleValue(int a, int b, int c) {
+    public static int middleValue(final int a, final int b, final int c) {
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
     }
 
-    public static long middleValue(long a, long b, long c) {
+    public static long middleValue(final long a, final long b, final long c) {
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
     }
 
-    public static double truncateDouble(double doubleValue, int decimals) {
+    public static double truncateDouble(final double doubleValue, final int decimals) {
         double power10double = Math.pow(10, decimals);
         long power10long = (long) power10double;
         return Math.floor(doubleValue * power10double) / power10long;
     }
 
-    public static String quotedReplaceAll(String string, String pattern, String replacement) {
+    public static String quotedReplaceAll(final String string, final String pattern, final String replacement) {
         String result;
         if (string != null) {
             String quotedPattern = Pattern.quote(pattern);
@@ -502,15 +645,15 @@ public class Generic {
         return result;
     }
 
-    public static double stringMatchChance(String stringFirst, String stringSecond) {
+    public static double stringMatchChance(final String stringFirst, final String stringSecond) {
         return stringMatchChance(stringFirst, stringSecond, true, true);
     }
 
-    public static double stringMatchChance(String stringFirst, String stringSecond, boolean ignoreCase) {
+    public static double stringMatchChance(final String stringFirst, final String stringSecond, final boolean ignoreCase) {
         return stringMatchChance(stringFirst, stringSecond, ignoreCase, true);
     }
 
-    public static double stringMatchChance(String stringFirst, String stringSecond, boolean ignoreCase, boolean trimStrings) {
+    public static double stringMatchChance(final String stringFirst, final String stringSecond, final boolean ignoreCase, final boolean trimStrings) {
         double result;
 
         if (stringFirst == null || stringSecond == null) {
@@ -665,11 +808,11 @@ public class Generic {
         return result;
     }
 
-    public static int getCollectionCapacity(Collection<?> collection) { // returns a capacity that will hold that collection
+    public static int getCollectionCapacity(final Collection<?> collection) { // returns a capacity that will hold that collection
         return getCollectionCapacity(collection, 0.75f);
     }
 
-    public static int getCollectionCapacity(Collection<?> collection, float loadFactor) {
+    public static int getCollectionCapacity(final Collection<?> collection, final float loadFactor) {
         int size;
         if (collection == null) {
             size = 0;
@@ -679,11 +822,11 @@ public class Generic {
         return getCollectionCapacity(size, loadFactor);
     }
 
-    public static int getCollectionCapacity(int size) {
+    public static int getCollectionCapacity(final int size) {
         return getCollectionCapacity(size, 0.75f);
     }
 
-    public static int getCollectionCapacity(int size, float loadFactor) {
+    public static int getCollectionCapacity(final int size, final float loadFactor) {
         return (int) Generic.ceilingPowerOf(2, size / loadFactor);
     }
 
@@ -692,7 +835,7 @@ public class Generic {
     //     printStackTraces (System.out); // intentionally printed to System.out, as this doesn't represent an error, it's just used for debugging
     // }
     @SuppressWarnings({"BroadCatchBlock", "TooBroadCatch"})
-    public static void printStackTraces(String fileName) {
+    public static void printStackTraces(final String fileName) {
         FileOutputStream stackFileOutputStream = null;
         PrintStream stackPrintStream = null;
 
@@ -708,7 +851,7 @@ public class Generic {
         }
     }
 
-    public static void printStackTraces(PrintStream printStream) {
+    public static void printStackTraces(final PrintStream printStream) {
         printStream.println("Printing stack traces for all threads:");
         Map<Thread, StackTraceElement[]> stacksMap = Thread.getAllStackTraces();
 
@@ -721,7 +864,7 @@ public class Generic {
     // public static void printStackTrace(StackTraceElement[] stackTraceElementsArray) {
     //     printStackTrace(stackTraceElementsArray, System.out); // intentionally printed to System.out, as this doesn't represent an error, it's just used for debugging
     // }
-    public static void printStackTrace(StackTraceElement[] stackTraceElementsArray, String fileName) {
+    public static void printStackTrace(final StackTraceElement[] stackTraceElementsArray, final String fileName) {
         FileOutputStream stackFileOutputStream = null;
         PrintStream stackPrintStream = null;
 
@@ -740,7 +883,7 @@ public class Generic {
     }
 
     @SuppressWarnings("ThrowableInstanceNotThrown")
-    public static void printStackTrace(StackTraceElement[] stackTraceElementsArray, PrintStream printStream) {
+    public static void printStackTrace(final StackTraceElement[] stackTraceElementsArray, final PrintStream printStream) {
         if (stackTraceElementsArray != null && printStream != null) {
             Throwable throwable = new Throwable();
             throwable.setStackTrace(stackTraceElementsArray);
@@ -748,7 +891,7 @@ public class Generic {
         }
     }
 
-    public static boolean[] closeObjects(Object... objects) {
+    public static boolean[] closeObjects(final Object... objects) {
         boolean[] closeSuccess = new boolean[objects.length];
 
         for (int i = 0; i < objects.length; i++) {
@@ -758,7 +901,7 @@ public class Generic {
         return closeSuccess;
     }
 
-    public static boolean setSoLinger(Object object) {
+    public static boolean setSoLinger(final Object object) {
         boolean setSoLingerSuccess;
 
         if (object != null) {
@@ -787,12 +930,11 @@ public class Generic {
                 // }
                 try {
                     if (objectSetSoLingerMethod != null) {
-                        if (!objectSetSoLingerMethod.isAccessible()) {
+                        if (!objectSetSoLingerMethod.canAccess(object)) {
                             objectSetSoLingerMethod.setAccessible(true);
-                            setSoLingerSuccess = true;
-                        } else {
-                            setSoLingerSuccess = false;
+                        } else { // already accessible, nothing to be done
                         }
+                        setSoLingerSuccess = true;
                         objectSetSoLingerMethod.invoke(object, true, 0);
                     } else {
                         setSoLingerSuccess = false;
@@ -828,7 +970,7 @@ public class Generic {
         return setSoLingerSuccess;
     }
 
-    public static boolean closeObject(Object object) {
+    public static boolean closeObject(final Object object) {
         // closes an object and catches all exceptions
         // the object.setSoLinger (true, 0) is invoked if a setSoLinger method exists
         setSoLinger(object);
@@ -884,7 +1026,7 @@ public class Generic {
 
                 try {
                     if (objectCloseMethod != null) {
-                        if (!objectCloseMethod.isAccessible()) {
+                        if (!objectCloseMethod.canAccess(object)) {
                             objectCloseMethod.setAccessible(true);
                         }
                         objectCloseMethod.invoke(object);
@@ -911,7 +1053,7 @@ public class Generic {
         return closeSuccess;
     }
 
-    public static byte[] concatByte(byte[] a, int startIndexA, int endIndexA, byte[] b, int startIndexB, int endIndexB) {
+    public static byte[] concatByte(final byte[] a, final int startIndexA, final int endIndexA, final byte[] b, final int startIndexB, final int endIndexB) {
         // endIndexA & endIndexB are excluded
         int localStartIndexA, localStartIndexB, localEndIndexA, localEndIndexB;
 
@@ -943,7 +1085,7 @@ public class Generic {
         return resultArray;
     }
 
-    public static String encryptString(String string, int encryptKey) {
+    public static String encryptString(final String string, final int encryptKey) {
         String result = string;
 
         if (string != null) {
@@ -961,7 +1103,7 @@ public class Generic {
         return result;
     }
 
-    public static boolean encryptFile(String fileName, int encryptKey) {
+    public static boolean encryptFile(final String fileName, final int encryptKey) {
         // encrypts and replaces a file
         boolean success = false;
 
@@ -1000,7 +1142,7 @@ public class Generic {
         return success;
     }
 
-    public static String tempFileName(String fileName) {
+    public static String tempFileName(final String fileName) {
         int nameTrailer = -1;
         long time = System.currentTimeMillis();
 
@@ -1018,7 +1160,7 @@ public class Generic {
         return fileName + time + "." + nameTrailer;
     }
 
-    public static Object readObjectFromFile(String fileName) {
+    public static Object readObjectFromFile(final String fileName) {
         Object object = null;
         ObjectInputStream objectInputStream = null;
         BufferedInputStream bufferedInputStream = null;
@@ -1046,17 +1188,17 @@ public class Generic {
         return object;
     }
 
-    public static void synchronizedWriteObjectToFile(Object object, String fileName) {
+    public static void synchronizedWriteObjectToFile(final Object object, final String fileName) {
         synchronizedWriteObjectToFile(object, fileName, false);
     }
 
-    public static void synchronizedWriteObjectToFile(Object object, String fileName, boolean appendFile) {
+    public static void synchronizedWriteObjectToFile(final Object object, final String fileName, final boolean appendFile) {
         synchronized (object) {
             writeObjectToFile(object, fileName, appendFile);
         }
     }
 
-    public static void synchronizedWriteObjectsToFiles(Map<Object, String> fileNamesMap) {
+    public static void synchronizedWriteObjectsToFiles(final Map<Object, String> fileNamesMap) {
         // should not be used if objects in keyset are collections; strange behaviour results
         Set<Object> keySet = fileNamesMap.keySet();
         for (Object key : keySet) {
@@ -1064,11 +1206,11 @@ public class Generic {
         }
     }
 
-    public static void writeObjectToFile(Object object, String fileName) {
+    public static void writeObjectToFile(final Object object, final String fileName) {
         writeObjectToFile(object, fileName, false);
     }
 
-    public static void writeObjectToFile(Object object, String fileName, boolean appendFile) {
+    public static void writeObjectToFile(final Object object, final String fileName, final boolean appendFile) {
         ObjectOutputStream objectOutputStream = null;
         BufferedOutputStream bufferedOutputStream = null;
         FileOutputStream fileOutputStream = null;
@@ -1087,7 +1229,7 @@ public class Generic {
         }
     }
 
-    public static void writeObjectsToFiles(Map<Object, String> fileNamesMap) {
+    public static void writeObjectsToFiles(final Map<Object, String> fileNamesMap) {
         // should not be used if objects in keyset are collections; strange behaviour results
         Set<Object> keySet = fileNamesMap.keySet();
         for (Object key : keySet) {
@@ -1095,7 +1237,7 @@ public class Generic {
         }
     }
 
-    public static String getHexString(byte[] b) {
+    public static String getHexString(final byte[] b) {
         // convert a byte array to a Hex string
         StringBuilder result = new StringBuilder(b.length);
         for (int i = 0; i < b.length; i++) {
@@ -1105,7 +1247,7 @@ public class Generic {
         return result.toString();
     }
 
-    public static String backwardWordsString(String string) {
+    public static String backwardWordsString(final String string) {
         // returns the string with words ordered in reverse; words are bordered by spaces
         String result;
 
@@ -1132,7 +1274,7 @@ public class Generic {
         return result;
     }
 
-    public static String backwardString(String string) {
+    public static String backwardString(final String string) {
         // returns the string in reverse
         String result;
 
@@ -1152,7 +1294,7 @@ public class Generic {
         return result;
     }
 
-    public static String trimIP(String IP) {
+    public static String trimIP(final String IP) {
         // removes heading zeros from IP values
         boolean isIP = true;
         int numberOfDots = 0;
@@ -1191,7 +1333,7 @@ public class Generic {
         return resultStringBuilder.toString();
     }
 
-    public static boolean goodPort(String tempPort) {
+    public static boolean goodPort(final String tempPort) {
         boolean isGood = false;
         int port;
 
@@ -1213,7 +1355,7 @@ public class Generic {
         return isGood;
     }
 
-    public static boolean goodDomain(String host) {
+    public static boolean goodDomain(final String host) {
         boolean isGood = false;
 
         if (host == null || !isPureAscii(host) || host.indexOf('.') <= 0 || host.lastIndexOf('.') >= host.length() - 1) {
@@ -1399,7 +1541,7 @@ public class Generic {
         return userAgent;
     }
 
-    public static byte getSocksType(String proxyType) {
+    public static byte getSocksType(final String proxyType) {
         byte socksType;
 
         if (proxyType.equalsIgnoreCase("socks4")) {
@@ -1414,7 +1556,7 @@ public class Generic {
         return socksType;
     }
 
-    public static String linkRemoveProtocol(String link) {
+    public static String linkRemoveProtocol(final String link) {
         String result;
 
         if (link != null && link.contains("://")) {
@@ -1426,7 +1568,7 @@ public class Generic {
         return result;
     }
 
-    public static String linkRemovePort(String link) {
+    public static String linkRemovePort(final String link) {
         String result;
 
         if (link != null) {
@@ -1460,7 +1602,7 @@ public class Generic {
         return result;
     }
 
-    public static String linkRemoveQuery(String link) {
+    public static String linkRemoveQuery(final String link) {
         String result;
 
         if (link != null && link.indexOf('?') >= 0) {
@@ -1473,7 +1615,7 @@ public class Generic {
     }
 
     @SuppressWarnings("null")
-    public static String getLinkHost(String link) {
+    public static String getLinkHost(final String link) {
         String result;
         String modifiedLink = link;
         modifiedLink = linkRemoveProtocol(modifiedLink);
@@ -1495,7 +1637,7 @@ public class Generic {
         return result;
     }
 
-    public static boolean linkMatches(String path, String checkedLink) {
+    public static boolean linkMatches(final String path, final String checkedLink) {
         // all subdomains are taken
         // if path is a folder, only links to that folder and subfolders are taken
         // if path is a particular page, only that page is taken
@@ -1587,7 +1729,7 @@ public class Generic {
     //     return new String (resultString);
     // }
     //
-    public static String addSpaces(Object object, int finalSize, boolean inFront) {
+    public static String addSpaces(final Object object, final int finalSize, final boolean inFront) {
         String returnString;
 
         if (object != null) {
@@ -1612,7 +1754,7 @@ public class Generic {
         return returnString;
     }
 
-    public static String containsSubstring(String string, String[] substrings) {
+    public static String containsSubstring(final String string, final String[] substrings) {
         String foundSubstring = null;
 
         if (string != null && substrings != null) {
@@ -1626,7 +1768,7 @@ public class Generic {
         return foundSubstring;
     }
 
-    public static String convertMillisToDate(long millis, String timeZoneName) {
+    public static String convertMillisToDate(final long millis, final String timeZoneName) {
         // 12.08.2010 23:45:19.342
         DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone(timeZoneName));
@@ -1634,7 +1776,7 @@ public class Generic {
         return dateFormat.format(new Date(millis));
     }
 
-    public static String convertMillisToDate(long millis) {
+    public static String convertMillisToDate(final long millis) {
         return convertMillisToDate(millis, "UTC");
     }
 
@@ -1642,7 +1784,7 @@ public class Generic {
         return getFormattedDate("UTC"); // defaults to UTC, not local time zone
     }
 
-    public static String getFormattedDate(String timeZoneName) {
+    public static String getFormattedDate(final String timeZoneName) {
         // 12.08.2010 23:45:19.342
         DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone(timeZoneName));
@@ -1650,15 +1792,15 @@ public class Generic {
         return dateFormat.format(new Date());
     }
 
-    public static String addCommas(Object value) {
+    public static String addCommas(final Object value) {
         return addCommas(String.valueOf(value), (byte) 3, ",", ".");
     }
 
-    public static String addCommas(double value, int nDecimals) {
+    public static String addCommas(final double value, final int nDecimals) {
         return addCommas(String.format("%." + nDecimals + "f", value), (byte) 3, ",", ".");
     }
 
-    public static String addCommas(String string, byte groupSize, String commaDelimiter, String periodDelimiter) {
+    public static String addCommas(final String string, final byte groupSize, final String commaDelimiter, final String periodDelimiter) {
         int periodIndex = string.indexOf(periodDelimiter);
 
         if (periodIndex < 0) {
@@ -1678,16 +1820,16 @@ public class Generic {
         return resultString;
     }
 
-    public static boolean isPureAscii(String string) {
+    public static boolean isPureAscii(final String string) {
         // return USASCII_CHARSET.newEncoder().canEncode (string);
         return Charset.forName(USASCII_CHARSET).newEncoder().canEncode(string);
     }
 
-    public static int byteArrayIndexOf(byte[] data, byte[] pattern) {
+    public static int byteArrayIndexOf(final byte[] data, final byte[] pattern) {
         return byteArrayIndexOf(data, pattern, 0);
     }
 
-    public static int byteArrayIndexOf(byte[] data, byte[] pattern, int beginIndex) {
+    public static int byteArrayIndexOf(final byte[] data, final byte[] pattern, final int beginIndex) {
         // Search the data byte array for the first occurrence of the byte array pattern.
         int[] failure = byteArrayComputeFailure(pattern);
         int j = 0;
@@ -1707,7 +1849,7 @@ public class Generic {
         return -1;
     }
 
-    public static int[] byteArrayComputeFailure(byte[] pattern) {
+    public static int[] byteArrayComputeFailure(final byte[] pattern) {
         // Computes the failure function using a boot-strapping process, where the pattern is matched against itself.
         int[] failure = new int[pattern.length];
         int j = 0;
@@ -1725,16 +1867,16 @@ public class Generic {
         return failure;
     }
 
-    public static double logOfBase(double base, double num) {
+    public static double logOfBase(final double base, final double num) {
         return Math.log(num) / Math.log(base);
     }
 
-    public static double ceilingPowerOf(double base, double num) {
+    public static double ceilingPowerOf(final double base, final double num) {
         // returns the closest higher or equal power of the base to the given num
         return Math.pow(base, Math.ceil(logOfBase(base, num)));
     }
 
-    public static <K, V> boolean compareLinkedHashMap(LinkedHashMap<K, V> firstMap, LinkedHashMap<K, V> secondMap) {
+    public static <K, V> boolean compareLinkedHashMap(final LinkedHashMap<K, V> firstMap, final LinkedHashMap<K, V> secondMap) {
         boolean areEqual;
 
         areEqual = firstMap.equals(secondMap);
@@ -1755,12 +1897,12 @@ public class Generic {
     }
 
     // @SuppressWarnings ("unchecked")
-    public static <K, V> LinkedHashMap<K, V> sortByValue(LinkedHashMap<K, V> map, final boolean ascendingOrder) {
+    public static <K, V> LinkedHashMap<K, V> sortByValue(final LinkedHashMap<K, V> map, final boolean ascendingOrder) {
         List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());
 
         Collections.sort(list, new Comparator<Object>() {
             @Override
-            public int compare(Object o1, Object o2) {
+            public int compare(final Object o1, final Object o2) {
                 @SuppressWarnings("unchecked")
                 int result = ((Comparable) ((Map.Entry) (o1)).getValue()).compareTo(((Map.Entry) (o2)).getValue());
 
@@ -1782,7 +1924,7 @@ public class Generic {
         return result;
     }
 
-    public static <E> E getRandomElementFromSet(Set<E> set) {
+    public static <E> E getRandomElementFromSet(final Set<E> set) {
         int setSize = set.size(), randomPosition = new Random().nextInt(setSize), counter = 0;
 
         for (E element : set) {
@@ -1795,7 +1937,7 @@ public class Generic {
         return null; // no object found for some reason
     }
 
-    public static void copyFile(File sourceFile, File destFile)
+    public static void copyFile(final File sourceFile, final File destFile)
             throws java.io.IOException {
         if (!destFile.exists()) {
             destFile.createNewFile();
@@ -1813,7 +1955,7 @@ public class Generic {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T[] concatArrays(T[] firstArray, T[]... restArrays) {
+    public static <T> T[] concatArrays(final T[] firstArray, final T[]... restArrays) {
         // because this works with generic type, it won't work with primitive types
         int totalLength = firstArray.length;
 
@@ -1832,7 +1974,7 @@ public class Generic {
         return resultArray;
     }
 
-    public static byte[] compressByteArray(byte[] byteArray, String compressionFormat)
+    public static byte[] compressByteArray(final byte[] byteArray, final String compressionFormat)
             throws IOException {
         // gzip & deflate compression formats accepted
         byte[] returnValue;
@@ -1882,7 +2024,7 @@ public class Generic {
         return returnValue;
     }
 
-    public static byte[] decompressByteArray(byte[] byteArray, String compressionFormat)
+    public static byte[] decompressByteArray(final byte[] byteArray, final String compressionFormat)
             throws IOException {
         // gzip & deflate compression formats accepted
         byte[] returnValue;
@@ -1949,16 +2091,16 @@ public class Generic {
         return returnValue;
     }
 
-    public static LinkedList<String> getSubstrings(String inputString, String firstDelimiter, String secondDelimiter) {
+    public static LinkedList<String> getSubstrings(final String inputString, final String firstDelimiter, final String secondDelimiter) {
         return getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, false, -1);
     }
 
-    public static LinkedList<String> getSubstrings(String inputString, String firstDelimiter, String secondDelimiter, boolean getInterSubstrings) {
+    public static LinkedList<String> getSubstrings(final String inputString, final String firstDelimiter, final String secondDelimiter, final boolean getInterSubstrings) {
         return getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, getInterSubstrings, -1);
     }
 
-    public static LinkedList<String> getSubstrings(String harvestInputString, String searchInputString, String firstDelimiter, String secondDelimiter, boolean getInterSubstrings,
-                                                   int nSubstrings) {
+    public static LinkedList<String> getSubstrings(final String harvestInputString, final String searchInputString, final String firstDelimiter, final String secondDelimiter, final boolean getInterSubstrings,
+                                                   final int nSubstrings) {
         // harvestInputString is the string the substrings will be harvested from
         // searchInputString is the string the searches will be made on
         //     - this would usually be the same as harvestInputString, but there can be exceptions, for example when we want the letterCase to differ
@@ -1999,11 +2141,11 @@ public class Generic {
         return returnSet;
     }
 
-    public static LinkedList<String> getSubstringsIgnoreCase(String inputString, String firstDelimiter, String secondDelimiter) {
+    public static LinkedList<String> getSubstringsIgnoreCase(final String inputString, final String firstDelimiter, final String secondDelimiter) {
         return getSubstrings(inputString, inputString.toLowerCase(), firstDelimiter.toLowerCase(), secondDelimiter.toLowerCase(), false, -1);
     }
 
-    public static String getSubstring(String inputString, String firstDelimiter, String secondDelimiter) {
+    public static String getSubstring(final String inputString, final String firstDelimiter, final String secondDelimiter) {
         String returnString = null;
 
         try {
@@ -2016,11 +2158,11 @@ public class Generic {
         return returnString;
     }
 
-    public static String removeSubstring(String inputString, String firstDelimiter, String secondDelimiter) {
+    public static String removeSubstring(final String inputString, final String firstDelimiter, final String secondDelimiter) {
         return removeSubstring(inputString, firstDelimiter, secondDelimiter, "");
     }
 
-    public static String removeSubstring(String inputString, String firstDelimiter, String secondDelimiter, String replacement) { // in current form, it just removes the first occurrence, and leaves delimiters in place
+    public static String removeSubstring(final String inputString, final String firstDelimiter, final String secondDelimiter, final String replacement) { // in current form, it just removes the first occurrence, and leaves delimiters in place
         final String modifiedString;
         if (inputString == null || firstDelimiter == null || secondDelimiter == null || replacement == null) {
             logger.error("null argument in removeSubstring for: {} {} {} {}", inputString, firstDelimiter, secondDelimiter, replacement);
@@ -2040,7 +2182,7 @@ public class Generic {
         return modifiedString;
     }
 
-    public static <T extends Serializable> T serializedDeepCopy(T sourceObject) {
+    public static <T extends Serializable> T serializedDeepCopy(final T sourceObject) {
         // sourceObject must be serializable
         ObjectOutputStream objectOutputStream = null;
         ObjectInputStream objectInputStream = null;
@@ -2083,12 +2225,12 @@ public class Generic {
         return returnValue;
     }
 
-    public static <T> void synchronizedCopyObjectFields(T sourceObject, T destinationObject) {
+    public static <T> void synchronizedCopyObjectFields(final T sourceObject, final T destinationObject) {
         try {
             if (sourceObject != null && destinationObject != null) {
                 try {
-                    Class<?> sourceClass = sourceObject.getClass();
-                    Object tempObject = sourceClass.newInstance();
+                    final Class<?> sourceClass = sourceObject.getClass();
+                    final Object tempObject = sourceClass.getDeclaredConstructor().newInstance();
 
                     synchronized (sourceObject) {
                         copyObjectFields(sourceObject, tempObject);
@@ -2097,19 +2239,24 @@ public class Generic {
                         copyObjectFields(tempObject, destinationObject);
                     }
                 } catch (InstantiationException instantiationException) {
-                    logger.warn("InstantiationException in synchronizedCopyObjectFields ({} might not be public)", sourceObject.getClass(), instantiationException);
+                    logger.error("InstantiationException in synchronizedCopyObjectFields ({} might not be public)", sourceObject.getClass(), instantiationException);
+                    copyObjectFields(sourceObject, destinationObject);
+                } catch (NoSuchMethodException e) {
+                    logger.error("NoSuchMethodException in synchronizedCopyObjectFields {}", sourceObject.getClass(), e);
+                    copyObjectFields(sourceObject, destinationObject);
+                } catch (InvocationTargetException e) {
+                    logger.error("InvocationTargetException in synchronizedCopyObjectFields {}", sourceObject.getClass(), e);
                     copyObjectFields(sourceObject, destinationObject);
                 }
             } else {
-                logger.error("STRANGE sourceObject or destinationObject null in synchronizedCopyObjectFields, {} {} timeStamp={}", sourceObject, destinationObject,
-                             System.currentTimeMillis());
+                logger.error("STRANGE sourceObject or destinationObject null in synchronizedCopyObjectFields, {} {} timeStamp={}", sourceObject, destinationObject, System.currentTimeMillis());
             }
         } catch (IllegalAccessException illegalAccessException) {
             logger.error("IllegalAccessException in synchronizedCopyObjectFields", illegalAccessException);
         }
     }
 
-    public static <T> void copyObjectFields(T sourceObject, T destinationObject) {
+    public static <T> void copyObjectFields(final T sourceObject, final T destinationObject) {
         // not synchronized
         // fields from sourceObject are copied one by one to destinationObject
         // if either of the objects is null, no action is taken
@@ -2166,26 +2313,26 @@ public class Generic {
         }
     }
 
-    public static String objectToString(Object object, String... excludePatterns) {
+    public static String objectToString(final Object object, final String... excludePatterns) {
         // default to printing default value fields and final fields, but not use toString method
         return objectToString(object, true, true, true, 0, excludePatterns);
     }
 
-    public static String objectToString(Object object) {
+    public static String objectToString(final Object object) {
         // default to printing default value fields and final fields, but not use toString method
         return objectToString(object, true, true, true, 0);
     }
 
-    public static String objectToString(Object object, boolean printDefaultValueFields) {
+    public static String objectToString(final Object object, final boolean printDefaultValueFields) {
         return objectToString(object, printDefaultValueFields, true, true, 0);
     }
 
-    public static String objectToString(Object object, boolean printDefaultValueFields, boolean printFinalFields) {
+    public static String objectToString(final Object object, final boolean printDefaultValueFields, final boolean printFinalFields) {
         return objectToString(object, printDefaultValueFields, printFinalFields, true, 0);
     }
 
-    public static String objectToString(Object object, boolean printDefaultValueFields, boolean printFinalFields, boolean useToStringMethod, int recursionCounter,
-                                        String... excludePatterns) {
+    public static String objectToString(final Object object, final boolean printDefaultValueFields, final boolean printFinalFields, final boolean useToStringMethod, final int recursionCounter,
+                                        final String... excludePatterns) {
         // synchronized on object
         // has option to use the default toString() method, disabled by default
         // does check to print final type fields
@@ -2222,7 +2369,7 @@ public class Generic {
                         toStringMethod = null;
                     }
 
-                    if (toStringMethod == null || !toStringMethod.isAccessible()) {
+                    if (toStringMethod == null || !toStringMethod.canAccess(object)) {
                         returnStringBuilder = new StringBuilder(32);
 
                         if (object instanceof Collection<?>) {
@@ -2291,7 +2438,7 @@ public class Generic {
                             } else if (objectClass.isArray()) {
                                 returnStringBuilder.append("[");
 
-                                Object[] objectArray = (Object[]) object;
+                                final Object[] objectArray = (Object[]) object;
                                 int objectArrayLength = objectArray.length, appendedCounter = 0;
                                 for (int i = 0; i < objectArrayLength; i++) {
                                     if (objectArray[i] != null) {
@@ -2313,7 +2460,7 @@ public class Generic {
                             } else { // regular object
                                 returnStringBuilder.append("(");
 
-                                List<Class<?>> classList = new ArrayList<>(2);
+                                final List<Class<?>> classList = new ArrayList<>(2);
                                 Class<?> localClass = objectClass;
                                 do {
                                     classList.add(localClass);
@@ -2321,14 +2468,14 @@ public class Generic {
                                 } while (localClass != null && localClass != Object.class);
 
                                 for (int counter = classList.size() - 1; counter >= 0; counter--) {
-                                    Field[] fieldsArray = classList.get(counter).getDeclaredFields();
+                                    final Class<?> clazz = classList.get(counter);
+                                    final Field[] fieldsArray = clazz.getDeclaredFields();
 
                                     // synchronized (object) {
                                     // synchronization removed as it's deadlock prone; it can be added externally
                                     for (Field field : fieldsArray) {
-                                        if (!field.isAccessible()) {
-                                            field.setAccessible(true);
-                                        }
+                                        field.trySetAccessible();
+
                                         Class<?> fieldClass = field.getType();
                                         String fieldName = field.getName();
                                         int fieldModifiers = field.getModifiers();
@@ -2570,11 +2717,11 @@ public class Generic {
                     }
 
                     @Override
-                    public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {
+                    public void checkClientTrusted(final java.security.cert.X509Certificate[] certs, final String authType) {
                     }
 
                     @Override
-                    public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {
+                    public void checkServerTrusted(final java.security.cert.X509Certificate[] certs, final String authType) {
                     }
                 }
         };
@@ -2591,14 +2738,14 @@ public class Generic {
         // should avoid the "HTTPS hostname wrong" exception
         HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
             @Override
-            public boolean verify(String string, SSLSession sslSession) {
+            public boolean verify(final String string, final SSLSession sslSession) {
                 return true;
             }
         });
     }
 
     @SuppressWarnings("RedundantStringConstructorCall")
-    public static String specialCharParser(String line) {
+    public static String specialCharParser(final String line) {
         String result = line;
 
         if (line != null) {
@@ -2668,11 +2815,11 @@ public class Generic {
         closeObjects(System.in, System.out, System.err);
     }
 
-    public static boolean checkAtomicBooleans(AtomicBoolean... atomicBooleans) {
+    public static boolean checkAtomicBooleans(final AtomicBoolean... atomicBooleans) {
         return checkAtomicBooleans(true, atomicBooleans);
     }
 
-    public static boolean checkAtomicBooleans(boolean valueToCheck, AtomicBoolean... atomicBooleans) {
+    public static boolean checkAtomicBooleans(final boolean valueToCheck, final AtomicBoolean... atomicBooleans) {
         boolean found = false;
         for (AtomicBoolean atomicBoolean : atomicBooleans) {
             if (atomicBoolean.get() == valueToCheck) {
@@ -2683,7 +2830,7 @@ public class Generic {
         return found;
     }
 
-    public static boolean checkObjects(Object... objects) {
+    public static boolean checkObjects(final Object... objects) {
         boolean found = false;
         for (Object object : objects) {
             if (object == null) {
@@ -2720,7 +2867,8 @@ public class Generic {
     // public static void threadSleepSegmented(long totalSleepMillis, Object... atomicBooleans) {
     //     threadSleepSegmented(totalSleepMillis, 100L, atomicBooleans);
     // }
-    public static void threadSleepSegmented(long totalSleepMillis, long segmentMillis, Object... objects) {
+    public static boolean threadSleepSegmented(final long totalSleepMillis, final long segmentMillis, final Object... objects) {
+        final boolean hasReachedEndOfSleep;
         if (totalSleepMillis > 0L && segmentMillis > 0L) {
             final long endTime = System.currentTimeMillis() + totalSleepMillis;
             int segments = (int) (totalSleepMillis / segmentMillis);
@@ -2747,12 +2895,17 @@ public class Generic {
                     segments = (int) (leftTime / segmentMillis);
                 }
             } while (segments > 0);
-        } else { // negative or zero variables, nothing to be done; no error message needs to be printed as this is expected to be managed inside this method
+            hasReachedEndOfSleep = segments <= 0;
+        } else { // negative or zero variables
+            logger.error("negative or zero variables in threadSleepSegmented for: {} {} {}", totalSleepMillis, segmentMillis, Generic.objectToString(objects));
+            hasReachedEndOfSleep = false;
         }
+
+        return hasReachedEndOfSleep;
     }
 
     @SuppressWarnings("SleepWhileInLoop")
-    public static void threadSleep(long millis) {
+    public static void threadSleep(final long millis) {
         if (millis > 0L) {
             try {
                 Thread.sleep(millis);
@@ -2763,39 +2916,46 @@ public class Generic {
         }
     }
 
-    public static void setFinalStatic(Field field, Object newValue)
-            throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
-        // to be used only in tests; it only works in some circumstances
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        boolean fieldAccessible = field.isAccessible(), modifiersAccessible = modifiersField.isAccessible();
-        int modifiersValue = field.getModifiers();
+    // I can't make this work in Java 12
+//    public static void setFinalStatic(Field field, Object newValue)
+//            throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
+//        if (field != null) {
+//            // to be used only in tests; it only works in some circumstances
+//            final Field modifiersField = Field.class.getDeclaredField("modifiers");
+////        final boolean fieldAccessible = field.isAccessible(), modifiersAccessible = modifiersField.isAccessible();
+//            final int modifiersValue = field.getModifiers();
+//
+//            try {
+////            if (!fieldAccessible) {
+//                field.setAccessible(true);
+////            }
+////            if (!modifiersAccessible) {
+//                modifiersField.setAccessible(true);
+////            }
+//                if (Modifier.isFinal(modifiersValue)) {
+//                    modifiersField.setInt(field, modifiersValue & ~Modifier.FINAL);
+//                }
+//
+//                field.set(null, newValue);
+//            } finally {
+//                if (field.getModifiers() != modifiersValue) {
+//                    modifiersField.setInt(field, modifiersValue);
+//                }
+////            if (modifiersField.isAccessible() != modifiersAccessible) {
+////                modifiersField.setAccessible(modifiersAccessible);
+////            }
+////            if (field.isAccessible() != fieldAccessible) {
+////                field.setAccessible(fieldAccessible);
+////            }
+//                modifiersField.setAccessible(false);
+//                field.setAccessible(false);
+//            }
+//        } else {
+//            logger.error("null field argument in setFinalStatic {}", Generic.objectToString(newValue));
+//        }
+//    }
 
-        try {
-            if (!fieldAccessible) {
-                field.setAccessible(true);
-            }
-            if (!modifiersAccessible) {
-                modifiersField.setAccessible(true);
-            }
-            if (Modifier.isFinal(modifiersValue)) {
-                modifiersField.setInt(field, modifiersValue & ~Modifier.FINAL);
-            }
-
-            field.set(null, newValue);
-        } finally {
-            if (field.getModifiers() != modifiersValue) {
-                modifiersField.setInt(field, modifiersValue);
-            }
-            if (modifiersField.isAccessible() != modifiersAccessible) {
-                modifiersField.setAccessible(modifiersAccessible);
-            }
-            if (field.isAccessible() != fieldAccessible) {
-                field.setAccessible(fieldAccessible);
-            }
-        }
-    }
-
-    public static Object getField(Object object, String fieldName) {
+    public static Object getField(final Object object, final String fieldName) {
         Object result = null;
 
         if (object != null && fieldName != null) {
@@ -2807,13 +2967,13 @@ public class Generic {
             }
 
             Field field = null;
-            boolean fieldAccessible = true;
+//            boolean fieldAccessible = true;
             try {
                 field = clazz.getDeclaredField(fieldName);
-                fieldAccessible = field.isAccessible();
-                if (!fieldAccessible) {
-                    field.setAccessible(true);
-                }
+//                fieldAccessible = field.isAccessible();
+//                if (!fieldAccessible) {
+                field.setAccessible(true);
+//                }
 
                 result = field.get(object); // if static field, .get() argument is ignored
             } catch (NoSuchFieldException noSuchFieldException) {
@@ -2821,8 +2981,12 @@ public class Generic {
             } catch (IllegalAccessException illegalAccessException) {
                 logger.error("IllegalAccessException in getField: {}", new Object[]{clazz, fieldName}, illegalAccessException);
             } finally {
-                if (field != null && field.isAccessible() != fieldAccessible) {
-                    field.setAccessible(fieldAccessible);
+//                if (field != null && field.isAccessible() != fieldAccessible) {
+//                    field.setAccessible(fieldAccessible);
+//                }
+                if (field != null) {
+                    field.setAccessible(false);
+                } else { // null field, nothing on this branch
                 }
             }
         } else {
@@ -2832,18 +2996,18 @@ public class Generic {
         return result;
     }
 
-    public static boolean setField(Object object, String fieldName, Object value) {
+    public static boolean setField(final Object object, final String fieldName, final Object value) {
         boolean setSuccess = false;
 
         if (object != null && fieldName != null) {
             Field field = null;
-            boolean fieldAccessible = true;
+//            boolean fieldAccessible = true;
             try {
                 field = object.getClass().getDeclaredField(fieldName);
-                fieldAccessible = field.isAccessible();
-                if (!fieldAccessible) {
-                    field.setAccessible(true);
-                }
+//                fieldAccessible = field.isAccessible();
+//                if (!fieldAccessible) {
+                field.setAccessible(true);
+//                }
                 field.set(object, value);
 
                 setSuccess = true;
@@ -2852,8 +3016,12 @@ public class Generic {
             } catch (IllegalAccessException illegalAccessException) {
                 logger.error("IllegalAccessException in setField: {}", new Object[]{object.getClass(), fieldName, value}, illegalAccessException);
             } finally {
-                if (field != null && field.isAccessible() != fieldAccessible) {
-                    field.setAccessible(fieldAccessible);
+//                if (field != null && field.isAccessible() != fieldAccessible) {
+//                    field.setAccessible(fieldAccessible);
+//                }
+                if (field != null) {
+                    field.setAccessible(false);
+                } else { // null field, nothing on this branch
                 }
             }
         } else {

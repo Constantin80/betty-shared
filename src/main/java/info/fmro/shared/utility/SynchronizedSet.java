@@ -12,7 +12,6 @@ import java.util.Objects;
 public class SynchronizedSet<E>
 //        extends Ignorable
         implements Serializable {
-
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedSet.class);
     public static final int DEFAULT_INITIAL_SIZE = 0;
     public static final float DEFAULT_LOAD_FACTOR = 0.75f;
@@ -24,39 +23,47 @@ public class SynchronizedSet<E>
         this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
     }
 
-    public SynchronizedSet(int initialSize) {
+    public SynchronizedSet(final int initialSize) {
         this(initialSize, DEFAULT_LOAD_FACTOR);
     }
 
-    public SynchronizedSet(int initialSize, float loadFactor) {
+    public SynchronizedSet(final int initialSize, final float loadFactor) {
         this.set = new HashSet<>(initialSize, loadFactor);
     }
 
-    public SynchronizedSet(Collection<? extends E> collection) {
+    public SynchronizedSet(final Collection<? extends E> collection) {
         this.set = new HashSet<>(collection);
     }
 
     @SuppressWarnings("AccessingNonPublicFieldOfAnotherObject")
-    public synchronized void copyFrom(SynchronizedSet<E> other) { // doesn't copy static final or transient; does update the set
+    public synchronized void copyFrom(final SynchronizedSet<E> other) { // doesn't copy static final or transient; does update the set
         if (!this.set.isEmpty()) {
             logger.error("not empty set in SynchronizedSet copyFrom: {}", Generic.objectToString(this));
         }
-        this.timeStamp = other.timeStamp;
-        this.timeStampRemoved = other.timeStampRemoved;
-        this.timeClean = other.timeClean;
-        this.set.clear();
-        this.set.addAll(other.set);
+        if (other == null) {
+            logger.error("null other in copyFrom for: {}", Generic.objectToString(this));
+        } else {
+            this.timeStamp = other.timeStamp;
+            this.timeStampRemoved = other.timeStampRemoved;
+            this.timeClean = other.timeClean;
+            this.set.clear();
+            if (other.set == null) {
+                logger.error("null other.set in copyFrom for: {}", Generic.objectToString(other));
+            } else {
+                this.set.addAll(other.set);
+            }
+        }
     }
 
     public synchronized HashSet<E> copy() {
         return new HashSet<>(set);
     }
 
-    public synchronized boolean add(E element) {
+    public synchronized boolean add(final E element) {
         return this.set.add(element);
     }
 
-    public synchronized boolean addAll(Collection<? extends E> c) {
+    public synchronized boolean addAll(final Collection<? extends E> c) {
         return this.set.addAll(c);
     }
 
@@ -64,7 +71,7 @@ public class SynchronizedSet<E>
         this.set.clear();
     }
 
-    public synchronized E getEqualElement(E elementToFind) {
+    public synchronized E getEqualElement(final E elementToFind) {
         E returnValue = null;
         if (this.set == null) {
             logger.error("null set in getEqualElement for: {} {}", elementToFind, Generic.objectToString(this));
@@ -84,12 +91,12 @@ public class SynchronizedSet<E>
         return returnValue;
     }
 
-    public synchronized boolean contains(Object object) {
+    public synchronized boolean contains(final Object object) {
         //noinspection SuspiciousMethodCalls
         return this.set.contains(object);
     }
 
-    public synchronized boolean containsAll(Collection<?> c) {
+    public synchronized boolean containsAll(final Collection<?> c) {
         return this.set.containsAll(c);
     }
 
@@ -97,16 +104,16 @@ public class SynchronizedSet<E>
         return this.set.isEmpty();
     }
 
-    public synchronized boolean remove(Object object) {
+    public synchronized boolean remove(final Object object) {
         //noinspection SuspiciousMethodCalls
         return this.set.remove(object);
     }
 
-    public synchronized boolean removeAll(Collection<?> c) {
+    public synchronized boolean removeAll(final Collection<?> c) {
         return this.set.removeAll(c);
     }
 
-    public synchronized boolean retainAll(Collection<?> c) {
+    public synchronized boolean retainAll(final Collection<?> c) {
         return this.set.retainAll(c);
     }
 
@@ -118,7 +125,7 @@ public class SynchronizedSet<E>
         return timeStamp;
     }
 
-    public synchronized void setTimeStamp(long timeStamp) {
+    public synchronized void setTimeStamp(final long timeStamp) {
         this.timeStamp = timeStamp;
     }
 
@@ -130,7 +137,7 @@ public class SynchronizedSet<E>
         return timeStampRemoved;
     }
 
-    public synchronized void setTimeStampRemoved(long timeStampRemoved) {
+    public synchronized void setTimeStampRemoved(final long timeStampRemoved) {
         this.timeStampRemoved = timeStampRemoved;
     }
 
@@ -142,7 +149,7 @@ public class SynchronizedSet<E>
         return timeClean;
     }
 
-    public synchronized void setTimeClean(long timeClean) {
+    public synchronized void setTimeClean(final long timeClean) {
         this.timeClean = timeClean;
     }
 
@@ -150,7 +157,7 @@ public class SynchronizedSet<E>
         this.timeClean = System.currentTimeMillis();
     }
 
-    public synchronized void timeCleanStamp(long timeStamp) {
+    public synchronized void timeCleanStamp(final long timeStamp) {
         final long currentTime = System.currentTimeMillis();
         if (currentTime - this.timeClean >= timeStamp) {
             this.timeClean = currentTime + timeStamp;
@@ -168,7 +175,7 @@ public class SynchronizedSet<E>
 
     @Override
     @SuppressWarnings("AccessingNonPublicFieldOfAnotherObject")
-    public synchronized boolean equals(Object obj) { // other.set not synchronized, meaning equals result not guaranteed to be correct, but behaviour is acceptable
+    public synchronized boolean equals(final Object obj) { // other.set not synchronized, meaning equals result not guaranteed to be correct, but behaviour is acceptable
         if (obj == null) {
             return false;
         }

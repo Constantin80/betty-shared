@@ -1,0 +1,33 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'idea'
+
+group = 'info.fmro'
+version = '0.1'
+description = """shared"""
+sourceCompatibility = 12
+targetCompatibility = 12
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile group: 'org.reflections', name: 'reflections', version: '0.9.11'
+    compile group: 'junit-addons', name: 'junit-addons', version: '1.4'
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.26'
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+    compile group: 'ch.qos.logback', name: 'logback-core', version: '1.2.3'
+    compile group: 'org.jmock', name: 'jmock', version: '2.11.0'
+    compile group: 'net.sourceforge.htmlunit', name: 'htmlunit', version: '2.35.0'
+    testCompile group: 'org.assertj', name: 'assertj-core', version: '3.12.2'
+    testImplementation('org.junit.jupiter:junit-jupiter-api:5.4.2')
+    testRuntime "org.junit.jupiter:junit-jupiter-engine:5.4.2"
+}

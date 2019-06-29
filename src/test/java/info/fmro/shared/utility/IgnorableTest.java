@@ -80,7 +80,7 @@ public class IgnorableTest {
         long currentTime = System.currentTimeMillis();
         instance.isIgnored();
         result = instance.getResetIgnoredStamp();
-        assertTrue(Math.abs(result - currentTime) < 1_000L, "after sleep");
+        assertTrue(Math.abs(result - currentTime) < 2_000L, "after sleep");
     }
 
     @Test

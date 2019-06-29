@@ -1,15 +1,15 @@
 package info.fmro.shared.utility;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 import java.net.IDN;
 import java.net.URL;
 import java.net.URLDecoder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class URIVars
         implements Serializable, Cloneable {
-
     private static final Logger logger = LoggerFactory.getLogger(URIVars.class);
     private static final long serialVersionUID = 3895525534915953109L;
     // http://en.wikipedia.org/wiki/Uniform_Resource_Locator
@@ -18,7 +18,7 @@ public class URIVars
     private int port;
     private String protocol, username, password, host, path, fragmentId;
 
-    public URIVars(String url)
+    public URIVars(final String url)
             throws java.net.UnknownHostException {
         this.initialize(url);
     }
@@ -30,11 +30,11 @@ public class URIVars
         return this.protocol;
     }
 
-    public synchronized void setProtocol(String protocol) {
+    public synchronized void setProtocol(final String protocol) {
         this.setProtocol(protocol, true);
     }
 
-    public synchronized void setProtocol(String protocol, boolean initialize) {
+    public synchronized void setProtocol(final String protocol, final boolean initialize) {
         this.protocol = protocol;
         this.setDefaultPort(initialize);
     }
@@ -47,7 +47,7 @@ public class URIVars
         return this.path;
     }
 
-    public synchronized void setPath(String newValue) {
+    public synchronized void setPath(final String newValue) {
         this.path = newValue;
     }
 
@@ -56,7 +56,7 @@ public class URIVars
     }
 
     @SuppressWarnings({"BroadCatchBlock", "TooBroadCatch"})
-    public synchronized URIVars modify(String argumentUrl, boolean initialize)
+    public synchronized URIVars modify(final String argumentUrl, final boolean initialize)
             throws java.net.UnknownHostException {
         String url = argumentUrl;
 
@@ -116,8 +116,8 @@ public class URIVars
             }
 
             if (url.indexOf(':') >= 0 && (url.indexOf(':') < url.indexOf('/') ||
-                    (url.indexOf('/') < 0 && url.indexOf(':') < url.indexOf('?')) ||
-                    (url.indexOf('/') < 0 && url.indexOf('?') < 0))) {
+                                          (url.indexOf('/') < 0 && url.indexOf(':') < url.indexOf('?')) ||
+                                          (url.indexOf('/') < 0 && url.indexOf('?') < 0))) {
                 String portString;
 
                 if (url.indexOf(':') < url.indexOf('/')) {
@@ -227,22 +227,22 @@ public class URIVars
         return this;
     }
 
-    private synchronized URIVars initialize(String url)
+    private synchronized URIVars initialize(final String url)
             throws java.net.UnknownHostException {
         return this.modify(url, true);
     }
 
-    public synchronized URIVars newPage(String url)
+    public synchronized URIVars newPage(final String url)
             throws java.net.UnknownHostException {
         return this.modify(url, false);
     }
 
-    public synchronized void setDefaultPort(boolean initialize) {
+    public synchronized void setDefaultPort(final boolean initialize) {
         this.setDefaultPort(this.protocol, initialize);
     }
 
     @SuppressWarnings({"BroadCatchBlock", "TooBroadCatch"})
-    public synchronized void setDefaultPort(String protocol, boolean initialize) {
+    public synchronized void setDefaultPort(final String protocol, final boolean initialize) {
         try {
             this.port = new URL(protocol, "", "").getDefaultPort();
         } catch (Throwable throwable) {

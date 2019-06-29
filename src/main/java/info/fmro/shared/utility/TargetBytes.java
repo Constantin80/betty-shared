@@ -1,19 +1,19 @@
 package info.fmro.shared.utility;
 
-import java.io.Serializable;
-import java.net.InetAddress;
-import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
+import java.net.InetAddress;
+import java.util.Arrays;
+
 public class TargetBytes
         implements Serializable {
-
     private static final Logger logger = LoggerFactory.getLogger(TargetBytes.class);
     private static final long serialVersionUID = 8094499526857901587L;
     private final byte[] IP = new byte[4], port = new byte[2];
 
-    public TargetBytes(String host, int port)
+    public TargetBytes(final String host, final int port)
             throws java.net.UnknownHostException {
         this.get(host, port);
     }
@@ -29,7 +29,7 @@ public class TargetBytes
         return Arrays.copyOf(this.port, this.port.length);
     }
 
-    private synchronized void get(String host, int port)
+    private synchronized void get(final String host, final int port)
             throws java.net.UnknownHostException {
         String IPString = InetAddress.getByName(host).getHostAddress();
         this.IP[0] = (byte) Integer.parseInt(IPString.substring(0, IPString.indexOf('.')));
@@ -53,7 +53,7 @@ public class TargetBytes
 
     @Override
     @SuppressWarnings("AccessingNonPublicFieldOfAnotherObject")
-    public synchronized boolean equals(Object obj) { // other.IP/port not synchronized, meaning equals result not guaranteed to be correct, but behaviour is acceptable
+    public synchronized boolean equals(final Object obj) { // other.IP/port not synchronized, meaning equals result not guaranteed to be correct, but behaviour is acceptable
         if (obj == null) {
             return false;
         }

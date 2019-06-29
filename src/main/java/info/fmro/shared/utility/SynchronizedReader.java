@@ -21,35 +21,35 @@ public class SynchronizedReader {
     private BufferedInputStream bufferedInputStream;
     private FileInputStream fileInputStream;
 
-    public SynchronizedReader(String fileName, String charsetName, int bufferSize)
+    public SynchronizedReader(final String fileName, final String charsetName, final int bufferSize)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, Charset.forName(charsetName), bufferSize);
     }
 
-    public SynchronizedReader(String fileName)
+    public SynchronizedReader(final String fileName)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, DEFAULT_CHARSET, DEFAULT_BUFFER_SIZE);
     }
 
-    public SynchronizedReader(String fileName, int decryptionKey)
+    public SynchronizedReader(final String fileName, final int decryptionKey)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, DEFAULT_CHARSET, DEFAULT_BUFFER_SIZE);
         this.decryptionKey = decryptionKey;
     }
 
-    public SynchronizedReader(File file)
+    public SynchronizedReader(final File file)
             throws java.io.FileNotFoundException {
         this.initialize(file, DEFAULT_CHARSET, DEFAULT_BUFFER_SIZE);
     }
 
-    public SynchronizedReader(int decryptionKey) {
+    public SynchronizedReader(final int decryptionKey) {
         this.decryptionKey = decryptionKey;
     }
 
     public SynchronizedReader() {
     }
 
-    private void initialize(String fileName, String charset, int bufferSize)
+    private void initialize(final String fileName, final String charset, final int bufferSize)
             throws java.io.FileNotFoundException {
         // this.close();
 
@@ -65,7 +65,7 @@ public class SynchronizedReader {
         }
     }
 
-    private void initialize(String fileName, Charset charset, int bufferSize)
+    private void initialize(final String fileName, final Charset charset, final int bufferSize)
             throws java.io.FileNotFoundException {
         // this.close();
 
@@ -77,7 +77,7 @@ public class SynchronizedReader {
         this.bufferedReader = new BufferedReader(this.inputStreamReader, bufferSize);
     }
 
-    private void initialize(File file, String charset, int bufferSize)
+    private void initialize(final File file, final String charset, final int bufferSize)
             throws java.io.FileNotFoundException {
         // this.close();
 
@@ -93,7 +93,7 @@ public class SynchronizedReader {
         }
     }
 
-    public synchronized void initialize(File file, Charset charset, int bufferSize)
+    public synchronized void initialize(final File file, final Charset charset, final int bufferSize)
             throws java.io.FileNotFoundException {
         this.close();
 
@@ -105,7 +105,7 @@ public class SynchronizedReader {
         this.bufferedReader = new BufferedReader(this.inputStreamReader, bufferSize);
     }
 
-    public synchronized void initialize(String fileName)
+    public synchronized void initialize(final String fileName)
             throws java.io.FileNotFoundException {
         this.close();
 
@@ -132,7 +132,7 @@ public class SynchronizedReader {
         return returnString;
     }
 
-    public synchronized String readLine(int encryption)
+    public synchronized String readLine(final int encryption)
             throws java.io.IOException {
         // careful, "-encryption" is used to decrypt the string, not "+encryption"
         return Generic.encryptString(this.readLine(), -encryption);

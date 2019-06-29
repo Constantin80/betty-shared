@@ -23,39 +23,39 @@ public class SynchronizedWriter {
     private BufferedOutputStream bufferedOutputStream;
     private FileOutputStream fileOutputStream;
 
-    public SynchronizedWriter(String fileName, boolean append, String charsetName, int bufferSize, String id)
+    public SynchronizedWriter(final String fileName, final boolean append, final String charsetName, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, append, Charset.forName(charsetName), bufferSize, id);
     }
 
-    public SynchronizedWriter(String fileName, boolean append, String charsetName, int bufferSize)
+    public SynchronizedWriter(final String fileName, final boolean append, final String charsetName, final int bufferSize)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, append, Charset.forName(charsetName), bufferSize, fileName);
     }
 
-    public SynchronizedWriter(String fileName, boolean append, String id)
+    public SynchronizedWriter(final String fileName, final boolean append, final String id)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, append, DEFAULT_CHARSET, DEFAULT_BUFFER_SIZE, id);
     }
 
-    public SynchronizedWriter(String fileName, boolean append)
+    public SynchronizedWriter(final String fileName, final boolean append)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, append, DEFAULT_CHARSET, DEFAULT_BUFFER_SIZE, fileName);
     }
 
-    public SynchronizedWriter(File file, boolean append)
+    public SynchronizedWriter(final File file, final boolean append)
             throws java.io.FileNotFoundException {
         this.initialize(file, append, DEFAULT_CHARSET, DEFAULT_BUFFER_SIZE, file.getPath());
     }
 
-    public SynchronizedWriter(int encryptionKey) {
+    public SynchronizedWriter(final int encryptionKey) {
         this.encryptionKey = encryptionKey;
     }
 
     public SynchronizedWriter() {
     }
 
-    private void initialize(String fileName, boolean append, String charset, int bufferSize, String id)
+    private void initialize(final String fileName, final boolean append, final String charset, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         // this.close();
 
@@ -73,7 +73,7 @@ public class SynchronizedWriter {
         }
     }
 
-    private void initialize(String fileName, boolean append, Charset charset, int bufferSize, String id)
+    private void initialize(final String fileName, final boolean append, final Charset charset, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         // this.close();
 
@@ -87,7 +87,7 @@ public class SynchronizedWriter {
         this.bufferedWriter = new BufferedWriter(this.outputStreamWriter, bufferSize);
     }
 
-    private void initialize(File file, boolean append, String charset, int bufferSize, String id)
+    private void initialize(final File file, final boolean append, final String charset, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         // this.close();
 
@@ -105,7 +105,7 @@ public class SynchronizedWriter {
         }
     }
 
-    public synchronized void initialize(File file, boolean append, Charset charset, int bufferSize, String id)
+    public synchronized void initialize(final File file, final boolean append, final Charset charset, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         this.close();
 
@@ -118,7 +118,7 @@ public class SynchronizedWriter {
         this.bufferedWriter = new BufferedWriter(this.outputStreamWriter, bufferSize);
     }
 
-    public synchronized void initialize(String fileName, boolean append)
+    public synchronized void initialize(final String fileName, final boolean append)
             throws java.io.FileNotFoundException {
         this.close();
 
@@ -136,7 +136,7 @@ public class SynchronizedWriter {
         }
     }
 
-    public synchronized void initialize(String fileName, boolean append, String charset)
+    public synchronized void initialize(final String fileName, final boolean append, final String charset)
             throws java.io.FileNotFoundException {
         this.close();
 
@@ -158,7 +158,7 @@ public class SynchronizedWriter {
         return charset;
     }
 
-    public synchronized void setCharset(String charset) {
+    public synchronized void setCharset(final String charset) {
         this.charset = charset;
     }
 
@@ -175,7 +175,7 @@ public class SynchronizedWriter {
     }
 
     @SuppressWarnings("AssignmentToMethodParameter")
-    public synchronized boolean writeAndFlush(String writeString) {
+    public synchronized boolean writeAndFlush(final String writeString) {
         boolean success;
 
 //        if (this.encryptionKey != 0) {
@@ -188,7 +188,7 @@ public class SynchronizedWriter {
         return success;
     }
 
-    public synchronized boolean write(String writeString, int encryption) {
+    public synchronized boolean write(final String writeString, final int encryption) {
         return this.write(Generic.encryptString(writeString, encryption));
     }
 

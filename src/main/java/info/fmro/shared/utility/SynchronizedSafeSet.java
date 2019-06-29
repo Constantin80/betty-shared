@@ -17,29 +17,29 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
         super();
     }
 
-    public SynchronizedSafeSet(int initialSize) {
+    public SynchronizedSafeSet(final int initialSize) {
         super(initialSize);
     }
 
-    public SynchronizedSafeSet(int initialSize, float loadFactor) {
+    public SynchronizedSafeSet(final int initialSize, final float loadFactor) {
         super(initialSize, loadFactor);
     }
 
-    public SynchronizedSafeSet(Collection<? extends E> collection) {
+    public SynchronizedSafeSet(final Collection<? extends E> collection) {
         super(collection);
     }
 
     // copyFrom seems just fine and doesn't need to be overridden
 
     @Override
-    public synchronized boolean add(E element) {
+    public synchronized boolean add(final E element) {
         final boolean isAdded = super.add(element);
 
         if (isAdded) {
             if (element == null) {
                 logger.error("have added null element in SynchronizedSafeSet: {}", Generic.objectToString(this));
             } else {
-                element.runOnAdd();
+                element.runAfterAdd();
             }
         } else { // not added, nothing to be done
         }
@@ -48,7 +48,7 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     }
 
     @Override
-    public synchronized boolean addAll(Collection<? extends E> c) {
+    public synchronized boolean addAll(final Collection<? extends E> c) {
         boolean elementWasAdded = false;
         for (E element : c) {
             if (!elementWasAdded && this.add(element)) {
@@ -63,21 +63,22 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     @Override
     public synchronized void clear() {
         final HashSet<E> copy = super.copy();
+        super.clear();
         for (E element : copy) {
             if (element != null) {
-                element.runOnRemoval();
+                element.runAfterRemoval();
             } else { // null elements are allowed, nothing to be done
             }
         }
-        super.clear();
     }
 
     @Override
-    public synchronized boolean remove(Object object) {
+    @SuppressWarnings("unchecked")
+    public synchronized boolean remove(final Object object) {
         E existingElement;
         try {
             //noinspection unchecked
-            existingElement = this.getEqualElement((E) object);
+            existingElement = object != null ? this.getEqualElement((E) object) : null;
         } catch (ClassCastException classCastException) {
             logger.error("existingElement not the right class in SynchronizedSafeSet.remove: {} {} {}", object == null ? null : object.getClass(), Generic.objectToString(object), Generic.objectToString(this));
             existingElement = null;
@@ -87,7 +88,7 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
 
         if (isRemoved) {
             if (existingElement != null) {
-                existingElement.runOnRemoval();
+                existingElement.runAfterRemoval();
             } else {
                 if (object == null) { // normal behavior, nothing to be done
                 } else {
@@ -101,7 +102,7 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     }
 
     @Override
-    public synchronized boolean removeAll(Collection<?> c) {
+    public synchronized boolean removeAll(final Collection<?> c) {
         boolean elementWasRemoved = false;
         for (Object object : c) {
             if (!elementWasRemoved && this.remove(object)) {
@@ -113,14 +114,15 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     }
 
     @Override
-    public synchronized boolean retainAll(Collection<?> c) {
+    public synchronized boolean retainAll(final Collection<?> c) {
         final HashSet<E> copy = super.copy();
+        final boolean result = super.retainAll(c);
         for (E element : copy) {
             if (element != null && !c.contains(element)) {
-                element.runOnRemoval();
+                element.runAfterRemoval();
             } else { // null elements are allowed, nothing to be done
             }
         }
-        return super.retainAll(c);
+        return result;
     }
 }

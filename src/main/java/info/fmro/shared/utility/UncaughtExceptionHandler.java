@@ -10,7 +10,7 @@ public class UncaughtExceptionHandler
 
     // Implements Thread.UncaughtExceptionHandler.uncaughtException()
     @Override
-    public void uncaughtException(Thread thread, Throwable throwable) {
+    public void uncaughtException(final Thread thread, final Throwable throwable) {
         logger.error("Crashed thread: {}", new Object[]{thread.getName(), thread.getId(), thread}, throwable);
     }
 }

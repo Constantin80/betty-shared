@@ -8,7 +8,7 @@ import java.io.Serializable;
 public class Ignorable
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(Ignorable.class);
-    public static final long RECENT_PERIOD = 1_000L;
+    public static final long RECENT_PERIOD = 2_000L;
     private static final long serialVersionUID = 1721002836563166854L;
     private long ignoredExpiration;
     private boolean ignored;
@@ -26,7 +26,7 @@ public class Ignorable
         return timeSinceSetIgnored(currentTime);
     }
 
-    public synchronized long timeSinceSetIgnored(long currentTime) {
+    public synchronized long timeSinceSetIgnored(final long currentTime) {
         return currentTime - this.setIgnoredStamp;
     }
 
@@ -35,7 +35,7 @@ public class Ignorable
         return timeSinceResetIgnored(currentTime);
     }
 
-    public synchronized long timeSinceResetIgnored(long currentTime) {
+    public synchronized long timeSinceResetIgnored(final long currentTime) {
         return currentTime - this.resetIgnoredStamp;
     }
 
@@ -43,7 +43,7 @@ public class Ignorable
         return setIgnoredStamp;
     }
 
-    private synchronized int setSetIgnoredStamp(long stamp) { // private method
+    private synchronized int setSetIgnoredStamp(final long stamp) { // private method
         final int modified;
         if (stamp > this.setIgnoredStamp) {
             this.setIgnoredStamp = stamp;
@@ -60,11 +60,11 @@ public class Ignorable
         return isSetIgnoredRecent(currentTime, Ignorable.RECENT_PERIOD);
     }
 
-    public synchronized boolean isSetIgnoredRecent(long currentTime) {
+    public synchronized boolean isSetIgnoredRecent(final long currentTime) {
         return isSetIgnoredRecent(currentTime, Ignorable.RECENT_PERIOD);
     }
 
-    public synchronized boolean isSetIgnoredRecent(long currentTime, long recentPeriod) {
+    public synchronized boolean isSetIgnoredRecent(final long currentTime, final long recentPeriod) {
         return this.setIgnoredStamp + recentPeriod >= currentTime;
     }
 
@@ -72,7 +72,7 @@ public class Ignorable
         return resetIgnoredStamp;
     }
 
-    private synchronized int setResetIgnoredStamp(long stamp) { // private method
+    private synchronized int setResetIgnoredStamp(final long stamp) { // private method
         final int modified;
         if (stamp > this.resetIgnoredStamp) {
             this.resetIgnoredStamp = stamp;
@@ -89,11 +89,11 @@ public class Ignorable
         return isResetIgnoredRecent(currentTime, Ignorable.RECENT_PERIOD);
     }
 
-    public synchronized boolean isResetIgnoredRecent(long currentTime) {
+    public synchronized boolean isResetIgnoredRecent(final long currentTime) {
         return isResetIgnoredRecent(currentTime, Ignorable.RECENT_PERIOD);
     }
 
-    public synchronized boolean isResetIgnoredRecent(long currentTime, long recentPeriod) {
+    public synchronized boolean isResetIgnoredRecent(final long currentTime, final long recentPeriod) {
         return this.resetIgnoredStamp + recentPeriod >= currentTime;
     }
 
@@ -101,7 +101,7 @@ public class Ignorable
         return ignoredExpiration;
     }
 
-    private synchronized int setIgnoredExpiration(long ignoredExpiration) { // private method; from outside setIgnored is used; new value will be set only if larger
+    private synchronized int setIgnoredExpiration(final long ignoredExpiration) { // private method; from outside setIgnored is used; new value will be set only if larger
         final int modified;
 
         if (ignoredExpiration > this.ignoredExpiration) {
@@ -149,7 +149,7 @@ public class Ignorable
         return this.ignored;
     }
 
-    public synchronized boolean isIgnored(long argumentTime) {
+    public synchronized boolean isIgnored(final long argumentTime) {
         final boolean result;
         if (this.ignoredExpiration <= argumentTime) {
             result = false;
@@ -163,14 +163,14 @@ public class Ignorable
         return result;
     }
 
-    public synchronized int setIgnored(long period) {
+    public synchronized int setIgnored(final long period) {
         final long currentTime = System.currentTimeMillis();
         logger.error("method Ignorable.setIgnored(period) should be overridden, not called directly: {}", this.getClass());
 
         return setIgnored(period, currentTime);
     }
 
-    public synchronized int setIgnored(long period, long startTime) {
+    public synchronized int setIgnored(final long period, final long startTime) {
         final int modified;
 
         if (period > Generic.DAY_LENGTH_MILLISECONDS * 10_000L) {
@@ -184,7 +184,7 @@ public class Ignorable
         return modified;
     }
 
-    public synchronized int updateIgnorable(Ignorable ignorable) {
+    public synchronized int updateIgnorable(final Ignorable ignorable) {
         int modified;
         if (this == ignorable) {
             logger.error("update from same object in Ignorable.updateIgnorable: {}", Generic.objectToString(this));

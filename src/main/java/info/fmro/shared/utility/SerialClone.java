@@ -17,7 +17,7 @@ public class SerialClone {
     private SerialClone() {
     }
 
-    public static <T> T clone(T x) {
+    public static <T> T clone(final T x) {
         try {
             return cloneX(x);
         } catch (IOException | ClassNotFoundException e) {
@@ -25,7 +25,7 @@ public class SerialClone {
         }
     }
 
-    private static <T> T cloneX(T x)
+    private static <T> T cloneX(final T x)
             throws IOException, ClassNotFoundException {
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         CloneOutput cout = new CloneOutput(bout);
@@ -45,18 +45,18 @@ public class SerialClone {
 
         Queue<Class<?>> classQueue = new LinkedList<>();
 
-        CloneOutput(OutputStream out)
+        CloneOutput(final OutputStream out)
                 throws IOException {
             super(out);
         }
 
         @Override
-        protected void annotateClass(Class<?> c) {
+        protected void annotateClass(final Class<?> c) {
             classQueue.add(c);
         }
 
         @Override
-        protected void annotateProxyClass(Class<?> c) {
+        protected void annotateProxyClass(final Class<?> c) {
             classQueue.add(c);
         }
     }
@@ -66,14 +66,14 @@ public class SerialClone {
 
         private final CloneOutput output;
 
-        CloneInput(InputStream in, CloneOutput output)
+        CloneInput(final InputStream in, final CloneOutput output)
                 throws IOException {
             super(in);
             this.output = output;
         }
 
         @Override
-        protected Class<?> resolveClass(ObjectStreamClass osc)
+        protected Class<?> resolveClass(final ObjectStreamClass osc)
                 throws IOException, ClassNotFoundException {
             Class<?> c = output.classQueue.poll();
             String expected = osc.getName();
@@ -86,7 +86,7 @@ public class SerialClone {
         }
 
         @Override
-        protected Class<?> resolveProxyClass(String[] interfaceNames)
+        protected Class<?> resolveProxyClass(final String[] interfaceNames)
                 throws IOException, ClassNotFoundException {
             return output.classQueue.poll();
         }
