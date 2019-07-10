@@ -8,33 +8,32 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TargetBytesTest {
-    public TargetBytesTest() {
-    }
-
-  @Test
+    @SuppressWarnings("ImplicitNumericConversion")
+    @Test
     void getIP()
             throws UnknownHostException {
-        TargetBytes instance = new TargetBytes("192.168.0.1", 1080);
-        byte[] expResult = new byte[]{-64, -88, 0, 1};
-        byte[] result = instance.getIP();
+        final TargetBytes instance = new TargetBytes("192.168.0.1", 1080);
+        final byte[] expResult = {-64, -88, 0, 1};
+        final byte[] result = instance.getIPBytes();
         assertArrayEquals(expResult, result);
     }
 
-  @Test
+    @SuppressWarnings("ImplicitNumericConversion")
+    @Test
     void getPort()
             throws UnknownHostException {
-        TargetBytes instance = new TargetBytes("192.168.0.1", 1080);
-        byte[] expResult = new byte[]{4, 56};
-        byte[] result = instance.getPort();
+        final TargetBytes instance = new TargetBytes("192.168.0.1", 1080);
+        final byte[] expResult = {4, 56};
+        final byte[] result = instance.getPortBytes();
         assertArrayEquals(expResult, result);
     }
 
-  @Test
+    @Test
     void toStringTest()
             throws UnknownHostException {
-        TargetBytes instance = new TargetBytes("192.168.0.1", 1080);
-        String expResult = "IP=192.168.0.1 port=1080";
-        String result = instance.toString();
+        final TargetBytes instance = new TargetBytes("192.168.0.1", 1080);
+        final String expResult = "IP=192.168.0.1 port=1080";
+        final String result = instance.toString();
         assertEquals(expResult, result);
     }
 }

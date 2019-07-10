@@ -1,5 +1,10 @@
 package info.fmro.shared.utility;
 
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -7,27 +12,27 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({"ClassWithTooManyConstructors", "CyclicClassDependency"})
 public class SynchronizedWriter {
-
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedWriter.class);
     private static final String DEFAULT_CHARSET = Generic.UTF8_CHARSET;
-    private static final int DEFAULT_BUFFER_SIZE = 32 * 1024;
+    private static final int DEFAULT_BUFFER_SIZE = 32 << 10; // 32 * 1024
     private int encryptionKey;
-    private String charset, id;
+    private String charsetName, id;
     private File file;
     private BufferedWriter bufferedWriter;
     private OutputStreamWriter outputStreamWriter;
     private BufferedOutputStream bufferedOutputStream;
     private FileOutputStream fileOutputStream;
 
+    @SuppressWarnings("WeakerAccess")
     public SynchronizedWriter(final String fileName, final boolean append, final String charsetName, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, append, Charset.forName(charsetName), bufferSize, id);
     }
 
+    @SuppressWarnings("unused")
     public SynchronizedWriter(final String fileName, final boolean append, final String charsetName, final int bufferSize)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, append, Charset.forName(charsetName), bufferSize, fileName);
@@ -48,38 +53,38 @@ public class SynchronizedWriter {
         this.initialize(file, append, DEFAULT_CHARSET, DEFAULT_BUFFER_SIZE, file.getPath());
     }
 
+    @Contract(pure = true)
     public SynchronizedWriter(final int encryptionKey) {
         this.encryptionKey = encryptionKey;
     }
 
-    public SynchronizedWriter() {
-    }
-
-    private void initialize(final String fileName, final boolean append, final String charset, final int bufferSize, final String id)
+    @SuppressWarnings({"SameParameterValue", "ParameterHidesMemberVariable"})
+    private synchronized void initialize(final String fileName, final boolean append, final String charsetName, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         // this.close();
 
         this.file = new File(fileName);
         this.id = id;
-        this.charset = charset;
+        this.charsetName = charsetName;
 
         try {
             this.fileOutputStream = new FileOutputStream(this.file, append);
             this.bufferedOutputStream = new BufferedOutputStream(this.fileOutputStream, bufferSize);
-            this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, this.charset);
+            this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, this.charsetName);
             this.bufferedWriter = new BufferedWriter(this.outputStreamWriter, bufferSize);
         } catch (java.io.UnsupportedEncodingException unsupportedEncodingException) {
-            logger.error("UnsupportedEncodingException in SynchronizedWriter.initialize: {}", this.charset, unsupportedEncodingException);
+            logger.error("UnsupportedEncodingException in SynchronizedWriter.initialize: {}", this.charsetName, unsupportedEncodingException);
         }
     }
 
-    private void initialize(final String fileName, final boolean append, final Charset charset, final int bufferSize, final String id)
+    @SuppressWarnings("ParameterHidesMemberVariable")
+    private synchronized void initialize(final String fileName, final boolean append, @NotNull final Charset charset, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         // this.close();
 
         this.file = new File(fileName);
         this.id = id;
-        this.charset = charset.name();
+        this.charsetName = charset.name();
 
         this.fileOutputStream = new FileOutputStream(this.file, append);
         this.bufferedOutputStream = new BufferedOutputStream(this.fileOutputStream, bufferSize);
@@ -87,31 +92,33 @@ public class SynchronizedWriter {
         this.bufferedWriter = new BufferedWriter(this.outputStreamWriter, bufferSize);
     }
 
-    private void initialize(final File file, final boolean append, final String charset, final int bufferSize, final String id)
+    @SuppressWarnings({"ParameterHidesMemberVariable", "SameParameterValue"})
+    private synchronized void initialize(final File file, final boolean append, final String charsetName, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         // this.close();
 
         this.file = new File(file, "");
         this.id = id;
-        this.charset = charset;
+        this.charsetName = charsetName;
 
         try {
             this.fileOutputStream = new FileOutputStream(this.file, append);
             this.bufferedOutputStream = new BufferedOutputStream(this.fileOutputStream, bufferSize);
-            this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, this.charset);
+            this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, this.charsetName);
             this.bufferedWriter = new BufferedWriter(this.outputStreamWriter, bufferSize);
         } catch (java.io.UnsupportedEncodingException unsupportedEncodingException) {
-            logger.error("UnsupportedEncodingException in SynchronizedWriter.initialize (file): {}", this.charset, unsupportedEncodingException);
+            logger.error("UnsupportedEncodingException in SynchronizedWriter.initialize (file): {}", this.charsetName, unsupportedEncodingException);
         }
     }
 
-    public synchronized void initialize(final File file, final boolean append, final Charset charset, final int bufferSize, final String id)
+    @SuppressWarnings({"unused", "ParameterHidesMemberVariable"})
+    public synchronized void initialize(final File file, final boolean append, @NotNull final Charset charset, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         this.close();
 
         this.file = new File(file, "");
         this.id = id;
-        this.charset = charset.name();
+        this.charsetName = charset.name();
         this.fileOutputStream = new FileOutputStream(this.file, append);
         this.bufferedOutputStream = new BufferedOutputStream(this.fileOutputStream, bufferSize);
         this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, charset);
@@ -124,42 +131,43 @@ public class SynchronizedWriter {
 
         this.file = new File(fileName);
         this.id = fileName;
-        this.charset = DEFAULT_CHARSET;
+        this.charsetName = DEFAULT_CHARSET;
 
         try {
             this.fileOutputStream = new FileOutputStream(this.file, append);
             this.bufferedOutputStream = new BufferedOutputStream(this.fileOutputStream, DEFAULT_BUFFER_SIZE);
-            this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, this.charset);
+            this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, this.charsetName);
             this.bufferedWriter = new BufferedWriter(this.outputStreamWriter, DEFAULT_BUFFER_SIZE);
         } catch (java.io.UnsupportedEncodingException unsupportedEncodingException) {
-            logger.error("UnsupportedEncodingException in SynchronizedWriter.initialize: {}", this.charset, unsupportedEncodingException);
+            logger.error("UnsupportedEncodingException in SynchronizedWriter.initialize: {}", this.charsetName, unsupportedEncodingException);
         }
     }
 
-    public synchronized void initialize(final String fileName, final boolean append, final String charset)
+    @SuppressWarnings({"unused", "ParameterHidesMemberVariable"})
+    public synchronized void initialize(final String fileName, final boolean append, final String charsetName)
             throws java.io.FileNotFoundException {
         this.close();
 
         this.file = new File(fileName);
         this.id = fileName;
-        this.charset = charset;
+        this.charsetName = charsetName;
 
         try {
             this.fileOutputStream = new FileOutputStream(this.file, append);
             this.bufferedOutputStream = new BufferedOutputStream(this.fileOutputStream, DEFAULT_BUFFER_SIZE);
-            this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, this.charset);
+            this.outputStreamWriter = new OutputStreamWriter(this.bufferedOutputStream, this.charsetName);
             this.bufferedWriter = new BufferedWriter(this.outputStreamWriter, DEFAULT_BUFFER_SIZE);
         } catch (java.io.UnsupportedEncodingException unsupportedEncodingException) {
-            logger.error("UnsupportedEncodingException in SynchronizedWriter.initialize: {}", this.charset, unsupportedEncodingException);
+            logger.error("UnsupportedEncodingException in SynchronizedWriter.initialize: {}", this.charsetName, unsupportedEncodingException);
         }
     }
 
-    public synchronized String getCharset() {
-        return charset;
+    public synchronized String getCharsetName() {
+        return this.charsetName;
     }
 
-    public synchronized void setCharset(final String charset) {
-        this.charset = charset;
+    public synchronized void setCharsetName(final String charsetName) {
+        this.charsetName = charsetName;
     }
 
     public synchronized String getId() {
@@ -167,14 +175,9 @@ public class SynchronizedWriter {
     }
 
     public synchronized long getUsableSpace() {
-        if (this.file != null) {
-            return this.file.getUsableSpace();
-        } else {
-            return 0L;
-        }
+        return this.file != null ? this.file.getUsableSpace() : 0L;
     }
 
-    @SuppressWarnings("AssignmentToMethodParameter")
     public synchronized boolean writeAndFlush(final String writeString) {
         boolean success;
 
@@ -192,16 +195,12 @@ public class SynchronizedWriter {
         return this.write(Generic.encryptString(writeString, encryption));
     }
 
-    @SuppressWarnings("AssignmentToMethodParameter")
-    public synchronized boolean write(String writeString) {
+    public synchronized boolean write(final String writeString) {
         boolean success;
-
-        if (this.encryptionKey != 0) {
-            writeString = Generic.encryptString(writeString, this.encryptionKey);
-        }
+        final String toBeWritten = this.encryptionKey == 0 ? writeString : Generic.encryptString(writeString, this.encryptionKey);
 
         try {
-            this.bufferedWriter.write(writeString);
+            this.bufferedWriter.write(toBeWritten);
             success = true;
         } catch (IOException iOException) {
             logger.error("iOException in SynchronizedWriter.write", iOException);

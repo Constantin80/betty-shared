@@ -1,25 +1,29 @@
 package info.fmro.shared.utility;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Debugger {
+import java.io.File;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
+public class Debugger {
     private static final Logger logger = LoggerFactory.getLogger(Debugger.class);
-    private int debugLevel, encryption;
+    private int debugLevel;
+    private int encryption;
     private LinkedHashMap<SynchronizedWriter, Integer> writersMap = new LinkedHashMap<>(4, 0.75f); // sorted by values at all times
     private long timeLastCheckDiskSpace;
 
-    public Debugger(final int debugLevel, final int encryption) {
-        this.debugLevel = debugLevel;
-        this.encryption = encryption;
+    @SuppressWarnings("unused")
+    public Debugger(final int level, final int encryptionKey) {
+        this.debugLevel = level;
+        this.encryption = encryptionKey;
     }
 
-    public Debugger(final int encryption) {
-        this.encryption = encryption;
+    @SuppressWarnings("unused")
+    public Debugger(final int encryptionKey) {
+        this.encryption = encryptionKey;
     }
 
     public Debugger() {
@@ -52,37 +56,33 @@ public class Debugger {
     }
 
     public synchronized void checkDiskSpace() {
-        try {
-            if (this.debugLevel >= 1 && (new File(".").getUsableSpace() < (long) 50 * 1024 * 1024 || !this.enoughAvailableSpace((long) 50 * 1024 * 1024))) {
-                logger.info("Less than 50Mb remain on disk. Reducing debugLevel. (space = {})", new File(".").getUsableSpace());
+        if (this.debugLevel >= 1 && (new File(".").getUsableSpace() < 50L * Generic.MEGABYTE || !this.enoughAvailableSpace(50L * Generic.MEGABYTE))) {
+            logger.info("Less than 50Mb remain on disk. Reducing debugLevel. (space = {})", new File(".").getUsableSpace());
 
-                this.flush(1, this.debugLevel);
-                this.debugLevel = 0;
-            } else if (this.debugLevel >= 2 && !this.enoughAvailableSpace((long) 200 * 1024 * 1024)) {
-                logger.info("Less than 200Mb remain on disk. Reducing debugLevel.");
+            this.flush(1, this.debugLevel);
+            this.debugLevel = 0;
+        } else if (this.debugLevel >= 2 && !this.enoughAvailableSpace(200L * Generic.MEGABYTE)) {
+            logger.info("Less than 200Mb remain on disk. Reducing debugLevel.");
 
-                this.flush(2, this.debugLevel);
-                this.debugLevel = 1;
-            } else if (this.debugLevel >= 3 && !this.enoughAvailableSpace((long) 500 * 1024 * 1024)) {
-                logger.info("Less than 500Mb remain on disk. Reducing debugLevel.");
+            this.flush(2, this.debugLevel);
+            this.debugLevel = 1;
+        } else if (this.debugLevel >= 3 && !this.enoughAvailableSpace(500L * Generic.MEGABYTE)) {
+            logger.info("Less than 500Mb remain on disk. Reducing debugLevel.");
 
-                this.flush(3, this.debugLevel);
-                this.debugLevel = 2;
-            } else { // debugLevel doesn't need to be reduced
-            }
-
-            timeLastCheckDiskSpaceStamp();
-        } catch (IOException iOException) {
-            logger.error("STRANGE IOException inside Debugger.checkDiskSpace(), timeStamp={}", System.currentTimeMillis(), iOException);
+            this.flush(3, this.debugLevel);
+            this.debugLevel = 2;
+        } else { // debugLevel doesn't need to be reduced
         }
+
+        timeLastCheckDiskSpaceStamp();
     }
 
     public synchronized boolean enoughAvailableSpace(final long neededSpace) {
         boolean enoughSpace = true;
 
-        for (SynchronizedWriter writer : this.writersMap.keySet()) {
-            if (this.writersMap.get(writer) <= this.debugLevel) {
-                if (writer.getUsableSpace() < neededSpace) {
+        for (final Map.Entry<SynchronizedWriter, Integer> entry : this.writersMap.entrySet()) {
+            if (entry.getValue() <= this.debugLevel) {
+                if (entry.getKey().getUsableSpace() < neededSpace) {
                     enoughSpace = false;
                     break;
                 }
@@ -110,20 +110,17 @@ public class Debugger {
     }
 
     public synchronized boolean write(final String writeString, final String writerId, final int minDebugLevel) {
-        if (this.debugLevel >= minDebugLevel) {
-            return write(writeString, writerId);
-        } else {
-            return false;
-        }
+        return this.debugLevel >= minDebugLevel && write(writeString, writerId);
     }
 
     public synchronized boolean write(final String writeString, final String writerId) {
         boolean success = false;
-        for (SynchronizedWriter writer : this.writersMap.keySet()) {
-            if (this.writersMap.get(writer) <= this.debugLevel) {
-                String currentWriterId = writer.getId();
+        for (final Map.Entry<SynchronizedWriter, Integer> entry : this.writersMap.entrySet()) {
+            final SynchronizedWriter writer = entry.getKey();
+            if (entry.getValue() <= this.debugLevel) {
+                final String currentWriterId = writer.getId();
 
-                if (currentWriterId == null ? writerId == null : currentWriterId.equals(writerId)) {
+                if (Objects.equals(currentWriterId, writerId)) {
                     success = writer.write(writeString, this.encryption);
                     if (!success) {
                         logger.error("STRANGE no success in Debugger.write");
@@ -139,14 +136,13 @@ public class Debugger {
         return success;
     }
 
-    public synchronized void flush(final int minDebugLevel, final int maxDebugLevel)
-            throws java.io.IOException {
-        for (SynchronizedWriter writer : this.writersMap.keySet()) {
-            int writerDebugLevel = this.writersMap.get(writer);
+    public synchronized void flush(final int minDebugLevel, final int maxDebugLevel) {
+        for (final Map.Entry<SynchronizedWriter, Integer> entry : this.writersMap.entrySet()) {
+            final int writerDebugLevel = entry.getValue();
 
             if (writerDebugLevel >= minDebugLevel) {
                 if (writerDebugLevel <= maxDebugLevel) {
-                    writer.flush();
+                    entry.getKey().flush();
                 } else {
                     break; // the following values are all greater than maxDebugLevel
                 }
@@ -154,15 +150,14 @@ public class Debugger {
         }
     }
 
-    public synchronized void flush()
-            throws java.io.IOException {
-        for (SynchronizedWriter writer : this.writersMap.keySet()) {
+    public synchronized void flush() {
+        for (final SynchronizedWriter writer : this.writersMap.keySet()) {
             writer.flush();
         }
     }
 
     public synchronized void close() {
-        for (SynchronizedWriter writer : this.writersMap.keySet()) {
+        for (final SynchronizedWriter writer : this.writersMap.keySet()) {
             writer.close();
         }
     }

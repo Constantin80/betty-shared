@@ -1,6 +1,8 @@
 package info.fmro.shared.utility;
 
 import junitx.framework.FileAssert;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -12,20 +14,22 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,74 +39,59 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GenericTest {
-    private class LocalDebugger
-            extends Debugger {
+    static final String BOGUS = "bogus";
+
+    private static class LocalDebugger
+            extends Debugger { // dummy testing class
     }
 
-    public static class AdditionalLocalTestObject
-            extends LocalTestObject {
-        private String id = "objectId";
-
-        public AdditionalLocalTestObject() {
-        }
-
-        public String getId() {
-            return this.id;
-        }
-    }
-
-    public static class LocalTestObject {
-        private static final long serialVersionUID = 1221L;
+    @SuppressWarnings({"NonFinalFieldReferenceInEquals", "NonFinalFieldReferencedInHashCode"})
+    static class LocalTestObject {
         private String name = "";
         private int number;
 
+        @SuppressWarnings("WeakerAccess")
+        @Contract(pure = true)
         public LocalTestObject() {
         }
 
-        public LocalTestObject(final String name, final int number) {
+        @Contract(pure = true)
+        LocalTestObject(final String name, final int number) {
             this.name = name;
             this.number = number;
         }
 
-        public String getName() {
+        String getName() {
             return this.name;
         }
 
-        public int getNumber() {
+        int getNumber() {
             return this.number;
         }
 
+        @Contract(value = "null -> false", pure = true)
         @Override
-        public boolean equals(final Object object) {
-            if (this == object) {
+        public boolean equals(final Object obj) {
+            if (this == obj) {
                 return true;
             }
-            if (!(object instanceof LocalTestObject)) {
+            if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
-
-            LocalTestObject localTestObject = (LocalTestObject) object;
-
-            return this.name.equals(localTestObject.getName()) && this.number == localTestObject.getNumber();
+            final LocalTestObject that = (LocalTestObject) obj;
+            return this.number == that.number &&
+                   Objects.equals(this.name, that.name);
         }
 
         @Override
         public int hashCode() {
-            final int HASH_PRIME = 31;
-            int result = 0;
-
-            result = HASH_PRIME * result + this.name.hashCode();
-            result = HASH_PRIME * result + this.number;
-
-            return result;
+            return Objects.hash(this.name, this.number);
         }
-    }
-
-    GenericTest() {
     }
 
     @Test
@@ -129,79 +118,75 @@ class GenericTest {
 
     @Test
     void createAndFill()
-            throws InvocationTargetException, InstantiationException, IllegalAccessException {
+            throws Exception {
         LocalTestObject result = new LocalTestObject();
         assertEquals("", result.getName(), "default");
         result = Generic.createAndFill(LocalTestObject.class);
         assertNotEquals("", result.getName(), "random");
         result = Generic.createAndFill(LocalTestObject.class, 10);
-        assertEquals(null, result.getName(), "recursionCounter==10");
+        assertNull(result.getName(), "recursionCounter==10");
     }
 
     @Test
     void fillRandom()
-            throws InvocationTargetException, InstantiationException, IllegalAccessException {
-        LocalTestObject result = new LocalTestObject();
+            throws Exception {
+        final LocalTestObject result = new LocalTestObject();
         assertEquals("", result.getName(), "default");
         Generic.fillRandom(result);
         assertNotEquals("", result.getName(), "random");
         Generic.fillRandom(result, 10);
-        assertEquals(null, result.getName(), "recursionCounter==10");
+        assertNull(result.getName(), "recursionCounter==10");
     }
 
     @Test
     void getRandomValueForField()
-            throws IllegalAccessException, NoSuchFieldException, InstantiationException, InvocationTargetException {
-        LocalTestObject testObject = new LocalTestObject();
-        Field field = LocalTestObject.class.getDeclaredField("name");
+            throws Exception {
+        final LocalTestObject testObject = new LocalTestObject();
+        final Field field = LocalTestObject.class.getDeclaredField("name");
         field.setAccessible(true);
         assertEquals("", field.get(testObject), "default");
 
         Object result = Generic.getRandomValueForField(field, 0);
         assertNotEquals("", result, "random");
-        assertEquals(String.class, field.getType(), "type");
+        assertSame(String.class, field.getType(), "type");
         result = Generic.getRandomValueForField(field, 10);
-        assertEquals(null, result, "recursionCounter==10");
+        assertNull(result, "recursionCounter==10");
     }
 
     @Test
     void createStringFromCodes() {
         String result = Generic.createStringFromCodes(32, 32, 32);
-        assertEquals(result, "   ", "1");
+        assertEquals("   ", result, "1");
 
         result = Generic.createStringFromCodes(32, 32, 0);
-        assertEquals(result, "  \u0000", "2");
+        assertEquals("  \u0000", result, "2");
     }
 
     @Test
     void getStringCodePointValues() {
-        String symbol_194_160 = (new StringBuilder(2)).append('\u00c2').append('\u00a0').toString();
-        String result = Generic.getStringCodePointValues(symbol_194_160);
-        assertEquals(result, "194 160");
+        final String symbol_194_160 = "Â" + '\u00a0'; // "Â" == 194
+        final String result = Generic.getStringCodePointValues(symbol_194_160);
+        assertEquals("194 160", result);
     }
 
     @Test
     void properTimeStamp() {
-        String value = Generic.properTimeStamp();
-
-        assertEquals(value.length(), 23);
+        final String value = Generic.properTimeStamp();
+        assertEquals(23, value.length());
     }
 
     @Test
     void properTimeStamp_long() {
         String value = Generic.properTimeStamp(500L);
-
-        assertEquals(value.length(), 23);
-
+        assertEquals(23, value.length());
         value = Generic.properTimeStamp(0L);
-
-        assertEquals(value.length(), 23);
+        assertEquals(23, value.length());
     }
 
     @Test
     void getSubclasses() {
-        Set<Class<? extends Debugger>> set = Generic.getSubclasses("info.fmro", Debugger.class);
-        Set<Class<? extends Debugger>> expected = new HashSet<>(0);
+        final Set<Class<? extends Debugger>> set = Generic.getSubclasses("info.fmro", Debugger.class);
+        final Collection<Class<? extends Debugger>> expected = new HashSet<>(0);
         expected.add(LocalDebugger.class);
 
         assertEquals(expected, set);
@@ -209,7 +194,7 @@ class GenericTest {
 
     @Test
     void collectionKeepMultiples() {
-        ArrayList<Integer> list = new ArrayList<>(5);
+        final Collection<Integer> list = new ArrayList<>(7);
         list.add(1);
         list.add(2);
         list.add(2);
@@ -217,10 +202,7 @@ class GenericTest {
         list.add(3);
         list.add(3);
         list.add(4);
-        ArrayList<Integer> expected = new ArrayList<>(3);
-        expected.add(2);
-        expected.add(3);
-        expected.add(3);
+        final Collection<Integer> expected = List.of(2, 3, 3);
         Generic.collectionKeepMultiples(list, 2);
         assertEquals(expected, list);
     }
@@ -242,100 +224,116 @@ class GenericTest {
 
     @Test
     void stringBuilderReplace() {
-        StringBuilder stringBuilder = new StringBuilder("abcd");
-        String result = "xyz";
+        final StringBuilder stringBuilder = new StringBuilder("abcd");
+        final String result = "xyz";
         Generic.stringBuilderReplace(stringBuilder, result);
-        String expResult = result;
-        assertEquals(expResult, stringBuilder.toString());
+        assertEquals(result, stringBuilder.toString());
     }
 
     @Test
     void middleValue_double() {
-        double a = 3.62378947368421d, b = 1.3231d, c = 3.623789473684211d, result, expResult;
+        final double a = 3.62378947368421d;
+        final double b = 1.3231d;
+        final double c = 3.623789473684211d;
+        final double result;
+        final double expResult;
 
         result = Generic.middleValue(a, b, c);
         expResult = a;
-        assertTrue(expResult == result);
+        assertEquals(expResult, result);
     }
 
     @Test
     void middleValue_float() {
-        float a = 3.62378947368421f, b = 3.3231f, c = 3.623789473684211f, result, expResult;
+        final float a = 3.62378947368421f;
+        final float b = 3.3231f;
+        final float c = 3.623789473684211f;
+        final float result;
+        final float expResult;
 
         result = Generic.middleValue(a, b, c);
         expResult = a;
-        assertTrue(expResult == result);
+        assertEquals(expResult, result);
     }
 
     @Test
     void middleValue_int() {
-        int a = 3, b = 1, c = 1, result, expResult;
+        final int a = 3;
+        final int b = 1;
+        final int c = 1;
+        final int result;
+        final int expResult;
 
         result = Generic.middleValue(a, b, c);
         expResult = c;
-        assertTrue(expResult == result);
+        assertEquals(expResult, result);
     }
 
     @Test
     void middleValue_long() {
-        long a = 3L, b = 2L, c = 3L, result, expResult;
+        final long a = 3L;
+        final long b = 2L;
+        final long c = 3L;
+        final long result;
+        final long expResult;
 
         result = Generic.middleValue(a, b, c);
         expResult = a;
-        assertTrue(expResult == result);
+        assertEquals(expResult, result);
     }
 
     @Test
     void truncateDouble() {
-        Double size = 3.62378947368421d;
+        double size = 3.62378947368421d;
         double result = Generic.truncateDouble(size, 2);
         double expResult = 3.62d;
-        assertTrue(expResult == result, "1");
+        assertEquals(expResult, result, "1");
 
         size = 3.62978947368421d;
         result = Generic.truncateDouble(size, 2);
         expResult = 3.62d;
-        assertTrue(expResult == result, "2");
+        assertEquals(expResult, result, "2");
     }
 
     @Test
     void quotedReplaceAll() {
-        String string = "abc'-&  u. ", pattern = ". ", replacement = " ", expResult = "abc'-&  u ";
-        String result = Generic.quotedReplaceAll(string, pattern, replacement);
-        assertTrue(result.equals(expResult), "first");
+        String initialString = "abc'-&  u. ", pattern = ". ", replacement = " ", expResult = "abc'-&  u ";
+        String result = Generic.quotedReplaceAll(initialString, pattern, replacement);
+        assertEquals(expResult, result, "first");
 
-        string = " ";
+        initialString = " ";
         pattern = " ";
         replacement = "";
         expResult = ""; // it's a special character, non breaking space 194+160
-        result = Generic.quotedReplaceAll(string, pattern, replacement);
-        assertTrue(result.equals(expResult), "second");
+        result = Generic.quotedReplaceAll(initialString, pattern, replacement);
+        assertEquals(expResult, result, "second");
     }
 
+    @SuppressWarnings("OverlyLongMethod")
     @Test
     void stringMatchChance_String_String() {
-        String first = "", second = "";
+        @Nullable String first = "", second = "";
         double expResult = 0;
         double result = Generic.stringMatchChance(first, second);
-        assertTrue(expResult == result, "first");
+        assertEquals(expResult, result, "first");
 
         first = null;
         second = null;
         expResult = 0;
         result = Generic.stringMatchChance(first, second);
-        assertTrue(expResult == result, "second");
+        assertEquals(expResult, result, "second");
 
         first = "Ab ";
         second = "   ab";
         expResult = 1;
         result = Generic.stringMatchChance(first, second);
-        assertTrue(expResult == result, "third");
+        assertEquals(expResult, result, "third");
 
         first = "a";
         second = "b";
         expResult = 0;
         result = Generic.stringMatchChance(first, second);
-        assertTrue(expResult == result, "fourth");
+        assertEquals(expResult, result, "fourth");
 
         first = "abcdefghijklmnopqrstuvwxyz0123456789";
         second = "hdfkladhlaeueuqrlahfasddshladshsjanj";
@@ -445,21 +443,21 @@ class GenericTest {
         String first = "a", second = "A";
         double expResult = 0;
         double result = Generic.stringMatchChance(first, second, false);
-        assertTrue(expResult == result, "first");
+        assertEquals(expResult, result, "first");
 
         first = "A";
         second = "A ";
         expResult = 1;
         result = Generic.stringMatchChance(first, second, false);
-        assertTrue(expResult == result, "second");
+        assertEquals(expResult, result, "second");
     }
 
     @Test
     void stringMatchChance_String_String_boolean_boolean() {
         String first = " ", second = " ";
-        double expResult = 1;
+        final double expResult = 1;
         double result = Generic.stringMatchChance(first, second, true, false);
-        assertTrue(expResult == result, "first");
+        assertEquals(expResult, result, "first");
 
         first = "a";
         second = "a ";
@@ -503,8 +501,8 @@ class GenericTest {
     @Test
     void printStackTraces_String() {
         assertTimeout(Duration.ofMillis(10000), () -> {
-            String fileName = Generic.tempFileName("test");
-            File file = new File(fileName);
+            final String fileName = Generic.tempFileName("test");
+            final File file = new File(fileName);
             try {
                 Generic.printStackTraces(fileName);
                 assertTrue(file.length() > 0);
@@ -515,6 +513,7 @@ class GenericTest {
     }
 
     // Test of printStackTraces method, of class Generic.
+    @SuppressWarnings("ImplicitDefaultCharsetUsage")
     @Test
     void printStackTraces_PrintStream() {
         ByteArrayOutputStream byteArrayOutputStream = null;
@@ -534,10 +533,10 @@ class GenericTest {
     // Test of printStackTrace method, of class Generic.
     @Test
     void printStackTrace_StackTraceElementArr_String() {
-        Map<Thread, StackTraceElement[]> stacksMap = Thread.getAllStackTraces();
-        StackTraceElement[] stackTraceElementArray = stacksMap.values().iterator().next();
-        String fileName = Generic.tempFileName("test");
-        File file = new File(fileName);
+        final Map<Thread, StackTraceElement[]> stacksMap = Thread.getAllStackTraces();
+        final StackTraceElement[] stackTraceElementArray = stacksMap.values().iterator().next();
+        final String fileName = Generic.tempFileName("test");
+        final File file = new File(fileName);
 
         try {
             Generic.printStackTrace(stackTraceElementArray, fileName);
@@ -550,10 +549,10 @@ class GenericTest {
 
     // Test of printStackTrace method, of class Generic.
     @Test
-    @SuppressWarnings("null")
+    @SuppressWarnings({"null", "ImplicitDefaultCharsetUsage"})
     public void printStackTrace_StackTraceElementArr_PrintStream() {
-        Map<Thread, StackTraceElement[]> stacksMap = Thread.getAllStackTraces();
-        StackTraceElement[] stackTraceElementArray = stacksMap.values().iterator().next();
+        final Map<Thread, StackTraceElement[]> stacksMap = Thread.getAllStackTraces();
+        final StackTraceElement[] stackTraceElementArray = stacksMap.values().iterator().next();
         ByteArrayOutputStream byteArrayOutputStream = null;
         PrintStream printStream = null;
 
@@ -571,19 +570,19 @@ class GenericTest {
     // Test of closeObjects method, of class Generic.
     @Test
     void closeObjects() {
-        boolean[] expResult = new boolean[]{true, true, true, true};
-        boolean[] result = Generic.closeObjects(new Socket(), new Socket(), new Socket(), new Socket());
-        assertTrue(Arrays.equals(expResult, result));
+        final boolean[] expResult = {true, true, true, true};
+        final boolean[] result = Generic.closeObjects(new Socket(), new Socket(), new Socket(), new Socket());
+        assertArrayEquals(expResult, result);
     }
 
     // Test of setSoLinger method, of class Generic.
     @Test
     void setSoLinger()
             throws SocketException {
-        Socket socket = new Socket();
+        final Socket socket = new Socket();
         try {
-            boolean expResult = true;
-            boolean result = Generic.setSoLinger(socket);
+            final boolean expResult = true;
+            final boolean result = Generic.setSoLinger(socket);
 
             assertEquals(expResult, result, "testSetSoLinger boolean result");
             assertEquals(0, socket.getSoLinger(), "testSetSoLinger setSoLinger");
@@ -597,8 +596,8 @@ class GenericTest {
     void closeObject() {
         final Socket socket = new Socket();
         try {
-            boolean expResult = true;
-            boolean result = Generic.closeObject(socket);
+            final boolean expResult = true;
+            final boolean result = Generic.closeObject(socket);
 
             assertEquals(expResult, result, "testCloseObject boolean result");
             assertTrue(socket.isClosed(), "testCloseObject close");
@@ -608,21 +607,22 @@ class GenericTest {
     }
 
     // Test of concatByte method, of class Generic.
+    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void concatByte() {
         // endIndexA & endIndexB are excluded
-        byte[] a = new byte[55];
-        int startIndexA = -1;
-        int endIndexA = 53;
-        byte[] b = new byte[50];
-        int startIndexB = 11;
-        int endIndexB = 47;
+        final byte[] a = new byte[55];
+        final int startIndexA = -1;
+        final int endIndexA = 53;
+        final byte[] b = new byte[50];
+        final int startIndexB = 11;
+        final int endIndexB = 47;
         a[1] = 2;
         b[45] = 1;
-        byte[] expResult = new byte[53 - 0 + 47 - 11];
+        @SuppressWarnings("PointlessArithmeticExpression") final byte[] expResult = new byte[53 - 0 + 47 - 11];
         expResult[1] = 2;
         expResult[expResult.length - 2] = 1;
-        byte[] result = Generic.concatByte(a, startIndexA, endIndexA, b, startIndexB, endIndexB);
+        final byte[] result = Generic.concatByte(a, startIndexA, endIndexA, b, startIndexB, endIndexB);
 
         assertArrayEquals(expResult, result);
     }
@@ -630,10 +630,10 @@ class GenericTest {
     // Test of encryptString method, of class Generic.
     @Test
     void encryptString() {
-        String string = "abcE";
-        int encryptKey = 3;
-        String expResult = "defH";
-        String result = Generic.encryptString(string, encryptKey);
+        final String s = "abcE";
+        final int encryptKey = 3;
+        final String expResult = "defH";
+        final String result = Generic.encryptString(s, encryptKey);
 
         assertEquals(expResult, result);
     }
@@ -642,13 +642,14 @@ class GenericTest {
     @Test
     void encryptFile()
             throws IOException {
-        String initialString = "abc\r\nfgh";
-        int encryptKey = 3;
-        String expResult = "def\r\nijk\r\n", result = "";
+        final String initialString = "abc\r\nfgh";
+        final int encryptKey = 3;
+        final String expResult = "def\r\nijk\r\n";
+        final StringBuilder result = new StringBuilder(initialString.length() + 2);
         SynchronizedWriter synchronizedWriter = null;
         SynchronizedReader synchronizedReader = null;
-        String fileName = Generic.tempFileName("testEncryptFile");
-        boolean success = false;
+        final String fileName = Generic.tempFileName("testEncryptFile");
+        boolean success;
 
         try {
             synchronizedWriter = new SynchronizedWriter(fileName, false);
@@ -661,7 +662,7 @@ class GenericTest {
             synchronizedReader = new SynchronizedReader(fileName);
             String fileLine = synchronizedReader.readLine();
             while (fileLine != null) {
-                result += fileLine + "\r\n";
+                result.append(fileLine).append("\r\n");
                 fileLine = synchronizedReader.readLine();
             } // end while
         } finally {
@@ -670,25 +671,25 @@ class GenericTest {
         }
 
         assertTrue(success);
-        assertEquals(expResult, result);
+        assertEquals(expResult, result.toString());
     }
 
     // Test of tempFileName method, of class Generic.
     @Test
     void tempFileName() {
-        String fileName = "test";
-        String result = Generic.tempFileName(fileName);
-        String result2 = Generic.tempFileName(fileName);
+        final String fileName = "test";
+        final String result = Generic.tempFileName(fileName);
+        final String result2 = Generic.tempFileName(fileName);
 
         assertFalse(new File(result).exists(), "exists");
-        assertFalse(result.equals(result2), "equals");
+        assertNotEquals(result, result2, "equals");
     }
 
     // Test of readObjectFromFile, writeObjectToFile, synchronizedWriteObjectToFile methods, of class Generic.
     @Test
     void readWriteObjectFromFile() {
-        String fileName = Generic.tempFileName("test");
-        int[] intArray = new int[]{1, 2, 5, 1, 3213, 6554211, 132312312};
+        final String fileName = Generic.tempFileName("test");
+        final int[] intArray = {1, 2, 5, 1, 3213, 6554211, 132312312};
         try {
             Generic.writeObjectToFile(intArray, fileName);
             int[] resultIntArray = (int[]) Generic.readObjectFromFile(fileName);
@@ -707,24 +708,24 @@ class GenericTest {
     // Test of getHexString method, of class Generic.
     @Test
     void getHexString() {
-        byte[] byteArray = new byte[]{12, 22, 111, 2, 0, -12};
-        String expResult = "0c166f0200f4";
-        String result = Generic.getHexString(byteArray);
+        @SuppressWarnings("ImplicitNumericConversion") final byte[] byteArray = {12, 22, 111, 2, 0, -12};
+        final String expResult = "0c166f0200f4";
+        final String result = Generic.getHexString(byteArray);
 
         assertEquals(expResult, result);
     }
 
     @Test
     void backwardWordsString() {
-        String string = "Ajaccio GFCO";
+        String s = "Ajaccio GFCO";
         String expResult = "GFCO Ajaccio";
-        String result = Generic.backwardWordsString(string);
+        String result = Generic.backwardWordsString(s);
 
         assertEquals(expResult, result, "1");
 
-        string = " first  second third";
+        s = " first  second third";
         expResult = "third second  first ";
-        result = Generic.backwardWordsString(string);
+        result = Generic.backwardWordsString(s);
 
         assertEquals(expResult, result, "2");
     }
@@ -732,9 +733,9 @@ class GenericTest {
     // Test of backwardString method, of class Generic.
     @Test
     void backwardString() {
-        String string = "test123";
-        String expResult = "321tset";
-        String result = Generic.backwardString(string);
+        final String s = "test123";
+        final String expResult = "321tset";
+        final String result = Generic.backwardString(s);
 
         assertEquals(expResult, result);
     }
@@ -752,7 +753,7 @@ class GenericTest {
         expResult = "dasdsadasd";
         result = Generic.trimIP(IP);
 
-        assertEquals(expResult, result, "bogus");
+        assertEquals(expResult, result, BOGUS);
     }
 
     // Test of goodPort method, of class Generic.
@@ -762,7 +763,7 @@ class GenericTest {
         boolean expResult = false;
         boolean result = Generic.goodPort(tempPort);
 
-        assertEquals(expResult, result, "bogus");
+        assertEquals(expResult, result, BOGUS);
 
         tempPort = "1234";
         expResult = true;
@@ -784,9 +785,10 @@ class GenericTest {
     }
 
     // Test of goodDomain method, of class Generic.
+    @SuppressWarnings("OverlyLongMethod")
     @Test
     void goodDomain() {
-        String host = "google.com";
+        @Nullable String host = "google.com";
         boolean expResult = true;
         boolean result = Generic.goodDomain(host);
 
@@ -915,25 +917,29 @@ class GenericTest {
     // Test of getUserAgent method, of class Generic.
     @Test
     void getUserAgent() {
-        String result = Generic.getUserAgent();
+        final String result = Generic.getUserAgent();
 
+        //noinspection DuplicateStringLiteralInspection
         assertTrue(result.startsWith("Mozilla/"), "startsWith");
-        assertTrue(result.endsWith(")"), "endsWith");
+        assertEquals(')', result.charAt(result.length() - 1), "endsWith");
     }
 
     // Test of getSocksType method, of class Generic.
+    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void getSocksType() {
         String proxyType = "soCks4";
         byte expResult = 4;
         byte result = Generic.getSocksType(proxyType);
 
+        //noinspection DuplicateStringLiteralInspection
         assertEquals(expResult, result, "socks4");
 
         proxyType = "soCKs5";
         expResult = 5;
         result = Generic.getSocksType(proxyType);
 
+        //noinspection DuplicateStringLiteralInspection
         assertEquals(expResult, result, "socks5");
 
         // logger.warn is expected
@@ -941,15 +947,15 @@ class GenericTest {
         expResult = 5;
         result = Generic.getSocksType(proxyType);
 
-        assertEquals(expResult, result, "bogus");
+        assertEquals(expResult, result, BOGUS);
     }
 
     // Test of linkRemoveProtocol method, of class Generic.
     @Test
     void linkRemoveProtocol() {
-        String link = "http://dsdsa.com:80/?query=1";
-        String expResult = "dsdsa.com:80/?query=1";
-        String result = Generic.linkRemoveProtocol(link);
+        final String link = "http://dsdsa.com:80/?query=1";
+        final String expResult = "dsdsa.com:80/?query=1";
+        final String result = Generic.linkRemoveProtocol(link);
 
         assertEquals(expResult, result);
     }
@@ -957,9 +963,9 @@ class GenericTest {
     // Test of linkRemovePort method, of class Generic.
     @Test
     void linkRemovePort() {
-        String link = "http://dsdsa.com:80/?query=1";
-        String expResult = "http://dsdsa.com/?query=1";
-        String result = Generic.linkRemovePort(link);
+        final String link = "http://dsdsa.com:80/?query=1";
+        final String expResult = "http://dsdsa.com/?query=1";
+        final String result = Generic.linkRemovePort(link);
 
         assertEquals(expResult, result);
     }
@@ -967,9 +973,9 @@ class GenericTest {
     // Test of linkRemoveQuery method, of class Generic.
     @Test
     void linkRemoveQuery() {
-        String link = "http://dsdsa.com:80/?query=1";
-        String expResult = "http://dsdsa.com:80/";
-        String result = Generic.linkRemoveQuery(link);
+        final String link = "http://dsdsa.com:80/?query=1";
+        final String expResult = "http://dsdsa.com:80/";
+        final String result = Generic.linkRemoveQuery(link);
 
         assertEquals(expResult, result);
     }
@@ -977,7 +983,7 @@ class GenericTest {
     // Test of getLinkHost method, of class Generic.
     @Test
     void getLinkHost() {
-        String link = "http://dsDsa.com:80/?query=1";
+        @Nullable String link = "http://dsDsa.com:80/?query=1";
         String expResult = "dsdsa.com";
         String result = Generic.getLinkHost(link);
 
@@ -1087,28 +1093,28 @@ class GenericTest {
     // Test of containsSubstring method, of class Generic.
     @Test
     void containsSubstring() {
-        String string = "";
+        String s = "";
         String[] substrings = null;
-        String expResult = null;
-        String result = Generic.containsSubstring(string, substrings);
+        @Nullable String expResult = null;
+        String result = Generic.containsSubstring(s, substrings);
         assertEquals(expResult, result, "null");
 
-        string = "xxx";
+        s = "xxx";
         substrings = new String[]{"", "x"};
         expResult = "";
-        result = Generic.containsSubstring(string, substrings);
+        result = Generic.containsSubstring(s, substrings);
         assertEquals(expResult, result, "empty string");
 
-        string = "xxx";
+        s = "xxx";
         substrings = new String[]{"y", "xxx", "vvv", ""};
         expResult = "xxx";
-        result = Generic.containsSubstring(string, substrings);
+        result = Generic.containsSubstring(s, substrings);
         assertEquals(expResult, result, "normal string");
 
-        string = "zzzxx";
+        s = "zzzxx";
         substrings = new String[]{"y", "xxx", "vvv"};
         expResult = null;
-        result = Generic.containsSubstring(string, substrings);
+        result = Generic.containsSubstring(s, substrings);
         assertEquals(expResult, result, "substring not found");
     }
 
@@ -1116,7 +1122,7 @@ class GenericTest {
     @Test
     void convertMillisToDate() {
         // 12.08.2010 23:45:19.342
-        long millis = 1074528964342L;
+        final long millis = 1074528964342L;
         String expResult = "19.01.2004 16:16:04.342";
         String result = Generic.convertMillisToDate(millis);
         assertEquals(expResult, result, "default GMT timeZone");
@@ -1128,13 +1134,12 @@ class GenericTest {
 
     // Test of getFormattedDate method, of class Generic.
     @Test
-    void getFormattedDate_0args()
-            throws InterruptedException {
+    void getFormattedDate_0args() {
         // this test can potentially fail in an extremely rare and unlikely case of high processor load and the test being run at the exact moment when the hour changes
         // GregorianCalendar gregorianCalendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
         String expResult = Generic.convertMillisToDate(System.currentTimeMillis());
         expResult = expResult.substring(0, expResult.indexOf(':', expResult.indexOf(' ')) + ":".length());
-        String result = Generic.getFormattedDate();
+        final String result = Generic.getFormattedDate();
 
         assertTrue(result.startsWith(expResult));
     }
@@ -1143,10 +1148,10 @@ class GenericTest {
     @Test
     void getFormattedDate_String() {
         // this test can potentially fail in an extremely rare and unlikely case of high processor load and the test being run at the exact moment when the hour changes
-        String timeZoneName = "CET";
+        final String timeZoneName = "CET";
         String expResult = Generic.convertMillisToDate(System.currentTimeMillis(), "CET");
         expResult = expResult.substring(0, expResult.indexOf(':', expResult.indexOf(' ')) + ":".length());
-        String result = Generic.getFormattedDate(timeZoneName);
+        final String result = Generic.getFormattedDate(timeZoneName);
 
         assertTrue(result.startsWith(expResult));
     }
@@ -1154,9 +1159,9 @@ class GenericTest {
     // Test of addCommas method, of class Generic.
     @Test
     void addCommas_Object() {
-        Object value = "1203123.48987";
-        String expResult = "1,203,123.48987";
-        String result = Generic.addCommas(value);
+        final Object value = "1203123.48987";
+        final String expResult = "1,203,123.48987";
+        final String result = Generic.addCommas(value);
         assertEquals(expResult, result);
     }
 
@@ -1179,34 +1184,35 @@ class GenericTest {
     // Test of addCommas method, of class Generic.
     @Test
     void addCommas_4args() {
-        String string = "012345678901234567890-1234567890";
-        byte groupSize = 5;
-        String commaDelimiter = ":";
-        String periodDelimiter = "-";
-        String expResult = "0:12345:67890:12345:67890-1234567890";
-        String result = Generic.addCommas(string, groupSize, commaDelimiter, periodDelimiter);
+        final String s = "012345678901234567890-1234567890";
+        @SuppressWarnings("ImplicitNumericConversion") final byte groupSize = 5;
+        final String commaDelimiter = ":";
+        final String periodDelimiter = "-";
+        final String expResult = "0:12345:67890:12345:67890-1234567890";
+        final String result = Generic.addCommas(s, groupSize, commaDelimiter, periodDelimiter);
         assertEquals(expResult, result);
     }
 
     // Test of isPureAscii method, of class Generic.
     @Test
     void isPureAscii() {
-        String string = "faklfjhafl" + (char) 244;
+        String s = "faklfjhafl" + (char) 244;
         boolean expResult = false;
-        boolean result = Generic.isPureAscii(string);
+        boolean result = Generic.isPureAscii(s);
         assertEquals(expResult, result, "non-ASCII");
 
-        string = "faklfjhafl";
+        s = "faklfjhafl";
         expResult = true;
-        result = Generic.isPureAscii(string);
+        result = Generic.isPureAscii(s);
         assertEquals(expResult, result, "pure ASCII");
     }
 
     // Test of byteArrayIndexOf method, of class Generic.
+    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void byteArrayIndexOf_byteArr_byteArr() {
-        byte[] data = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5};
-        byte[] pattern = new byte[]{3, 4, 5, 6, 7};
+        byte[] data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5};
+        byte[] pattern = {3, 4, 5, 6, 7};
         int expResult = 2;
         int result = Generic.byteArrayIndexOf(data, pattern);
         assertEquals(expResult, result, "found");
@@ -1219,10 +1225,11 @@ class GenericTest {
     }
 
     // Test of byteArrayIndexOf method, of class Generic.
+    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void byteArrayIndexOf_3args() {
-        byte[] data = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5};
-        byte[] pattern = new byte[]{3, 4, 5, 6, 7};
+        byte[] data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5};
+        byte[] pattern = {3, 4, 5, 6, 7};
         int beginIndex = 0;
         int expResult = 2;
         int result = Generic.byteArrayIndexOf(data, pattern, beginIndex);
@@ -1244,10 +1251,11 @@ class GenericTest {
     }
 
     // Test of byteArrayComputeFailure method, of class Generic.
+    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void byteArrayComputeFailure() {
-        byte[] pattern = new byte[]{3, 4, 5, 6, 7};
-        int[] expResult = new int[]{0, 0, 0, 0, 0};
+        byte[] pattern = {3, 4, 5, 6, 7};
+        int[] expResult = {0, 0, 0, 0, 0};
         int[] result = Generic.byteArrayComputeFailure(pattern);
         assertArrayEquals(expResult, result, "result with zeroes");
 
@@ -1260,153 +1268,119 @@ class GenericTest {
     // Test of logOfBase method, of class Generic.
     @Test
     void logOfBase() {
-        double base = 2;
-        double num = 8;
-        double expResult = 3;
-        double result = Generic.logOfBase(base, num);
+        final double base = 2;
+        final double num = 8;
+        final double expResult = 3;
+        final double result = Generic.logOfBase(base, num);
         assertEquals(expResult, result);
     }
 
     // Test of ceilingPowerOf method, of class Generic.
     @Test
     void ceilingPowerOf() {
-        double base = 2;
-        double num = 5;
-        double expResult = 8;
-        double result = Generic.ceilingPowerOf(base, num);
+        final double base = 2;
+        final double num = 5;
+        final double expResult = 8;
+        final double result = Generic.ceilingPowerOf(base, num);
         assertEquals(expResult, result);
     }
 
-    // Test of compareLinkedHashMap method, of class Generic.
+    // Test of compareSortedLinkedHashMap method, of class Generic.
     @Test
     void compareLinkedHashMap() {
-        LinkedHashMap<String, Long> firstMap = new LinkedHashMap<String, Long>() {
-            private static final long serialVersionUID = 1211L;
+        final LinkedHashMap<String, Long> firstMap = new LinkedHashMap<>(16), firstMapDuplicate = new LinkedHashMap<>(16), secondMap = new LinkedHashMap<>(16), thirdMap = new LinkedHashMap<>(16);
+        firstMap.put("Standard1", 110L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMap.put("Sockslist", 210L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMap.put("Proxyhttp", 410L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMap.put("Freeproxylist", 910L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMap.put("Standard2", 820L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMap.put("Nntime", 220L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMap.put("Proxyspeedtest", 320L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMap.put("Proxybridge", 120L * Generic.MINUTE_LENGTH_MILLISECONDS);
 
-            {
-                put("Standard1", (long) 110 * 60 * 1000);
-                put("Sockslist", (long) 210 * 60 * 1000);
-                put("Proxyhttp", (long) 410 * 60 * 1000);
-                put("Freeproxylist", (long) 910 * 60 * 1000);
-                put("Standard2", (long) 820 * 60 * 1000);
-                put("Nntime", (long) 220 * 60 * 1000);
-                put("Proxyspeedtest", (long) 320 * 60 * 1000);
-                put("Proxybridge", (long) 120 * 60 * 1000);
-            }
-        };
-        LinkedHashMap<String, Long> firstMapDuplicate = new LinkedHashMap<String, Long>() {
-            private static final long serialVersionUID = 1211L;
+        firstMapDuplicate.put("Standard1", 110L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMapDuplicate.put("Sockslist", 210L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMapDuplicate.put("Proxyhttp", 410L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMapDuplicate.put("Freeproxylist", 910L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMapDuplicate.put("Standard2", 820L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMapDuplicate.put("Nntime", 220L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMapDuplicate.put("Proxyspeedtest", 320L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        firstMapDuplicate.put("Proxybridge", 120L * Generic.MINUTE_LENGTH_MILLISECONDS);
 
-            {
-                put("Standard1", (long) 110 * 60 * 1000);
-                put("Sockslist", (long) 210 * 60 * 1000);
-                put("Proxyhttp", (long) 410 * 60 * 1000);
-                put("Freeproxylist", (long) 910 * 60 * 1000);
-                put("Standard2", (long) 820 * 60 * 1000);
-                put("Nntime", (long) 220 * 60 * 1000);
-                put("Proxyspeedtest", (long) 320 * 60 * 1000);
-                put("Proxybridge", (long) 120 * 60 * 1000);
-            }
-        };
-        LinkedHashMap<String, Long> secondMap = new LinkedHashMap<String, Long>() {
-            private static final long serialVersionUID = 1212L;
+        secondMap.put("Standard1", 110L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        secondMap.put("Proxybridge", 120L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        secondMap.put("Sockslist", 210L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        secondMap.put("Nntime", 220L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        secondMap.put("Proxyspeedtest", 320L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        secondMap.put("Proxyhttp", 410L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        secondMap.put("Standard2", 820L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        secondMap.put("Freeproxylist", 910L * Generic.MINUTE_LENGTH_MILLISECONDS);
 
-            {
-                put("Standard1", (long) 110 * 60 * 1000);
-                put("Proxybridge", (long) 120 * 60 * 1000);
-                put("Sockslist", (long) 210 * 60 * 1000);
-                put("Nntime", (long) 220 * 60 * 1000);
-                put("Proxyspeedtest", (long) 320 * 60 * 1000);
-                put("Proxyhttp", (long) 410 * 60 * 1000);
-                put("Standard2", (long) 820 * 60 * 1000);
-                put("Freeproxylist", (long) 910 * 60 * 1000);
-            }
-        };
-        LinkedHashMap<String, Long> thirdMap = new LinkedHashMap<String, Long>() {
-            private static final long serialVersionUID = 1213L;
+        thirdMap.put("Standard1", 110L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        thirdMap.put("Sockslist", 210L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        thirdMap.put("Proxyhttp", 410L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        thirdMap.put("Standard2", 820L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        thirdMap.put("Nntime", 220L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        thirdMap.put("Proxyspeedtest", 320L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        thirdMap.put("Proxybridge", 120L * Generic.MINUTE_LENGTH_MILLISECONDS);
 
-            {
-                put("Standard1", (long) 110 * 60 * 1000);
-                put("Sockslist", (long) 210 * 60 * 1000);
-                put("Proxyhttp", (long) 410 * 60 * 1000);
-
-                put("Standard2", (long) 820 * 60 * 1000);
-                put("Nntime", (long) 220 * 60 * 1000);
-                put("Proxyspeedtest", (long) 320 * 60 * 1000);
-                put("Proxybridge", (long) 120 * 60 * 1000);
-            }
-        };
-
-        boolean result = Generic.compareLinkedHashMap(firstMap, firstMapDuplicate);
+        boolean result = Generic.compareSortedLinkedHashMap(firstMap, firstMapDuplicate);
         assertTrue(result, "duplicate");
 
-        result = Generic.compareLinkedHashMap(firstMap, secondMap);
+        result = Generic.compareSortedLinkedHashMap(firstMap, secondMap);
         assertFalse(result, "same elements, different order");
 
-        result = Generic.compareLinkedHashMap(firstMap, thirdMap);
+        result = Generic.compareSortedLinkedHashMap(firstMap, thirdMap);
         assertFalse(result, "different nElements");
     }
 
     // Test of sortByValue method, of class Generic.
     @Test
     void sortByValue() {
-        LinkedHashMap<String, Long> map = new LinkedHashMap<String, Long>() {
-            private static final long serialVersionUID = 1201L;
+        final Map<String, Long> map = new LinkedHashMap<>(16);
+        final LinkedHashMap<String, Long> expResultAscending = new LinkedHashMap<>(16), expResultDescending = new LinkedHashMap<>(16);
 
-            {
-                put("Standard1", (long) 110 * 60 * 1000);
-                put("Sockslist", (long) 210 * 60 * 1000);
-                put("Proxyhttp", (long) 410 * 60 * 1000);
-                put("Freeproxylist", (long) 910 * 60 * 1000);
-                put("Standard2", (long) 820 * 60 * 1000);
-                put("Nntime", (long) 220 * 60 * 1000);
-                put("Proxyspeedtest", (long) 320 * 60 * 1000);
-                put("Proxybridge", (long) 120 * 60 * 1000);
-            }
-        };
-        LinkedHashMap<String, Long> expResultAscending = new LinkedHashMap<String, Long>() {
-            private static final long serialVersionUID = 1202L;
+        map.put("Standard1", 110L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        map.put("Sockslist", 210L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        map.put("Proxyhttp", 410L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        map.put("Freeproxylist", 910L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        map.put("Standard2", 820L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        map.put("Nntime", 220L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        map.put("Proxyspeedtest", 320L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        map.put("Proxybridge", 120L * Generic.MINUTE_LENGTH_MILLISECONDS);
 
-            {
-                put("Standard1", (long) 110 * 60 * 1000);
-                put("Proxybridge", (long) 120 * 60 * 1000);
-                put("Sockslist", (long) 210 * 60 * 1000);
-                put("Nntime", (long) 220 * 60 * 1000);
-                put("Proxyspeedtest", (long) 320 * 60 * 1000);
-                put("Proxyhttp", (long) 410 * 60 * 1000);
-                put("Standard2", (long) 820 * 60 * 1000);
-                put("Freeproxylist", (long) 910 * 60 * 1000);
-            }
-        };
-        LinkedHashMap<String, Long> expResultDescending = new LinkedHashMap<String, Long>() {
-            private static final long serialVersionUID = 1203L;
+        expResultAscending.put("Standard1", 110L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultAscending.put("Proxybridge", 120L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultAscending.put("Sockslist", 210L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultAscending.put("Nntime", 220L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultAscending.put("Proxyspeedtest", 320L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultAscending.put("Proxyhttp", 410L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultAscending.put("Standard2", 820L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultAscending.put("Freeproxylist", 910L * Generic.MINUTE_LENGTH_MILLISECONDS);
 
-            {
-                put("Freeproxylist", (long) 910 * 60 * 1000);
-                put("Standard2", (long) 820 * 60 * 1000);
-                put("Proxyhttp", (long) 410 * 60 * 1000);
-                put("Proxyspeedtest", (long) 320 * 60 * 1000);
-                put("Nntime", (long) 220 * 60 * 1000);
-                put("Sockslist", (long) 210 * 60 * 1000);
-                put("Proxybridge", (long) 120 * 60 * 1000);
-                put("Standard1", (long) 110 * 60 * 1000);
-            }
-        };
+        expResultDescending.put("Freeproxylist", 910L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultDescending.put("Standard2", 820L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultDescending.put("Proxyhttp", 410L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultDescending.put("Proxyspeedtest", 320L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultDescending.put("Nntime", 220L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultDescending.put("Sockslist", 210L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultDescending.put("Proxybridge", 120L * Generic.MINUTE_LENGTH_MILLISECONDS);
+        expResultDescending.put("Standard1", 110L * Generic.MINUTE_LENGTH_MILLISECONDS);
 
         boolean ascendingOrder = true;
         LinkedHashMap<String, Long> result = Generic.sortByValue(map, ascendingOrder);
-        assertTrue(Generic.compareLinkedHashMap(expResultAscending, result), "ascending");
+        assertTrue(Generic.compareSortedLinkedHashMap(expResultAscending, result), "ascending");
 
         ascendingOrder = false;
         result = Generic.sortByValue(map, ascendingOrder);
-        assertTrue(Generic.compareLinkedHashMap(expResultDescending, result), "descending");
+        assertTrue(Generic.compareSortedLinkedHashMap(expResultDescending, result), "descending");
     }
 
     // Test of getRandomElementFromSet method, of class Generic.
     @Test
     void getRandomElementFromSet() {
-        Set<String> set = new LinkedHashSet<>(Arrays.asList(new String[]{"AC", "AD", "AE", "AERO", "AF", "AG", "AI", "AL", "AM", "AN"}));
-        String result = Generic.getRandomElementFromSet(set);
+        final Collection<String> set = new LinkedHashSet<>(Arrays.asList("AC", "AD", "AE", "AERO", "AF", "AG", "AI", "AL", "AM", "AN"));
+        final String result = Generic.getRandomElementFromSet(set);
 
         assertTrue(set.contains(result));
     }
@@ -1415,8 +1389,10 @@ class GenericTest {
     @Test
     void copyFile()
             throws IOException {
-        String sourceFileName = Generic.tempFileName("sourceTest"), destFileName = Generic.tempFileName("destTest");
-        File sourceFile = new File(sourceFileName), destFile = new File(destFileName);
+        final String sourceFileName = Generic.tempFileName("sourceTest");
+        final String destFileName = Generic.tempFileName("destTest");
+        final File sourceFile = new File(sourceFileName);
+        final File destFile = new File(destFileName);
         try {
             Generic.printStackTraces(sourceFileName);
             Generic.copyFile(sourceFile, destFile);
@@ -1427,14 +1403,14 @@ class GenericTest {
             destFile.delete();
         }
     }
-    // Test of concatArrays method, of class Generic.
 
+    // Test of concatArrays method, of class Generic.
     @Test
     void concatArrays() {
-        Byte[] firstArray = new Byte[]{1, 2, 3, 4};
-        Byte[][] restArrays = new Byte[][]{{5, 6}, {}, {7}, {8, 8, 8, 8, 9, 1}};
-        Byte[] expResult = new Byte[]{1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8, 9, 1};
-        Byte[] result = Generic.concatArrays(firstArray, restArrays);
+        final Byte[] firstArray = {1, 2, 3, 4};
+        final Byte[][] restArrays = {{5, 6}, {}, {7}, {8, 8, 8, 8, 9, 1}};
+        final Byte[] expResult = {1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8, 9, 1};
+        final Byte[] result = Generic.concatArrays(firstArray, restArrays);
 
         assertArrayEquals(expResult, result);
     }
@@ -1443,9 +1419,9 @@ class GenericTest {
     @Test
     void compressByteArray()
             throws IOException {
-        byte[] bytes = new byte[]{};
+        byte[] bytes = {};
         String compressionFormat = "bogus_format";
-        byte[] expResult = new byte[]{};
+        final byte[] expResult = {};
         byte[] result = Generic.compressByteArray(bytes, compressionFormat);
         assertArrayEquals(expResult, result, "bogus_format");
 
@@ -1461,12 +1437,13 @@ class GenericTest {
     }
 
     // Test of decompressByteArray method, of class Generic.
+    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void decompressByteArray()
             throws IOException {
-        byte[] bytes = new byte[]{1, 1, 1};
+        byte[] bytes = {1, 1, 1};
         String compressionFormat = "bogus_format";
-        byte[] expResult = new byte[]{1, 1, 1};
+        byte[] expResult = {1, 1, 1};
         byte[] result = Generic.decompressByteArray(bytes, compressionFormat);
         assertArrayEquals(expResult, result, "bogus_format");
 
@@ -1486,27 +1463,28 @@ class GenericTest {
     // Test of getSubstrings method, of class Generic.
     @Test
     void getSubstrings_3args() {
-        String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
-        String firstDelimiter = "<";
-        String secondDelimiter = ">";
-        LinkedList<String> expResult = new LinkedList<>(Arrays.asList(new String[]{"NOSCRIPT", "NOSCRIPT", "A", "b", "", "", "", "A"}));
-        LinkedList<String> result = Generic.getSubstrings(harvestInputString, firstDelimiter, secondDelimiter);
+        final String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
+        final String firstDelimiter = "<";
+        final String secondDelimiter = ">";
+        final LinkedList<String> expResult = new LinkedList<>(Arrays.asList("NOSCRIPT", "NOSCRIPT", "A", "b", "", "", "", "A"));
+        final LinkedList<String> result = Generic.getSubstrings(harvestInputString, firstDelimiter, secondDelimiter);
         assertEquals(expResult, result);
     }
 
     // Test of getSubstrings method, of class Generic.
     @Test
     void getSubstrings_4args() {
-        String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
-        String firstDelimiter = "<";
-        String secondDelimiter = ">";
-        boolean getInterSubstrings = false;
-        LinkedList<String> expResult = new LinkedList<>(Arrays.asList(new String[]{"NOSCRIPT", "NOSCRIPT", "A", "b", "", "", "", "A"}));
-        LinkedList<String> result = Generic.getSubstrings(harvestInputString, firstDelimiter, secondDelimiter, getInterSubstrings);
+        final String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
+        final String firstDelimiter = "<";
+        final String secondDelimiter = ">";
+        final boolean getInterSubstrings = false;
+        final LinkedList<String> expResult = new LinkedList<>(Arrays.asList("NOSCRIPT", "NOSCRIPT", "A", "b", "", "", "", "A"));
+        final LinkedList<String> result = Generic.getSubstrings(harvestInputString, firstDelimiter, secondDelimiter, getInterSubstrings);
         assertEquals(expResult, result);
     }
 
     // Test of getSubstrings method, of class Generic.
+    @SuppressWarnings("OverlyLongMethod")
     @Test
     void getSubstrings_6args() {
         String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
@@ -1515,7 +1493,7 @@ class GenericTest {
         String secondDelimiter = ">";
         boolean getInterSubstrings = false;
         int nSubstrings = -1;
-        LinkedList<String> expResult = new LinkedList<>(Arrays.asList(new String[]{"NOSCRIPT", "NOSCRIPT", "A", "b", "", "", "", "A"}));
+        LinkedList<String> expResult = new LinkedList<>(Arrays.asList("NOSCRIPT", "NOSCRIPT", "A", "b", "", "", "", "A"));
         LinkedList<String> result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings negative, getInterSubstrings false, delimiters different");
 
@@ -1525,7 +1503,7 @@ class GenericTest {
         secondDelimiter = ">";
         getInterSubstrings = false;
         nSubstrings = 0;
-        expResult = new LinkedList<>(Arrays.asList(new String[]{}));
+        expResult = new LinkedList<>(Collections.emptyList());
         result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings zero, getInterSubstrings false, delimiters different");
 
@@ -1535,7 +1513,7 @@ class GenericTest {
         secondDelimiter = ">";
         getInterSubstrings = true;
         nSubstrings = 7;
-        expResult = new LinkedList<>(Arrays.asList(new String[]{"", "NOSCRIPT", "", "NOSCRIPT", "", "A", " "}));
+        expResult = new LinkedList<>(Arrays.asList("", "NOSCRIPT", "", "NOSCRIPT", "", "A", " "));
         result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings limited, getInterSubstrings true, delimiters different");
 
@@ -1545,7 +1523,7 @@ class GenericTest {
         secondDelimiter = "|";
         getInterSubstrings = true;
         nSubstrings = -1;
-        expResult = new LinkedList<>(Arrays.asList(new String[]{"", "NOSCRIPT", "NOSCRIPT", "A", " ", "b", "das", "sss", "", "", "A|1"}));
+        expResult = new LinkedList<>(Arrays.asList("", "NOSCRIPT", "NOSCRIPT", "A", " ", "b", "das", "sss", "", "", "A|1"));
         result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings negative, getInterSubstrings true, delimiters identical");
 
@@ -1555,7 +1533,7 @@ class GenericTest {
         secondDelimiter = "|";
         getInterSubstrings = false;
         nSubstrings = -1;
-        expResult = new LinkedList<>(Arrays.asList(new String[]{"NOSCRIPT", "A", "b", "sss", ""}));
+        expResult = new LinkedList<>(Arrays.asList("NOSCRIPT", "A", "b", "sss", ""));
         result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings negative, getInterSubstrings false, delimiters identical");
 
@@ -1565,7 +1543,7 @@ class GenericTest {
         secondDelimiter = "|";
         getInterSubstrings = true;
         nSubstrings = 7;
-        expResult = new LinkedList<>(Arrays.asList(new String[]{"", "NOSCRIPT", "NOSCRIPT", "A", " ", "b", "das"}));
+        expResult = new LinkedList<>(Arrays.asList("", "NOSCRIPT", "NOSCRIPT", "A", " ", "b", "das"));
         result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings limited, getInterSubstrings true, delimiters identical");
 
@@ -1575,7 +1553,7 @@ class GenericTest {
         secondDelimiter = "|";
         getInterSubstrings = true;
         nSubstrings = 7;
-        expResult = new LinkedList<>(Arrays.asList(new String[]{"", "NOSCRIPT", "-|NOSCRIPT", "A", "-| ", "b", "-|das"}));
+        expResult = new LinkedList<>(Arrays.asList("", "NOSCRIPT", "-|NOSCRIPT", "A", "-| ", "b", "-|das"));
         result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings limited, getInterSubstrings true, delimiters different but with similar parts");
 
@@ -1585,7 +1563,7 @@ class GenericTest {
         secondDelimiter = "|";
         getInterSubstrings = true;
         nSubstrings = -1;
-        expResult = new LinkedList<>(Arrays.asList(new String[]{"", "NOSCRIPT", "-|NOSCRIPT", "A", "-| ", "b", "-|das", "sss", "", "", "A|1"}));
+        expResult = new LinkedList<>(Arrays.asList("", "NOSCRIPT", "-|NOSCRIPT", "A", "-| ", "b", "-|das", "sss", "", "", "A|1"));
         result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings negative, getInterSubstrings true, delimiters different but with similar parts");
 
@@ -1595,7 +1573,7 @@ class GenericTest {
         secondDelimiter = "|";
         getInterSubstrings = false;
         nSubstrings = -1;
-        expResult = new LinkedList<>(Arrays.asList(new String[]{"NOSCRIPT", "A", "b", "sss", ""}));
+        expResult = new LinkedList<>(Arrays.asList("NOSCRIPT", "A", "b", "sss", ""));
         result = Generic.getSubstrings(harvestInputString, searchInputString, firstDelimiter, secondDelimiter, getInterSubstrings, nSubstrings);
         assertEquals(expResult, result, "different harvestInputString/searchInputString, nSubstrings negative, getInterSubstrings false, delimiters different but with similar parts");
     }
@@ -1603,30 +1581,30 @@ class GenericTest {
     // Test of getSubstringsIgnoreCase method, of class Generic.
     @Test
     void getSubstringsIgnoreCase() {
-        String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
-        String firstDelimiter = "o";
-        String secondDelimiter = "S";
-        LinkedList<String> expResult = new LinkedList<>(Arrays.asList(new String[]{"", ""}));
-        LinkedList<String> result = Generic.getSubstringsIgnoreCase(harvestInputString, firstDelimiter, secondDelimiter);
+        final String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
+        final String firstDelimiter = "o";
+        final String secondDelimiter = "S";
+        final LinkedList<String> expResult = new LinkedList<>(Arrays.asList("", ""));
+        final LinkedList<String> result = Generic.getSubstringsIgnoreCase(harvestInputString, firstDelimiter, secondDelimiter);
         assertEquals(expResult, result);
     }
 
     // Test of getSubstring method, of class Generic.
     @Test
     void getSubstring() {
-        String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
-        String firstDelimiter = "<";
-        String secondDelimiter = ">";
-        String expResult = "NOSCRIPT";
-        String result = Generic.getSubstring(harvestInputString, firstDelimiter, secondDelimiter);
+        final String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
+        final String firstDelimiter = "<";
+        final String secondDelimiter = ">";
+        final String expResult = "NOSCRIPT";
+        final String result = Generic.getSubstring(harvestInputString, firstDelimiter, secondDelimiter);
         assertEquals(expResult, result);
     }
 
     @Test
     void removeSubstring() {
-        String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
-        String firstDelimiter = "<";
-        String secondDelimiter = ">";
+        final String harvestInputString = "<NOSCRIPT><NOSCRIPT><A> <b>das<>sss<><><A>1";
+        final String firstDelimiter = "<";
+        final String secondDelimiter = ">";
         String expResult = "<><NOSCRIPT><A> <b>das<>sss<><><A>1";
         String result = Generic.removeSubstring(harvestInputString, firstDelimiter, secondDelimiter);
         assertEquals(expResult, result);
@@ -1640,18 +1618,17 @@ class GenericTest {
     // Test of serializedDeepCopy method, of class Generic.
     @Test
     void serializedDeepCopy() {
-        String sourceObject = "test";
-        String expResult = "test";
-        String result = Generic.serializedDeepCopy(sourceObject);
+        final String sourceObject = "test";
+        final String expResult = "test";
+        final String result = Generic.serializedDeepCopy(sourceObject);
         assertEquals(expResult, result);
     }
 
     // Test of synchronizedCopyObjectFields method, of class Generic.
     @Test
-    void synchronizedCopyObjectFields()
-            throws UnknownHostException {
-        LocalTestObject sourceObject = new LocalTestObject("test", 7);
-        LocalTestObject destinationObject = new LocalTestObject();
+    void synchronizedCopyObjectFields() {
+        final LocalTestObject sourceObject = new LocalTestObject("test", 7);
+        final LocalTestObject destinationObject = new LocalTestObject();
 
         Generic.synchronizedCopyObjectFields(sourceObject, destinationObject);
         assertEquals(sourceObject, destinationObject);
@@ -1660,8 +1637,8 @@ class GenericTest {
     // Test of copyObjectFields method, of class Generic.
     @Test
     void copyObjectFields() {
-        LocalTestObject sourceObject = new LocalTestObject("test", 7);
-        LocalTestObject destinationObject = new LocalTestObject();
+        final LocalTestObject sourceObject = new LocalTestObject("test", 7);
+        final LocalTestObject destinationObject = new LocalTestObject();
 
         Generic.copyObjectFields(sourceObject, destinationObject);
         assertEquals(sourceObject, destinationObject);
@@ -1670,23 +1647,23 @@ class GenericTest {
     // Test of objectToString method, of class Generic.
     @Test
     void objectToString_1args() {
-        LocalTestObject object = new LocalTestObject("test", 0);
+        final LocalTestObject object = new LocalTestObject("test", 0);
         String expResult = "(name=test number=0)";
         String result = Generic.objectToString(object);
         assertEquals(expResult, result, "first");
 
-        LocalTestObject[] arrayObject = new LocalTestObject[]{object};
+        final LocalTestObject[] arrayObject = {object};
         expResult = "[(name=test number=0)]";
         result = Generic.objectToString(arrayObject);
         assertEquals(expResult, result, "second");
 
-        ArrayList<LocalTestObject> arrayList = new ArrayList<>(1);
+        final Collection<LocalTestObject> arrayList = new ArrayList<>(1);
         arrayList.add(object);
         expResult = "[(name=test number=0)]";
         result = Generic.objectToString(arrayList);
         assertEquals(expResult, result, "third");
 
-        HashMap<LocalTestObject, LocalTestObject> hashMap = new HashMap<>(2);
+        final Map<LocalTestObject, LocalTestObject> hashMap = new HashMap<>(2);
         hashMap.put(object, object);
         expResult = "[(key=(name=test number=0) value=(name=test number=0))]";
         result = Generic.objectToString(hashMap);
@@ -1700,25 +1677,24 @@ class GenericTest {
     // Test of objectToString method, of class Generic.
     @Test
     void objectToString_2args() {
-        LocalTestObject object = new LocalTestObject("test", 0);
-        String expResult = "(name=test)";
-        String result = Generic.objectToString(object, false);
+        final LocalTestObject object = new LocalTestObject("test", 0);
+        final String expResult = "(name=test)";
+        final String result = Generic.objectToString(object, false);
         assertEquals(expResult, result);
     }
 
     // Test of objectToString method, of class Generic.
     @Test
     void objectToString_3args() {
-        LocalTestObject object = new LocalTestObject("test", 0);
-        String expResult = "(name=test number=0)";
-        String result = Generic.objectToString(object, true, true);
+        final LocalTestObject object = new LocalTestObject("test", 0);
+        final String expResult = "(name=test number=0)";
+        final String result = Generic.objectToString(object, true, true);
         assertEquals(expResult, result);
     }
 
     @Test
-    void objectToString_6args()
-            throws UnknownHostException {
-        LocalTestObject object = new LocalTestObject("test", 0);
+    void objectToString_6args() {
+        final LocalTestObject object = new LocalTestObject("test", 0);
         String expResult = "(name=test)";
         String result = Generic.objectToString(object, false, true, false, 10);
         assertEquals(expResult, result);
@@ -1732,11 +1708,11 @@ class GenericTest {
     @Test
     void disableHTTPSValidation() {
         // the all trusting manager is not tested here as I couldn't find a method to do it, but there's no rush, as it seems to work fine
-        assertEquals(HttpsURLConnection.getDefaultHostnameVerifier().verify("", null), false, "before");
+        assertFalse(HttpsURLConnection.getDefaultHostnameVerifier().verify("", null), "before");
 
         Generic.disableHTTPSValidation();
 
-        assertEquals(HttpsURLConnection.getDefaultHostnameVerifier().verify("", null), true, "after");
+        assertTrue(HttpsURLConnection.getDefaultHostnameVerifier().verify("", null), "after");
     }
 
     // Test of specialCharParser method, of class Generic.
@@ -1754,7 +1730,7 @@ class GenericTest {
     }
 
     // Test of closeStandardStreams method, of class Generic.
-    @SuppressWarnings("UseOfSystemOutOrSystemErr")
+    @SuppressWarnings({"UseOfSystemOutOrSystemErr", "ImplicitDefaultCharsetUsage", "NestedTryStatement"})
     @Test
     void closeStandardStreams()
             throws IOException {
@@ -1763,8 +1739,9 @@ class GenericTest {
         PipedOutputStream pipedOutputStream = null;
         PrintStream outPrintStream = null, errPrintStream = null;
 
-        PrintStream originalOut = System.out, originalErr = System.err;
-        InputStream originalIn = System.in;
+        final PrintStream originalOut = System.out;
+        final PrintStream originalErr = System.err;
+        final InputStream originalIn = System.in;
 
         try {
             outContent = new ByteArrayOutputStream();
@@ -1772,6 +1749,7 @@ class GenericTest {
             errContent = new ByteArrayOutputStream();
             errPrintStream = new PrintStream(errContent);
             pipedInputStream = new PipedInputStream();
+            //noinspection resource,IOResourceOpenedButNotSafelyClosed
             pipedOutputStream = new PipedOutputStream(pipedInputStream);
 
             System.setIn(pipedInputStream);
@@ -1784,7 +1762,7 @@ class GenericTest {
 
             assertTrue(outContent.toString().contains("hello out"), "before out");
             assertTrue(errContent.toString().contains("hello err"), "before err");
-            assertTrue(pipedInputStream.available() == 6, "before in");
+            assertEquals(6, pipedInputStream.available(), "before in");
 
             Generic.closeStandardStreams();
 
@@ -1798,7 +1776,7 @@ class GenericTest {
 
             assertTrue(outContent.toString().contains("hello out"), "after out");
             assertTrue(errContent.toString().contains("hello err"), "after err");
-            assertTrue(pipedInputStream.available() == 0, "after in");
+            assertEquals(0, pipedInputStream.available(), "after in");
         } finally {
             Generic.closeObjects(outPrintStream, outContent, errPrintStream, errContent, pipedOutputStream, pipedInputStream);
             System.setOut(originalOut);
@@ -1809,7 +1787,8 @@ class GenericTest {
 
     @Test
     void checkAtomicBooleans_varargs() {
-        AtomicBoolean first = new AtomicBoolean(), second = new AtomicBoolean();
+        final AtomicBoolean first = new AtomicBoolean();
+        final AtomicBoolean second = new AtomicBoolean();
 
         boolean result = Generic.checkAtomicBooleans(first, second);
         assertFalse(result, "false");
@@ -1821,7 +1800,8 @@ class GenericTest {
 
     @Test
     void checkAtomicBooleans_boolean_varargs() {
-        AtomicBoolean first = new AtomicBoolean(), second = new AtomicBoolean();
+        final AtomicBoolean first = new AtomicBoolean();
+        final AtomicBoolean second = new AtomicBoolean();
 
         boolean result = Generic.checkAtomicBooleans(false, first, second);
         assertTrue(result, "true");
@@ -1834,8 +1814,8 @@ class GenericTest {
 
     @Test
     void checkObjects() {
-        AtomicBoolean atomicBoolean = new AtomicBoolean();
-        AtomicReference<String> atomicReference = new AtomicReference<>();
+        final AtomicBoolean atomicBoolean = new AtomicBoolean();
+        final AtomicReference<String> atomicReference = new AtomicReference<>();
 
         boolean result = Generic.checkObjects(atomicBoolean, atomicReference);
         assertFalse(result, "false");
@@ -1853,12 +1833,12 @@ class GenericTest {
     // Test of threadSleepSegmented_long_long_AtomicBoolean method, of class Generic.
     @Test
     void threadSleepSegmented_long_long_AtomicBoolean() {
-        long millis = 1000L;
-        long timeBefore = System.currentTimeMillis();
+        final long millis = 1000L;
+        final long timeBefore = System.currentTimeMillis();
 
         Generic.threadSleepSegmented(millis, 1L, new AtomicBoolean());
 
-        long timeAfter = System.currentTimeMillis();
+        final long timeAfter = System.currentTimeMillis();
 
 //        logger.info("threadSleepSegmented_long_long_AtomicBoolean() millis slept: {}    millis passed: {}", millis, timeAfter - timeBefore);
         assertTrue(timeAfter - timeBefore >= 1000);
@@ -1867,12 +1847,12 @@ class GenericTest {
     // Test of threadSleep method, of class Generic.
     @Test
     void threadSleep() {
-        long millis = 1000L;
-        long timeBefore = System.currentTimeMillis();
+        final long millis = 1000L;
+        final long timeBefore = System.currentTimeMillis();
 
         Generic.threadSleep(millis);
 
-        long timeAfter = System.currentTimeMillis();
+        final long timeAfter = System.currentTimeMillis();
 
 //        logger.info("testThreadSleep() millis slept: {}    millis passed: {}", millis, timeAfter - timeBefore);
         assertTrue(timeAfter - timeBefore >= 1000);
@@ -1901,26 +1881,26 @@ class GenericTest {
 
     @Test
     void getField() {
-        String expName = "testName";
-        int expNumber = 123;
+        final String expName = "testName";
+        final int expNumber = 123;
 
-        LocalTestObject localTestObject = new LocalTestObject(expName, expNumber);
+        final LocalTestObject localTestObject = new LocalTestObject(expName, expNumber);
 
-        String resultName = (String) Generic.getField(localTestObject, "name");
+        final String resultName = (String) Generic.getField(localTestObject, "name");
         assertEquals(expName, resultName, "name");
 
-        int resultNumber = (Integer) Generic.getField(localTestObject, "number");
+        final int resultNumber = (Integer) Generic.getField(localTestObject, "number");
         assertEquals(expNumber, resultNumber, "number");
 
-        assertNull(Generic.getField(localTestObject, "bogus"), "null");
+        assertNull(Generic.getField(localTestObject, BOGUS), "null");
     }
 
     @Test
     void setField() {
-        String expName = "testName";
-        int expNumber = 123;
+        final String expName = "testName";
+        final int expNumber = 123;
 
-        LocalTestObject localTestObject = new LocalTestObject();
+        final LocalTestObject localTestObject = new LocalTestObject();
 
         boolean expResult = true;
         boolean result = Generic.setField(localTestObject, "name", expName);
@@ -1934,10 +1914,11 @@ class GenericTest {
 
         // NoSuchFieldException is expected
         expResult = false;
-        result = Generic.setField(localTestObject, "bogus", expNumber);
+        result = Generic.setField(localTestObject, BOGUS, expNumber);
         assertEquals(expResult, result, "result bogus");
     }
 
+    @SuppressWarnings("JUnitTestMethodWithNoAssertions")
     @Test
     void turnOffHtmlUnitLogger() {
         // I won't be testing this method; it works and it will be obvious if it doesn't

@@ -1,26 +1,29 @@
 package info.fmro.shared.utility;
 
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("CyclicClassDependency")
 public class SynchronizedReader {
-
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedReader.class);
     private static final String DEFAULT_CHARSET = Generic.UTF8_CHARSET;
-    private static final int DEFAULT_BUFFER_SIZE = 32 * 1024;
+    private static final int DEFAULT_BUFFER_SIZE = 32 << 10; // 32 * 1_024
     private int decryptionKey; // careful, "-decryptionKey" is used to decrypt the string, not "+decryptionKey"
-    private String charset;
+    private String charsetName;
     private BufferedReader bufferedReader;
     private InputStreamReader inputStreamReader;
     private BufferedInputStream bufferedInputStream;
     private FileInputStream fileInputStream;
 
+    @SuppressWarnings("unused")
     public SynchronizedReader(final String fileName, final String charsetName, final int bufferSize)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, Charset.forName(charsetName), bufferSize);
@@ -42,18 +45,12 @@ public class SynchronizedReader {
         this.initialize(file, DEFAULT_CHARSET, DEFAULT_BUFFER_SIZE);
     }
 
-    public SynchronizedReader(final int decryptionKey) {
-        this.decryptionKey = decryptionKey;
-    }
-
-    public SynchronizedReader() {
-    }
-
-    private void initialize(final String fileName, final String charset, final int bufferSize)
+    @SuppressWarnings("SameParameterValue")
+    private synchronized void initialize(final String fileName, final String charset, final int bufferSize)
             throws java.io.FileNotFoundException {
         // this.close();
 
-        this.charset = charset;
+        this.charsetName = charset;
 
         try {
             this.fileInputStream = new FileInputStream(fileName);
@@ -65,11 +62,11 @@ public class SynchronizedReader {
         }
     }
 
-    private void initialize(final String fileName, final Charset charset, final int bufferSize)
+    private synchronized void initialize(final String fileName, @NotNull final Charset charset, final int bufferSize)
             throws java.io.FileNotFoundException {
         // this.close();
 
-        this.charset = charset.name();
+        this.charsetName = charset.name();
 
         this.fileInputStream = new FileInputStream(fileName);
         this.bufferedInputStream = new BufferedInputStream(this.fileInputStream, bufferSize);
@@ -77,11 +74,12 @@ public class SynchronizedReader {
         this.bufferedReader = new BufferedReader(this.inputStreamReader, bufferSize);
     }
 
-    private void initialize(final File file, final String charset, final int bufferSize)
+    @SuppressWarnings("SameParameterValue")
+    private synchronized void initialize(final File file, final String charset, final int bufferSize)
             throws java.io.FileNotFoundException {
         // this.close();
 
-        this.charset = charset;
+        this.charsetName = charset;
 
         try {
             this.fileInputStream = new FileInputStream(file);
@@ -93,11 +91,12 @@ public class SynchronizedReader {
         }
     }
 
-    public synchronized void initialize(final File file, final Charset charset, final int bufferSize)
+    @SuppressWarnings("unused")
+    public synchronized void initialize(final File file, @NotNull final Charset charset, final int bufferSize)
             throws java.io.FileNotFoundException {
         this.close();
 
-        this.charset = charset.name();
+        this.charsetName = charset.name();
 
         this.fileInputStream = new FileInputStream(file);
         this.bufferedInputStream = new BufferedInputStream(this.fileInputStream, bufferSize);
@@ -105,19 +104,20 @@ public class SynchronizedReader {
         this.bufferedReader = new BufferedReader(this.inputStreamReader, bufferSize);
     }
 
+    @SuppressWarnings("unused")
     public synchronized void initialize(final String fileName)
             throws java.io.FileNotFoundException {
         this.close();
 
-        this.charset = DEFAULT_CHARSET;
+        this.charsetName = DEFAULT_CHARSET;
 
         try {
             this.fileInputStream = new FileInputStream(fileName);
             this.bufferedInputStream = new BufferedInputStream(this.fileInputStream, DEFAULT_BUFFER_SIZE);
-            this.inputStreamReader = new InputStreamReader(this.bufferedInputStream, charset);
+            this.inputStreamReader = new InputStreamReader(this.bufferedInputStream, this.charsetName);
             this.bufferedReader = new BufferedReader(this.inputStreamReader, DEFAULT_BUFFER_SIZE);
         } catch (java.io.UnsupportedEncodingException unsupportedEncodingException) {
-            logger.error("UnsupportedEncodingException in SynchronizedReader.initialize : {}", charset, unsupportedEncodingException);
+            logger.error("UnsupportedEncodingException in SynchronizedReader.initialize : {}", this.charsetName, unsupportedEncodingException);
         }
     }
 

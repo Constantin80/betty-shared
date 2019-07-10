@@ -1,12 +1,13 @@
 package info.fmro.shared.utility;
 
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Objects;
 
 public class SynchronizedSet<E>
@@ -19,24 +20,30 @@ public class SynchronizedSet<E>
     private final HashSet<E> set;
     private long timeStamp, timeStampRemoved, timeClean; // timeStamp for general use; timeStampRemoved auto updated at element removal
 
+    @Contract(pure = true)
     public SynchronizedSet() {
         this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
     }
 
+    @Contract(pure = true)
+    @SuppressWarnings("WeakerAccess")
     public SynchronizedSet(final int initialSize) {
         this(initialSize, DEFAULT_LOAD_FACTOR);
     }
 
+    @Contract(pure = true)
+    @SuppressWarnings("WeakerAccess")
     public SynchronizedSet(final int initialSize, final float loadFactor) {
         this.set = new HashSet<>(initialSize, loadFactor);
     }
 
+    @SuppressWarnings("WeakerAccess")
     public SynchronizedSet(final Collection<? extends E> collection) {
         this.set = new HashSet<>(collection);
     }
 
-    @SuppressWarnings("AccessingNonPublicFieldOfAnotherObject")
-    public synchronized void copyFrom(final SynchronizedSet<E> other) { // doesn't copy static final or transient; does update the set
+    @SuppressWarnings("unused")
+    public synchronized void copyFrom(final SynchronizedSet<? extends E> other) { // doesn't copy static final or transient; does update the set
         if (!this.set.isEmpty()) {
             logger.error("not empty set in SynchronizedSet copyFrom: {}", Generic.objectToString(this));
         }
@@ -56,13 +63,14 @@ public class SynchronizedSet<E>
     }
 
     public synchronized HashSet<E> copy() {
-        return new HashSet<>(set);
+        return new HashSet<>(this.set);
     }
 
     public synchronized boolean add(final E element) {
         return this.set.add(element);
     }
 
+    @SuppressWarnings("unused")
     public synchronized boolean addAll(final Collection<? extends E> c) {
         return this.set.addAll(c);
     }
@@ -72,14 +80,12 @@ public class SynchronizedSet<E>
     }
 
     public synchronized E getEqualElement(final E elementToFind) {
-        E returnValue = null;
+        @Nullable E returnValue = null;
         if (this.set == null) {
             logger.error("null set in getEqualElement for: {} {}", elementToFind, Generic.objectToString(this));
             returnValue = null;
         } else {
-            final Iterator<E> iterator = this.set.iterator();
-            while (iterator.hasNext()) {
-                final E existingElement = iterator.next();
+            for (final E existingElement : this.set) {
                 if (Objects.equals(elementToFind, existingElement)) {
                     returnValue = existingElement;
                     break;
@@ -92,10 +98,10 @@ public class SynchronizedSet<E>
     }
 
     public synchronized boolean contains(final Object object) {
-        //noinspection SuspiciousMethodCalls
         return this.set.contains(object);
     }
 
+    @SuppressWarnings("unused")
     public synchronized boolean containsAll(final Collection<?> c) {
         return this.set.containsAll(c);
     }
@@ -105,7 +111,6 @@ public class SynchronizedSet<E>
     }
 
     public synchronized boolean remove(final Object object) {
-        //noinspection SuspiciousMethodCalls
         return this.set.remove(object);
     }
 
@@ -113,6 +118,7 @@ public class SynchronizedSet<E>
         return this.set.removeAll(c);
     }
 
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public synchronized boolean retainAll(final Collection<?> c) {
         return this.set.retainAll(c);
     }
@@ -122,47 +128,51 @@ public class SynchronizedSet<E>
     }
 
     public synchronized long getTimeStamp() {
-        return timeStamp;
+        return this.timeStamp;
     }
 
     public synchronized void setTimeStamp(final long timeStamp) {
         this.timeStamp = timeStamp;
     }
 
+    @SuppressWarnings("unused")
     public synchronized void timeStamp() {
         this.timeStamp = System.currentTimeMillis();
     }
 
     public synchronized long getTimeStampRemoved() {
-        return timeStampRemoved;
+        return this.timeStampRemoved;
     }
 
     public synchronized void setTimeStampRemoved(final long timeStampRemoved) {
         this.timeStampRemoved = timeStampRemoved;
     }
 
+    @SuppressWarnings("unused")
     public synchronized void timeStampRemoved() {
         this.timeStampRemoved = System.currentTimeMillis();
     }
 
     public synchronized long getTimeClean() {
-        return timeClean;
+        return this.timeClean;
     }
 
     public synchronized void setTimeClean(final long timeClean) {
         this.timeClean = timeClean;
     }
 
+    @SuppressWarnings("unused")
     public synchronized void timeCleanStamp() {
         this.timeClean = System.currentTimeMillis();
     }
 
-    public synchronized void timeCleanStamp(final long timeStamp) {
+    @SuppressWarnings("unused")
+    public synchronized void timeCleanStamp(final long timeToAdd) {
         final long currentTime = System.currentTimeMillis();
-        if (currentTime - this.timeClean >= timeStamp) {
-            this.timeClean = currentTime + timeStamp;
+        if (currentTime - this.timeClean >= timeToAdd) {
+            this.timeClean = currentTime + timeToAdd;
         } else {
-            this.timeClean += timeStamp;
+            this.timeClean += timeToAdd;
         }
     }
 
@@ -173,8 +183,8 @@ public class SynchronizedSet<E>
         return hash;
     }
 
+    @Contract(value = "null -> false", pure = true)
     @Override
-    @SuppressWarnings("AccessingNonPublicFieldOfAnotherObject")
     public synchronized boolean equals(final Object obj) { // other.set not synchronized, meaning equals result not guaranteed to be correct, but behaviour is acceptable
         if (obj == null) {
             return false;

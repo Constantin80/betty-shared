@@ -1,9 +1,7 @@
 package info.fmro.shared.utility;
 
+@SuppressWarnings("unused")
 public class UncaughtExceptionHandlerTest {
-    public UncaughtExceptionHandlerTest() {
-    }
-
 //    @Test
 //    void uncaughtException()
 //            throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
@@ -11,10 +9,10 @@ public class UncaughtExceptionHandlerTest {
 //
 //        Thread thread = new Thread();
 //        Throwable throwable = new Throwable();
-//        UncaughtExceptionHandler instance = new UncaughtExceptionHandler();
+//        CustomUncaughtExceptionHandler instance = new CustomUncaughtExceptionHandler();
 //        final Logger mockLogger = context.mock(Logger.class);
 //
-//        Field field = UncaughtExceptionHandler.class.getDeclaredField("logger");
+//        Field field = CustomUncaughtExceptionHandler.class.getDeclaredField("logger");
 //        Generic.setFinalStatic(field, mockLogger);
 //
 //        // expectations

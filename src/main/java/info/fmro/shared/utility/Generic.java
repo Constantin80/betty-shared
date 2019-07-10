@@ -1,14 +1,15 @@
 package info.fmro.shared.utility;
 
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.BufferedInputStream;
@@ -25,7 +26,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -39,17 +39,17 @@ import java.net.IDN;
 import java.net.URLDecoder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -57,9 +57,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.Set;
 import java.util.Stack;
 import java.util.StringTokenizer;
@@ -73,106 +73,99 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.InflaterInputStream;
 
-import static java.util.Arrays.asList;
-
-public class Generic {
-
+@SuppressWarnings({"WeakerAccess", "unused", "UtilityClass", "ClassWithTooManyMethods", "OverlyComplexClass", "ClassWithTooManyDependents", "CyclicClassDependency"})
+public final class Generic {
     private static final Logger logger = LoggerFactory.getLogger(Generic.class);
-    // TLDs last updated 20-06-2018 from http://data.iana.org/TLD/tlds-alpha-by-domain.txt
-    public static final LinkedHashSet<String> TLDs =
-            new LinkedHashSet<>(
-                    asList(new String[]{"AAA", "AARP", "ABARTH", "ABB", "ABBOTT", "ABBVIE", "ABC", "ABLE", "ABOGADO", "ABUDHABI", "AC", "ACADEMY", "ACCENTURE", "ACCOUNTANT", "ACCOUNTANTS", "ACO", "ACTIVE", "ACTOR", "AD", "ADAC", "ADS", "ADULT", "AE",
-                                        "AEG", "AERO", "AETNA", "AF", "AFAMILYCOMPANY", "AFL", "AFRICA", "AG", "AGAKHAN", "AGENCY", "AI", "AIG", "AIGO", "AIRBUS", "AIRFORCE", "AIRTEL", "AKDN", "AL", "ALFAROMEO", "ALIBABA", "ALIPAY", "ALLFINANZ",
-                                        "ALLSTATE", "ALLY", "ALSACE", "ALSTOM", "AM", "AMERICANEXPRESS", "AMERICANFAMILY", "AMEX", "AMFAM", "AMICA", "AMSTERDAM", "ANALYTICS", "ANDROID", "ANQUAN", "ANZ", "AO", "AOL", "APARTMENTS", "APP", "APPLE", "AQ",
-                                        "AQUARELLE", "AR", "ARAB", "ARAMCO", "ARCHI", "ARMY", "ARPA", "ART", "ARTE", "AS", "ASDA", "ASIA", "ASSOCIATES", "AT", "ATHLETA", "ATTORNEY", "AU", "AUCTION", "AUDI", "AUDIBLE", "AUDIO", "AUSPOST", "AUTHOR", "AUTO",
-                                        "AUTOS", "AVIANCA", "AW", "AWS", "AX", "AXA", "AZ", "AZURE", "BA", "BABY", "BAIDU", "BANAMEX", "BANANAREPUBLIC", "BAND", "BANK", "BAR", "BARCELONA", "BARCLAYCARD", "BARCLAYS", "BAREFOOT", "BARGAINS", "BASEBALL",
-                                        "BASKETBALL", "BAUHAUS", "BAYERN", "BB", "BBC", "BBT", "BBVA", "BCG", "BCN", "BD", "BE", "BEATS", "BEAUTY", "BEER", "BENTLEY", "BERLIN", "BEST", "BESTBUY", "BET", "BF", "BG", "BH", "BHARTI", "BI", "BIBLE", "BID",
-                                        "BIKE", "BING", "BINGO", "BIO", "BIZ", "BJ", "BLACK", "BLACKFRIDAY", "BLANCO", "BLOCKBUSTER", "BLOG", "BLOOMBERG", "BLUE", "BM", "BMS", "BMW", "BN", "BNL", "BNPPARIBAS", "BO", "BOATS", "BOEHRINGER", "BOFA", "BOM",
-                                        "BOND", "BOO", "BOOK", "BOOKING", "BOSCH", "BOSTIK", "BOSTON", "BOT", "BOUTIQUE", "BOX", "BR", "BRADESCO", "BRIDGESTONE", "BROADWAY", "BROKER", "BROTHER", "BRUSSELS", "BS", "BT", "BUDAPEST", "BUGATTI", "BUILD",
-                                        "BUILDERS", "BUSINESS", "BUY", "BUZZ", "BV", "BW", "BY", "BZ", "BZH", "CA", "CAB", "CAFE", "CAL", "CALL", "CALVINKLEIN", "CAM", "CAMERA", "CAMP", "CANCERRESEARCH", "CANON", "CAPETOWN", "CAPITAL", "CAPITALONE", "CAR",
-                                        "CARAVAN", "CARDS", "CARE", "CAREER", "CAREERS", "CARS", "CARTIER", "CASA", "CASE", "CASEIH", "CASH", "CASINO", "CAT", "CATERING", "CATHOLIC", "CBA", "CBN", "CBRE", "CBS", "CC", "CD", "CEB", "CENTER", "CEO", "CERN",
-                                        "CF", "CFA", "CFD", "CG", "CH", "CHANEL", "CHANNEL", "CHARITY", "CHASE", "CHAT", "CHEAP", "CHINTAI", "CHRISTMAS", "CHROME", "CHRYSLER", "CHURCH", "CI", "CIPRIANI", "CIRCLE", "CISCO", "CITADEL", "CITI", "CITIC",
-                                        "CITY", "CITYEATS", "CK", "CL", "CLAIMS", "CLEANING", "CLICK", "CLINIC", "CLINIQUE", "CLOTHING", "CLOUD", "CLUB", "CLUBMED", "CM", "CN", "CO", "COACH", "CODES", "COFFEE", "COLLEGE", "COLOGNE", "COM", "COMCAST",
-                                        "COMMBANK", "COMMUNITY", "COMPANY", "COMPARE", "COMPUTER", "COMSEC", "CONDOS", "CONSTRUCTION", "CONSULTING", "CONTACT", "CONTRACTORS", "COOKING", "COOKINGCHANNEL", "COOL", "COOP", "CORSICA", "COUNTRY", "COUPON",
-                                        "COUPONS", "COURSES", "CR", "CREDIT", "CREDITCARD", "CREDITUNION", "CRICKET", "CROWN", "CRS", "CRUISE", "CRUISES", "CSC", "CU", "CUISINELLA", "CV", "CW", "CX", "CY", "CYMRU", "CYOU", "CZ", "DABUR", "DAD", "DANCE",
-                                        "DATA", "DATE", "DATING", "DATSUN", "DAY", "DCLK", "DDS", "DE", "DEAL", "DEALER", "DEALS", "DEGREE", "DELIVERY", "DELL", "DELOITTE", "DELTA", "DEMOCRAT", "DENTAL", "DENTIST", "DESI", "DESIGN", "DEV", "DHL",
-                                        "DIAMONDS", "DIET", "DIGITAL", "DIRECT", "DIRECTORY", "DISCOUNT", "DISCOVER", "DISH", "DIY", "DJ", "DK", "DM", "DNP", "DO", "DOCS", "DOCTOR", "DODGE", "DOG", "DOHA", "DOMAINS", "DOT", "DOWNLOAD", "DRIVE", "DTV",
-                                        "DUBAI", "DUCK", "DUNLOP", "DUNS", "DUPONT", "DURBAN", "DVAG", "DVR", "DZ", "EARTH", "EAT", "EC", "ECO", "EDEKA", "EDU", "EDUCATION", "EE", "EG", "EMAIL", "EMERCK", "ENERGY", "ENGINEER", "ENGINEERING", "ENTERPRISES",
-                                        "EPOST", "EPSON", "EQUIPMENT", "ER", "ERICSSON", "ERNI", "ES", "ESQ", "ESTATE", "ESURANCE", "ET", "ETISALAT", "EU", "EUROVISION", "EUS", "EVENTS", "EVERBANK", "EXCHANGE", "EXPERT", "EXPOSED", "EXPRESS", "EXTRASPACE",
-                                        "FAGE", "FAIL", "FAIRWINDS", "FAITH", "FAMILY", "FAN", "FANS", "FARM", "FARMERS", "FASHION", "FAST", "FEDEX", "FEEDBACK", "FERRARI", "FERRERO", "FI", "FIAT", "FIDELITY", "FIDO", "FILM", "FINAL", "FINANCE",
-                                        "FINANCIAL", "FIRE", "FIRESTONE", "FIRMDALE", "FISH", "FISHING", "FIT", "FITNESS", "FJ", "FK", "FLICKR", "FLIGHTS", "FLIR", "FLORIST", "FLOWERS", "FLY", "FM", "FO", "FOO", "FOOD", "FOODNETWORK", "FOOTBALL", "FORD",
-                                        "FOREX", "FORSALE", "FORUM", "FOUNDATION", "FOX", "FR", "FREE", "FRESENIUS", "FRL", "FROGANS", "FRONTDOOR", "FRONTIER", "FTR", "FUJITSU", "FUJIXEROX", "FUN", "FUND", "FURNITURE", "FUTBOL", "FYI", "GA", "GAL",
-                                        "GALLERY", "GALLO", "GALLUP", "GAME", "GAMES", "GAP", "GARDEN", "GB", "GBIZ", "GD", "GDN", "GE", "GEA", "GENT", "GENTING", "GEORGE", "GF", "GG", "GGEE", "GH", "GI", "GIFT", "GIFTS", "GIVES", "GIVING", "GL", "GLADE",
-                                        "GLASS", "GLE", "GLOBAL", "GLOBO", "GM", "GMAIL", "GMBH", "GMO", "GMX", "GN", "GODADDY", "GOLD", "GOLDPOINT", "GOLF", "GOO", "GOODHANDS", "GOODYEAR", "GOOG", "GOOGLE", "GOP", "GOT", "GOV", "GP", "GQ", "GR",
-                                        "GRAINGER", "GRAPHICS", "GRATIS", "GREEN", "GRIPE", "GROCERY", "GROUP", "GS", "GT", "GU", "GUARDIAN", "GUCCI", "GUGE", "GUIDE", "GUITARS", "GURU", "GW", "GY", "HAIR", "HAMBURG", "HANGOUT", "HAUS", "HBO", "HDFC",
-                                        "HDFCBANK", "HEALTH", "HEALTHCARE", "HELP", "HELSINKI", "HERE", "HERMES", "HGTV", "HIPHOP", "HISAMITSU", "HITACHI", "HIV", "HK", "HKT", "HM", "HN", "HOCKEY", "HOLDINGS", "HOLIDAY", "HOMEDEPOT", "HOMEGOODS", "HOMES",
-                                        "HOMESENSE", "HONDA", "HONEYWELL", "HORSE", "HOSPITAL", "HOST", "HOSTING", "HOT", "HOTELES", "HOTELS", "HOTMAIL", "HOUSE", "HOW", "HR", "HSBC", "HT", "HU", "HUGHES", "HYATT", "HYUNDAI", "IBM", "ICBC", "ICE", "ICU",
-                                        "ID", "IE", "IEEE", "IFM", "IKANO", "IL", "IM", "IMAMAT", "IMDB", "IMMO", "IMMOBILIEN", "IN", "INDUSTRIES", "INFINITI", "INFO", "ING", "INK", "INSTITUTE", "INSURANCE", "INSURE", "INT", "INTEL", "INTERNATIONAL",
-                                        "INTUIT", "INVESTMENTS", "IO", "IPIRANGA", "IQ", "IR", "IRISH", "IS", "ISELECT", "ISMAILI", "IST", "ISTANBUL", "IT", "ITAU", "ITV", "IVECO", "IWC", "JAGUAR", "JAVA", "JCB", "JCP", "JE", "JEEP", "JETZT", "JEWELRY",
-                                        "JIO", "JLC", "JLL", "JM", "JMP", "JNJ", "JO", "JOBS", "JOBURG", "JOT", "JOY", "JP", "JPMORGAN", "JPRS", "JUEGOS", "JUNIPER", "KAUFEN", "KDDI", "KE", "KERRYHOTELS", "KERRYLOGISTICS", "KERRYPROPERTIES", "KFH", "KG",
-                                        "KH", "KI", "KIA", "KIM", "KINDER", "KINDLE", "KITCHEN", "KIWI", "KM", "KN", "KOELN", "KOMATSU", "KOSHER", "KP", "KPMG", "KPN", "KR", "KRD", "KRED", "KUOKGROUP", "KW", "KY", "KYOTO", "KZ", "LA", "LACAIXA",
-                                        "LADBROKES", "LAMBORGHINI", "LAMER", "LANCASTER", "LANCIA", "LANCOME", "LAND", "LANDROVER", "LANXESS", "LASALLE", "LAT", "LATINO", "LATROBE", "LAW", "LAWYER", "LB", "LC", "LDS", "LEASE", "LECLERC", "LEFRAK", "LEGAL",
-                                        "LEGO", "LEXUS", "LGBT", "LI", "LIAISON", "LIDL", "LIFE", "LIFEINSURANCE", "LIFESTYLE", "LIGHTING", "LIKE", "LILLY", "LIMITED", "LIMO", "LINCOLN", "LINDE", "LINK", "LIPSY", "LIVE", "LIVING", "LIXIL", "LK", "LLC",
-                                        "LOAN", "LOANS", "LOCKER", "LOCUS", "LOFT", "LOL", "LONDON", "LOTTE", "LOTTO", "LOVE", "LPL", "LPLFINANCIAL", "LR", "LS", "LT", "LTD", "LTDA", "LU", "LUNDBECK", "LUPIN", "LUXE", "LUXURY", "LV", "LY", "MA", "MACYS",
-                                        "MADRID", "MAIF", "MAISON", "MAKEUP", "MAN", "MANAGEMENT", "MANGO", "MAP", "MARKET", "MARKETING", "MARKETS", "MARRIOTT", "MARSHALLS", "MASERATI", "MATTEL", "MBA", "MC", "MCKINSEY", "MD", "ME", "MED", "MEDIA", "MEET",
-                                        "MELBOURNE", "MEME", "MEMORIAL", "MEN", "MENU", "MERCKMSD", "METLIFE", "MG", "MH", "MIAMI", "MICROSOFT", "MIL", "MINI", "MINT", "MIT", "MITSUBISHI", "MK", "ML", "MLB", "MLS", "MM", "MMA", "MN", "MO", "MOBI",
-                                        "MOBILE", "MOBILY", "MODA", "MOE", "MOI", "MOM", "MONASH", "MONEY", "MONSTER", "MOPAR", "MORMON", "MORTGAGE", "MOSCOW", "MOTO", "MOTORCYCLES", "MOV", "MOVIE", "MOVISTAR", "MP", "MQ", "MR", "MS", "MSD", "MT", "MTN",
-                                        "MTR", "MU", "MUSEUM", "MUTUAL", "MV", "MW", "MX", "MY", "MZ", "NA", "NAB", "NADEX", "NAGOYA", "NAME", "NATIONWIDE", "NATURA", "NAVY", "NBA", "NC", "NE", "NEC", "NET", "NETBANK", "NETFLIX", "NETWORK", "NEUSTAR",
-                                        "NEW", "NEWHOLLAND", "NEWS", "NEXT", "NEXTDIRECT", "NEXUS", "NF", "NFL", "NG", "NGO", "NHK", "NI", "NICO", "NIKE", "NIKON", "NINJA", "NISSAN", "NISSAY", "NL", "NO", "NOKIA", "NORTHWESTERNMUTUAL", "NORTON", "NOW",
-                                        "NOWRUZ", "NOWTV", "NP", "NR", "NRA", "NRW", "NTT", "NU", "NYC", "NZ", "OBI", "OBSERVER", "OFF", "OFFICE", "OKINAWA", "OLAYAN", "OLAYANGROUP", "OLDNAVY", "OLLO", "OM", "OMEGA", "ONE", "ONG", "ONL", "ONLINE",
-                                        "ONYOURSIDE", "OOO", "OPEN", "ORACLE", "ORANGE", "ORG", "ORGANIC", "ORIGINS", "OSAKA", "OTSUKA", "OTT", "OVH", "PA", "PAGE", "PANASONIC", "PANERAI", "PARIS", "PARS", "PARTNERS", "PARTS", "PARTY", "PASSAGENS", "PAY",
-                                        "PCCW", "PE", "PET", "PF", "PFIZER", "PG", "PH", "PHARMACY", "PHD", "PHILIPS", "PHONE", "PHOTO", "PHOTOGRAPHY", "PHOTOS", "PHYSIO", "PIAGET", "PICS", "PICTET", "PICTURES", "PID", "PIN", "PING", "PINK", "PIONEER",
-                                        "PIZZA", "PK", "PL", "PLACE", "PLAY", "PLAYSTATION", "PLUMBING", "PLUS", "PM", "PN", "PNC", "POHL", "POKER", "POLITIE", "PORN", "POST", "PR", "PRAMERICA", "PRAXI", "PRESS", "PRIME", "PRO", "PROD", "PRODUCTIONS",
-                                        "PROF", "PROGRESSIVE", "PROMO", "PROPERTIES", "PROPERTY", "PROTECTION", "PRU", "PRUDENTIAL", "PS", "PT", "PUB", "PW", "PWC", "PY", "QA", "QPON", "QUEBEC", "QUEST", "QVC", "RACING", "RADIO", "RAID", "RE", "READ",
-                                        "REALESTATE", "REALTOR", "REALTY", "RECIPES", "RED", "REDSTONE", "REDUMBRELLA", "REHAB", "REISE", "REISEN", "REIT", "RELIANCE", "REN", "RENT", "RENTALS", "REPAIR", "REPORT", "REPUBLICAN", "REST", "RESTAURANT",
-                                        "REVIEW", "REVIEWS", "REXROTH", "RICH", "RICHARDLI", "RICOH", "RIGHTATHOME", "RIL", "RIO", "RIP", "RMIT", "RO", "ROCHER", "ROCKS", "RODEO", "ROGERS", "ROOM", "RS", "RSVP", "RU", "RUGBY", "RUHR", "RUN", "RW", "RWE",
-                                        "RYUKYU", "SA", "SAARLAND", "SAFE", "SAFETY", "SAKURA", "SALE", "SALON", "SAMSCLUB", "SAMSUNG", "SANDVIK", "SANDVIKCOROMANT", "SANOFI", "SAP", "SARL", "SAS", "SAVE", "SAXO", "SB", "SBI", "SBS", "SC", "SCA", "SCB",
-                                        "SCHAEFFLER", "SCHMIDT", "SCHOLARSHIPS", "SCHOOL", "SCHULE", "SCHWARZ", "SCIENCE", "SCJOHNSON", "SCOR", "SCOT", "SD", "SE", "SEARCH", "SEAT", "SECURE", "SECURITY", "SEEK", "SELECT", "SENER", "SERVICES", "SES",
-                                        "SEVEN", "SEW", "SEX", "SEXY", "SFR", "SG", "SH", "SHANGRILA", "SHARP", "SHAW", "SHELL", "SHIA", "SHIKSHA", "SHOES", "SHOP", "SHOPPING", "SHOUJI", "SHOW", "SHOWTIME", "SHRIRAM", "SI", "SILK", "SINA", "SINGLES",
-                                        "SITE", "SJ", "SK", "SKI", "SKIN", "SKY", "SKYPE", "SL", "SLING", "SM", "SMART", "SMILE", "SN", "SNCF", "SO", "SOCCER", "SOCIAL", "SOFTBANK", "SOFTWARE", "SOHU", "SOLAR", "SOLUTIONS", "SONG", "SONY", "SOY", "SPACE",
-                                        "SPIEGEL", "SPORT", "SPOT", "SPREADBETTING", "SR", "SRL", "SRT", "ST", "STADA", "STAPLES", "STAR", "STARHUB", "STATEBANK", "STATEFARM", "STATOIL", "STC", "STCGROUP", "STOCKHOLM", "STORAGE", "STORE", "STREAM",
-                                        "STUDIO", "STUDY", "STYLE", "SU", "SUCKS", "SUPPLIES", "SUPPLY", "SUPPORT", "SURF", "SURGERY", "SUZUKI", "SV", "SWATCH", "SWIFTCOVER", "SWISS", "SX", "SY", "SYDNEY", "SYMANTEC", "SYSTEMS", "SZ", "TAB", "TAIPEI",
-                                        "TALK", "TAOBAO", "TARGET", "TATAMOTORS", "TATAR", "TATTOO", "TAX", "TAXI", "TC", "TCI", "TD", "TDK", "TEAM", "TECH", "TECHNOLOGY", "TEL", "TELECITY", "TELEFONICA", "TEMASEK", "TENNIS", "TEVA", "TF", "TG", "TH",
-                                        "THD", "THEATER", "THEATRE", "TIAA", "TICKETS", "TIENDA", "TIFFANY", "TIPS", "TIRES", "TIROL", "TJ", "TJMAXX", "TJX", "TK", "TKMAXX", "TL", "TM", "TMALL", "TN", "TO", "TODAY", "TOKYO", "TOOLS", "TOP", "TORAY",
-                                        "TOSHIBA", "TOTAL", "TOURS", "TOWN", "TOYOTA", "TOYS", "TR", "TRADE", "TRADING", "TRAINING", "TRAVEL", "TRAVELCHANNEL", "TRAVELERS", "TRAVELERSINSURANCE", "TRUST", "TRV", "TT", "TUBE", "TUI", "TUNES", "TUSHU", "TV",
-                                        "TVS", "TW", "TZ", "UA", "UBANK", "UBS", "UCONNECT", "UG", "UK", "UNICOM", "UNIVERSITY", "UNO", "UOL", "UPS", "US", "UY", "UZ", "VA", "VACATIONS", "VANA", "VANGUARD", "VC", "VE", "VEGAS", "VENTURES", "VERISIGN",
-                                        "VERSICHERUNG", "VET", "VG", "VI", "VIAJES", "VIDEO", "VIG", "VIKING", "VILLAS", "VIN", "VIP", "VIRGIN", "VISA", "VISION", "VISTA", "VISTAPRINT", "VIVA", "VIVO", "VLAANDEREN", "VN", "VODKA", "VOLKSWAGEN", "VOLVO",
-                                        "VOTE", "VOTING", "VOTO", "VOYAGE", "VU", "VUELOS", "WALES", "WALMART", "WALTER", "WANG", "WANGGOU", "WARMAN", "WATCH", "WATCHES", "WEATHER", "WEATHERCHANNEL", "WEBCAM", "WEBER", "WEBSITE", "WED", "WEDDING", "WEIBO",
-                                        "WEIR", "WF", "WHOSWHO", "WIEN", "WIKI", "WILLIAMHILL", "WIN", "WINDOWS", "WINE", "WINNERS", "WME", "WOLTERSKLUWER", "WOODSIDE", "WORK", "WORKS", "WORLD", "WOW", "WS", "WTC", "WTF", "XBOX", "XEROX", "XFINITY",
-                                        "XIHUAN", "XIN", "XN--11B4C3D", "XN--1CK2E1B", "XN--1QQW23A", "XN--2SCRJ9C", "XN--30RR7Y", "XN--3BST00M", "XN--3DS443G", "XN--3E0B707E", "XN--3HCRJ9C", "XN--3OQ18VL8PN36A", "XN--3PXU8K", "XN--42C2D9A",
-                                        "XN--45BR5CYL", "XN--45BRJ9C", "XN--45Q11C", "XN--4GBRIM", "XN--54B7FTA0CC", "XN--55QW42G", "XN--55QX5D", "XN--5SU34J936BGSG", "XN--5TZM5G", "XN--6FRZ82G", "XN--6QQ986B3XL", "XN--80ADXHKS", "XN--80AO21A",
-                                        "XN--80AQECDR1A", "XN--80ASEHDB", "XN--80ASWG", "XN--8Y0A063A", "XN--90A3AC", "XN--90AE", "XN--90AIS", "XN--9DBQ2A", "XN--9ET52U", "XN--9KRT00A", "XN--B4W605FERD", "XN--BCK1B9A5DRE4C", "XN--C1AVG", "XN--C2BR7G",
-                                        "XN--CCK2B3B", "XN--CG4BKI", "XN--CLCHC0EA0B2G2A9GCD", "XN--CZR694B", "XN--CZRS0T", "XN--CZRU2D", "XN--D1ACJ3B", "XN--D1ALF", "XN--E1A4C", "XN--ECKVDTC9D", "XN--EFVY88H", "XN--ESTV75G", "XN--FCT429K", "XN--FHBEI",
-                                        "XN--FIQ228C5HS", "XN--FIQ64B", "XN--FIQS8S", "XN--FIQZ9S", "XN--FJQ720A", "XN--FLW351E", "XN--FPCRJ9C3D", "XN--FZC2C9E2C", "XN--FZYS8D69UVGM", "XN--G2XX48C", "XN--GCKR3F0F", "XN--GECRJ9C", "XN--GK3AT1E",
-                                        "XN--H2BREG3EVE", "XN--H2BRJ9C", "XN--H2BRJ9C8C", "XN--HXT814E", "XN--I1B6B1A6A2E", "XN--IMR513N", "XN--IO0A7I", "XN--J1AEF", "XN--J1AMH", "XN--J6W193G", "XN--JLQ61U9W7B", "XN--JVR189M", "XN--KCRX77D1X4A",
-                                        "XN--KPRW13D", "XN--KPRY57D", "XN--KPU716F", "XN--KPUT3I", "XN--L1ACC", "XN--LGBBAT1AD8J", "XN--MGB9AWBF", "XN--MGBA3A3EJT", "XN--MGBA3A4F16A", "XN--MGBA7C0BBN0A", "XN--MGBAAKC7DVF", "XN--MGBAAM7A8H", "XN--MGBAB2BD",
-                                        "XN--MGBAI9AZGQP6J", "XN--MGBAYH7GPA", "XN--MGBB9FBPOB", "XN--MGBBH1A", "XN--MGBBH1A71E", "XN--MGBC0A9AZCG", "XN--MGBCA7DZDO", "XN--MGBERP4A5D4AR", "XN--MGBGU82A", "XN--MGBI4ECEXP", "XN--MGBPL2FH", "XN--MGBT3DHD",
-                                        "XN--MGBTX2B", "XN--MGBX4CD0AB", "XN--MIX891F", "XN--MK1BU44C", "XN--MXTQ1M", "XN--NGBC5AZD", "XN--NGBE9E0A", "XN--NGBRX", "XN--NODE", "XN--NQV7F", "XN--NQV7FS00EMA", "XN--NYQY26A", "XN--O3CW4H", "XN--OGBPF8FL",
-                                        "XN--OTU796D", "XN--P1ACF", "XN--P1AI", "XN--PBT977C", "XN--PGBS0DH", "XN--PSSY2U", "XN--Q9JYB4C", "XN--QCKA1PMC", "XN--QXAM", "XN--RHQV96G", "XN--ROVU88B", "XN--RVC1E0AM3E", "XN--S9BRJ9C", "XN--SES554G",
-                                        "XN--T60B56A", "XN--TCKWE", "XN--TIQ49XQYJ", "XN--UNUP4Y", "XN--VERMGENSBERATER-CTB", "XN--VERMGENSBERATUNG-PWB", "XN--VHQUV", "XN--VUQ861B", "XN--W4R85EL8FHU5DNRA", "XN--W4RS40L", "XN--WGBH1C", "XN--WGBL6A",
-                                        "XN--XHQ521B", "XN--XKC2AL3HYE2A", "XN--XKC2DL3A5EE0H", "XN--Y9A3AQ", "XN--YFRO4I67O", "XN--YGBI2AMMX", "XN--ZFR164B", "XPERIA", "XXX", "XYZ", "YACHTS", "YAHOO", "YAMAXUN", "YANDEX", "YE", "YODOBASHI", "YOGA",
-                                        "YOKOHAMA", "YOU", "YOUTUBE", "YT", "YUN", "ZA", "ZAPPOS", "ZARA", "ZERO", "ZIP", "ZIPPO", "ZM", "ZONE", "ZUERICH", "ZW"}));
-    public static final String USASCII_CHARSET = "US-ASCII", UTF8_CHARSET = "UTF-8", UTF16_CHARSET = "UTF-16";
-    public static final long DAY_LENGTH_MILLISECONDS = (long) 24 * 60 * 60 * 1000, HOUR_LENGTH_MILLISECONDS = (long) 60 * 60 * 1000, MINUTE_LENGTH_MILLISECONDS = (long) 60 * 1000;
+    // TLDs last updated 29-06-2019 from http://data.iana.org/TLD/tlds-alpha-by-domain.txt
+    @SuppressWarnings("SpellCheckingInspection")
+    public static final Set<String> TLDs =
+            Set.of("AAA", "AARP", "ABARTH", "ABB", "ABBOTT", "ABBVIE", "ABC", "ABLE", "ABOGADO", "ABUDHABI", "AC", "ACADEMY", "ACCENTURE", "ACCOUNTANT", "ACCOUNTANTS", "ACO", "ACTOR", "AD", "ADAC", "ADS", "ADULT", "AE", "AEG", "AERO", "AETNA", "AF",
+                   "AFAMILYCOMPANY", "AFL", "AFRICA", "AG", "AGAKHAN", "AGENCY", "AI", "AIG", "AIGO", "AIRBUS", "AIRFORCE", "AIRTEL", "AKDN", "AL", "ALFAROMEO", "ALIBABA", "ALIPAY", "ALLFINANZ", "ALLSTATE", "ALLY", "ALSACE", "ALSTOM", "AM",
+                   "AMERICANEXPRESS", "AMERICANFAMILY", "AMEX", "AMFAM", "AMICA", "AMSTERDAM", "ANALYTICS", "ANDROID", "ANQUAN", "ANZ", "AO", "AOL", "APARTMENTS", "APP", "APPLE", "AQ", "AQUARELLE", "AR", "ARAB", "ARAMCO", "ARCHI", "ARMY", "ARPA",
+                   "ART", "ARTE", "AS", "ASDA", "ASIA", "ASSOCIATES", "AT", "ATHLETA", "ATTORNEY", "AU", "AUCTION", "AUDI", "AUDIBLE", "AUDIO", "AUSPOST", "AUTHOR", "AUTO", "AUTOS", "AVIANCA", "AW", "AWS", "AX", "AXA", "AZ", "AZURE", "BA", "BABY",
+                   "BAIDU", "BANAMEX", "BANANAREPUBLIC", "BAND", "BANK", "BAR", "BARCELONA", "BARCLAYCARD", "BARCLAYS", "BAREFOOT", "BARGAINS", "BASEBALL", "BASKETBALL", "BAUHAUS", "BAYERN", "BB", "BBC", "BBT", "BBVA", "BCG", "BCN", "BD", "BE",
+                   "BEATS", "BEAUTY", "BEER", "BENTLEY", "BERLIN", "BEST", "BESTBUY", "BET", "BF", "BG", "BH", "BHARTI", "BI", "BIBLE", "BID", "BIKE", "BING", "BINGO", "BIO", "BIZ", "BJ", "BLACK", "BLACKFRIDAY", "BLOCKBUSTER", "BLOG", "BLOOMBERG",
+                   "BLUE", "BM", "BMS", "BMW", "BN", "BNL", "BNPPARIBAS", "BO", "BOATS", "BOEHRINGER", "BOFA", "BOM", "BOND", "BOO", "BOOK", "BOOKING", "BOSCH", "BOSTIK", "BOSTON", "BOT", "BOUTIQUE", "BOX", "BR", "BRADESCO", "BRIDGESTONE",
+                   "BROADWAY", "BROKER", "BROTHER", "BRUSSELS", "BS", "BT", "BUDAPEST", "BUGATTI", "BUILD", "BUILDERS", "BUSINESS", "BUY", "BUZZ", "BV", "BW", "BY", "BZ", "BZH", "CA", "CAB", "CAFE", "CAL", "CALL", "CALVINKLEIN", "CAM", "CAMERA",
+                   "CAMP", "CANCERRESEARCH", "CANON", "CAPETOWN", "CAPITAL", "CAPITALONE", "CAR", "CARAVAN", "CARDS", "CARE", "CAREER", "CAREERS", "CARS", "CARTIER", "CASA", "CASE", "CASEIH", "CASH", "CASINO", "CAT", "CATERING", "CATHOLIC", "CBA",
+                   "CBN", "CBRE", "CBS", "CC", "CD", "CEB", "CENTER", "CEO", "CERN", "CF", "CFA", "CFD", "CG", "CH", "CHANEL", "CHANNEL", "CHARITY", "CHASE", "CHAT", "CHEAP", "CHINTAI", "CHRISTMAS", "CHROME", "CHRYSLER", "CHURCH", "CI", "CIPRIANI",
+                   "CIRCLE", "CISCO", "CITADEL", "CITI", "CITIC", "CITY", "CITYEATS", "CK", "CL", "CLAIMS", "CLEANING", "CLICK", "CLINIC", "CLINIQUE", "CLOTHING", "CLOUD", "CLUB", "CLUBMED", "CM", "CN", "CO", "COACH", "CODES", "COFFEE", "COLLEGE",
+                   "COLOGNE", "COM", "COMCAST", "COMMBANK", "COMMUNITY", "COMPANY", "COMPARE", "COMPUTER", "COMSEC", "CONDOS", "CONSTRUCTION", "CONSULTING", "CONTACT", "CONTRACTORS", "COOKING", "COOKINGCHANNEL", "COOL", "COOP", "CORSICA", "COUNTRY",
+                   "COUPON", "COUPONS", "COURSES", "CR", "CREDIT", "CREDITCARD", "CREDITUNION", "CRICKET", "CROWN", "CRS", "CRUISE", "CRUISES", "CSC", "CU", "CUISINELLA", "CV", "CW", "CX", "CY", "CYMRU", "CYOU", "CZ", "DABUR", "DAD", "DANCE",
+                   "DATA", "DATE", "DATING", "DATSUN", "DAY", "DCLK", "DDS", "DE", "DEAL", "DEALER", "DEALS", "DEGREE", "DELIVERY", "DELL", "DELOITTE", "DELTA", "DEMOCRAT", "DENTAL", "DENTIST", "DESI", "DESIGN", "DEV", "DHL", "DIAMONDS", "DIET",
+                   "DIGITAL", "DIRECT", "DIRECTORY", "DISCOUNT", "DISCOVER", "DISH", "DIY", "DJ", "DK", "DM", "DNP", "DO", "DOCS", "DOCTOR", "DODGE", "DOG", "DOMAINS", "DOT", "DOWNLOAD", "DRIVE", "DTV", "DUBAI", "DUCK", "DUNLOP", "DUNS", "DUPONT",
+                   "DURBAN", "DVAG", "DVR", "DZ", "EARTH", "EAT", "EC", "ECO", "EDEKA", "EDU", "EDUCATION", "EE", "EG", "EMAIL", "EMERCK", "ENERGY", "ENGINEER", "ENGINEERING", "ENTERPRISES", "EPSON", "EQUIPMENT", "ER", "ERICSSON", "ERNI", "ES",
+                   "ESQ", "ESTATE", "ESURANCE", "ET", "ETISALAT", "EU", "EUROVISION", "EUS", "EVENTS", "EVERBANK", "EXCHANGE", "EXPERT", "EXPOSED", "EXPRESS", "EXTRASPACE", "FAGE", "FAIL", "FAIRWINDS", "FAITH", "FAMILY", "FAN", "FANS", "FARM",
+                   "FARMERS", "FASHION", "FAST", "FEDEX", "FEEDBACK", "FERRARI", "FERRERO", "FI", "FIAT", "FIDELITY", "FIDO", "FILM", "FINAL", "FINANCE", "FINANCIAL", "FIRE", "FIRESTONE", "FIRMDALE", "FISH", "FISHING", "FIT", "FITNESS", "FJ", "FK",
+                   "FLICKR", "FLIGHTS", "FLIR", "FLORIST", "FLOWERS", "FLY", "FM", "FO", "FOO", "FOOD", "FOODNETWORK", "FOOTBALL", "FORD", "FOREX", "FORSALE", "FORUM", "FOUNDATION", "FOX", "FR", "FREE", "FRESENIUS", "FRL", "FROGANS", "FRONTDOOR",
+                   "FRONTIER", "FTR", "FUJITSU", "FUJIXEROX", "FUN", "FUND", "FURNITURE", "FUTBOL", "FYI", "GA", "GAL", "GALLERY", "GALLO", "GALLUP", "GAME", "GAMES", "GAP", "GARDEN", "GB", "GBIZ", "GD", "GDN", "GE", "GEA", "GENT", "GENTING",
+                   "GEORGE", "GF", "GG", "GGEE", "GH", "GI", "GIFT", "GIFTS", "GIVES", "GIVING", "GL", "GLADE", "GLASS", "GLE", "GLOBAL", "GLOBO", "GM", "GMAIL", "GMBH", "GMO", "GMX", "GN", "GODADDY", "GOLD", "GOLDPOINT", "GOLF", "GOO", "GOODYEAR",
+                   "GOOG", "GOOGLE", "GOP", "GOT", "GOV", "GP", "GQ", "GR", "GRAINGER", "GRAPHICS", "GRATIS", "GREEN", "GRIPE", "GROCERY", "GROUP", "GS", "GT", "GU", "GUARDIAN", "GUCCI", "GUGE", "GUIDE", "GUITARS", "GURU", "GW", "GY", "HAIR",
+                   "HAMBURG", "HANGOUT", "HAUS", "HBO", "HDFC", "HDFCBANK", "HEALTH", "HEALTHCARE", "HELP", "HELSINKI", "HERE", "HERMES", "HGTV", "HIPHOP", "HISAMITSU", "HITACHI", "HIV", "HK", "HKT", "HM", "HN", "HOCKEY", "HOLDINGS", "HOLIDAY",
+                   "HOMEDEPOT", "HOMEGOODS", "HOMES", "HOMESENSE", "HONDA", "HORSE", "HOSPITAL", "HOST", "HOSTING", "HOT", "HOTELES", "HOTELS", "HOTMAIL", "HOUSE", "HOW", "HR", "HSBC", "HT", "HU", "HUGHES", "HYATT", "HYUNDAI", "IBM", "ICBC", "ICE",
+                   "ICU", "ID", "IE", "IEEE", "IFM", "IKANO", "IL", "IM", "IMAMAT", "IMDB", "IMMO", "IMMOBILIEN", "IN", "INC", "INDUSTRIES", "INFINITI", "INFO", "ING", "INK", "INSTITUTE", "INSURANCE", "INSURE", "INT", "INTEL", "INTERNATIONAL",
+                   "INTUIT", "INVESTMENTS", "IO", "IPIRANGA", "IQ", "IR", "IRISH", "IS", "ISELECT", "ISMAILI", "IST", "ISTANBUL", "IT", "ITAU", "ITV", "IVECO", "JAGUAR", "JAVA", "JCB", "JCP", "JE", "JEEP", "JETZT", "JEWELRY", "JIO", "JLL", "JM",
+                   "JMP", "JNJ", "JO", "JOBS", "JOBURG", "JOT", "JOY", "JP", "JPMORGAN", "JPRS", "JUEGOS", "JUNIPER", "KAUFEN", "KDDI", "KE", "KERRYHOTELS", "KERRYLOGISTICS", "KERRYPROPERTIES", "KFH", "KG", "KH", "KI", "KIA", "KIM", "KINDER",
+                   "KINDLE", "KITCHEN", "KIWI", "KM", "KN", "KOELN", "KOMATSU", "KOSHER", "KP", "KPMG", "KPN", "KR", "KRD", "KRED", "KUOKGROUP", "KW", "KY", "KYOTO", "KZ", "LA", "LACAIXA", "LADBROKES", "LAMBORGHINI", "LAMER", "LANCASTER", "LANCIA",
+                   "LANCOME", "LAND", "LANDROVER", "LANXESS", "LASALLE", "LAT", "LATINO", "LATROBE", "LAW", "LAWYER", "LB", "LC", "LDS", "LEASE", "LECLERC", "LEFRAK", "LEGAL", "LEGO", "LEXUS", "LGBT", "LI", "LIAISON", "LIDL", "LIFE",
+                   "LIFEINSURANCE", "LIFESTYLE", "LIGHTING", "LIKE", "LILLY", "LIMITED", "LIMO", "LINCOLN", "LINDE", "LINK", "LIPSY", "LIVE", "LIVING", "LIXIL", "LK", "LLC", "LOAN", "LOANS", "LOCKER", "LOCUS", "LOFT", "LOL", "LONDON", "LOTTE",
+                   "LOTTO", "LOVE", "LPL", "LPLFINANCIAL", "LR", "LS", "LT", "LTD", "LTDA", "LU", "LUNDBECK", "LUPIN", "LUXE", "LUXURY", "LV", "LY", "MA", "MACYS", "MADRID", "MAIF", "MAISON", "MAKEUP", "MAN", "MANAGEMENT", "MANGO", "MAP", "MARKET",
+                   "MARKETING", "MARKETS", "MARRIOTT", "MARSHALLS", "MASERATI", "MATTEL", "MBA", "MC", "MCKINSEY", "MD", "ME", "MED", "MEDIA", "MEET", "MELBOURNE", "MEME", "MEMORIAL", "MEN", "MENU", "MERCKMSD", "METLIFE", "MG", "MH", "MIAMI",
+                   "MICROSOFT", "MIL", "MINI", "MINT", "MIT", "MITSUBISHI", "MK", "ML", "MLB", "MLS", "MM", "MMA", "MN", "MO", "MOBI", "MOBILE", "MOBILY", "MODA", "MOE", "MOI", "MOM", "MONASH", "MONEY", "MONSTER", "MOPAR", "MORMON", "MORTGAGE",
+                   "MOSCOW", "MOTO", "MOTORCYCLES", "MOV", "MOVIE", "MOVISTAR", "MP", "MQ", "MR", "MS", "MSD", "MT", "MTN", "MTR", "MU", "MUSEUM", "MUTUAL", "MV", "MW", "MX", "MY", "MZ", "NA", "NAB", "NADEX", "NAGOYA", "NAME", "NATIONWIDE",
+                   "NATURA", "NAVY", "NBA", "NC", "NE", "NEC", "NET", "NETBANK", "NETFLIX", "NETWORK", "NEUSTAR", "NEW", "NEWHOLLAND", "NEWS", "NEXT", "NEXTDIRECT", "NEXUS", "NF", "NFL", "NG", "NGO", "NHK", "NI", "NICO", "NIKE", "NIKON", "NINJA",
+                   "NISSAN", "NISSAY", "NL", "NO", "NOKIA", "NORTHWESTERNMUTUAL", "NORTON", "NOW", "NOWRUZ", "NOWTV", "NP", "NR", "NRA", "NRW", "NTT", "NU", "NYC", "NZ", "OBI", "OBSERVER", "OFF", "OFFICE", "OKINAWA", "OLAYAN", "OLAYANGROUP",
+                   "OLDNAVY", "OLLO", "OM", "OMEGA", "ONE", "ONG", "ONL", "ONLINE", "ONYOURSIDE", "OOO", "OPEN", "ORACLE", "ORANGE", "ORG", "ORGANIC", "ORIGINS", "OSAKA", "OTSUKA", "OTT", "OVH", "PA", "PAGE", "PANASONIC", "PARIS", "PARS",
+                   "PARTNERS", "PARTS", "PARTY", "PASSAGENS", "PAY", "PCCW", "PE", "PET", "PF", "PFIZER", "PG", "PH", "PHARMACY", "PHD", "PHILIPS", "PHONE", "PHOTO", "PHOTOGRAPHY", "PHOTOS", "PHYSIO", "PIAGET", "PICS", "PICTET", "PICTURES", "PID",
+                   "PIN", "PING", "PINK", "PIONEER", "PIZZA", "PK", "PL", "PLACE", "PLAY", "PLAYSTATION", "PLUMBING", "PLUS", "PM", "PN", "PNC", "POHL", "POKER", "POLITIE", "PORN", "POST", "PR", "PRAMERICA", "PRAXI", "PRESS", "PRIME", "PRO", "PROD",
+                   "PRODUCTIONS", "PROF", "PROGRESSIVE", "PROMO", "PROPERTIES", "PROPERTY", "PROTECTION", "PRU", "PRUDENTIAL", "PS", "PT", "PUB", "PW", "PWC", "PY", "QA", "QPON", "QUEBEC", "QUEST", "QVC", "RACING", "RADIO", "RAID", "RE", "READ",
+                   "REALESTATE", "REALTOR", "REALTY", "RECIPES", "RED", "REDSTONE", "REDUMBRELLA", "REHAB", "REISE", "REISEN", "REIT", "RELIANCE", "REN", "RENT", "RENTALS", "REPAIR", "REPORT", "REPUBLICAN", "REST", "RESTAURANT", "REVIEW", "REVIEWS",
+                   "REXROTH", "RICH", "RICHARDLI", "RICOH", "RIGHTATHOME", "RIL", "RIO", "RIP", "RMIT", "RO", "ROCHER", "ROCKS", "RODEO", "ROGERS", "ROOM", "RS", "RSVP", "RU", "RUGBY", "RUHR", "RUN", "RW", "RWE", "RYUKYU", "SA", "SAARLAND", "SAFE",
+                   "SAFETY", "SAKURA", "SALE", "SALON", "SAMSCLUB", "SAMSUNG", "SANDVIK", "SANDVIKCOROMANT", "SANOFI", "SAP", "SARL", "SAS", "SAVE", "SAXO", "SB", "SBI", "SBS", "SC", "SCA", "SCB", "SCHAEFFLER", "SCHMIDT", "SCHOLARSHIPS", "SCHOOL",
+                   "SCHULE", "SCHWARZ", "SCIENCE", "SCJOHNSON", "SCOR", "SCOT", "SD", "SE", "SEARCH", "SEAT", "SECURE", "SECURITY", "SEEK", "SELECT", "SENER", "SERVICES", "SES", "SEVEN", "SEW", "SEX", "SEXY", "SFR", "SG", "SH", "SHANGRILA", "SHARP",
+                   "SHAW", "SHELL", "SHIA", "SHIKSHA", "SHOES", "SHOP", "SHOPPING", "SHOUJI", "SHOW", "SHOWTIME", "SHRIRAM", "SI", "SILK", "SINA", "SINGLES", "SITE", "SJ", "SK", "SKI", "SKIN", "SKY", "SKYPE", "SL", "SLING", "SM", "SMART", "SMILE",
+                   "SN", "SNCF", "SO", "SOCCER", "SOCIAL", "SOFTBANK", "SOFTWARE", "SOHU", "SOLAR", "SOLUTIONS", "SONG", "SONY", "SOY", "SPACE", "SPORT", "SPOT", "SPREADBETTING", "SR", "SRL", "SRT", "SS", "ST", "STADA", "STAPLES", "STAR", "STARHUB",
+                   "STATEBANK", "STATEFARM", "STC", "STCGROUP", "STOCKHOLM", "STORAGE", "STORE", "STREAM", "STUDIO", "STUDY", "STYLE", "SU", "SUCKS", "SUPPLIES", "SUPPLY", "SUPPORT", "SURF", "SURGERY", "SUZUKI", "SV", "SWATCH", "SWIFTCOVER",
+                   "SWISS", "SX", "SY", "SYDNEY", "SYMANTEC", "SYSTEMS", "SZ", "TAB", "TAIPEI", "TALK", "TAOBAO", "TARGET", "TATAMOTORS", "TATAR", "TATTOO", "TAX", "TAXI", "TC", "TCI", "TD", "TDK", "TEAM", "TECH", "TECHNOLOGY", "TEL", "TELEFONICA",
+                   "TEMASEK", "TENNIS", "TEVA", "TF", "TG", "TH", "THD", "THEATER", "THEATRE", "TIAA", "TICKETS", "TIENDA", "TIFFANY", "TIPS", "TIRES", "TIROL", "TJ", "TJMAXX", "TJX", "TK", "TKMAXX", "TL", "TM", "TMALL", "TN", "TO", "TODAY",
+                   "TOKYO", "TOOLS", "TOP", "TORAY", "TOSHIBA", "TOTAL", "TOURS", "TOWN", "TOYOTA", "TOYS", "TR", "TRADE", "TRADING", "TRAINING", "TRAVEL", "TRAVELCHANNEL", "TRAVELERS", "TRAVELERSINSURANCE", "TRUST", "TRV", "TT", "TUBE", "TUI",
+                   "TUNES", "TUSHU", "TV", "TVS", "TW", "TZ", "UA", "UBANK", "UBS", "UCONNECT", "UG", "UK", "UNICOM", "UNIVERSITY", "UNO", "UOL", "UPS", "US", "UY", "UZ", "VA", "VACATIONS", "VANA", "VANGUARD", "VC", "VE", "VEGAS", "VENTURES",
+                   "VERISIGN", "VERSICHERUNG", "VET", "VG", "VI", "VIAJES", "VIDEO", "VIG", "VIKING", "VILLAS", "VIN", "VIP", "VIRGIN", "VISA", "VISION", "VISTAPRINT", "VIVA", "VIVO", "VLAANDEREN", "VN", "VODKA", "VOLKSWAGEN", "VOLVO", "VOTE",
+                   "VOTING", "VOTO", "VOYAGE", "VU", "VUELOS", "WALES", "WALMART", "WALTER", "WANG", "WANGGOU", "WARMAN", "WATCH", "WATCHES", "WEATHER", "WEATHERCHANNEL", "WEBCAM", "WEBER", "WEBSITE", "WED", "WEDDING", "WEIBO", "WEIR", "WF",
+                   "WHOSWHO", "WIEN", "WIKI", "WILLIAMHILL", "WIN", "WINDOWS", "WINE", "WINNERS", "WME", "WOLTERSKLUWER", "WOODSIDE", "WORK", "WORKS", "WORLD", "WOW", "WS", "WTC", "WTF", "XBOX", "XEROX", "XFINITY", "XIHUAN", "XIN", "XN--11B4C3D",
+                   "XN--1CK2E1B", "XN--1QQW23A", "XN--2SCRJ9C", "XN--30RR7Y", "XN--3BST00M", "XN--3DS443G", "XN--3E0B707E", "XN--3HCRJ9C", "XN--3OQ18VL8PN36A", "XN--3PXU8K", "XN--42C2D9A", "XN--45BR5CYL", "XN--45BRJ9C", "XN--45Q11C", "XN--4GBRIM",
+                   "XN--54B7FTA0CC", "XN--55QW42G", "XN--55QX5D", "XN--5SU34J936BGSG", "XN--5TZM5G", "XN--6FRZ82G", "XN--6QQ986B3XL", "XN--80ADXHKS", "XN--80AO21A", "XN--80AQECDR1A", "XN--80ASEHDB", "XN--80ASWG", "XN--8Y0A063A", "XN--90A3AC",
+                   "XN--90AE", "XN--90AIS", "XN--9DBQ2A", "XN--9ET52U", "XN--9KRT00A", "XN--B4W605FERD", "XN--BCK1B9A5DRE4C", "XN--C1AVG", "XN--C2BR7G", "XN--CCK2B3B", "XN--CG4BKI", "XN--CLCHC0EA0B2G2A9GCD", "XN--CZR694B", "XN--CZRS0T",
+                   "XN--CZRU2D", "XN--D1ACJ3B", "XN--D1ALF", "XN--E1A4C", "XN--ECKVDTC9D", "XN--EFVY88H", "XN--ESTV75G", "XN--FCT429K", "XN--FHBEI", "XN--FIQ228C5HS", "XN--FIQ64B", "XN--FIQS8S", "XN--FIQZ9S", "XN--FJQ720A", "XN--FLW351E",
+                   "XN--FPCRJ9C3D", "XN--FZC2C9E2C", "XN--FZYS8D69UVGM", "XN--G2XX48C", "XN--GCKR3F0F", "XN--GECRJ9C", "XN--GK3AT1E", "XN--H2BREG3EVE", "XN--H2BRJ9C", "XN--H2BRJ9C8C", "XN--HXT814E", "XN--I1B6B1A6A2E", "XN--IMR513N", "XN--IO0A7I",
+                   "XN--J1AEF", "XN--J1AMH", "XN--J6W193G", "XN--JLQ61U9W7B", "XN--JVR189M", "XN--KCRX77D1X4A", "XN--KPRW13D", "XN--KPRY57D", "XN--KPU716F", "XN--KPUT3I", "XN--L1ACC", "XN--LGBBAT1AD8J", "XN--MGB9AWBF", "XN--MGBA3A3EJT",
+                   "XN--MGBA3A4F16A", "XN--MGBA7C0BBN0A", "XN--MGBAAKC7DVF", "XN--MGBAAM7A8H", "XN--MGBAB2BD", "XN--MGBAH1A3HJKRD", "XN--MGBAI9AZGQP6J", "XN--MGBAYH7GPA", "XN--MGBB9FBPOB", "XN--MGBBH1A", "XN--MGBBH1A71E", "XN--MGBC0A9AZCG",
+                   "XN--MGBCA7DZDO", "XN--MGBERP4A5D4AR", "XN--MGBGU82A", "XN--MGBI4ECEXP", "XN--MGBPL2FH", "XN--MGBT3DHD", "XN--MGBTX2B", "XN--MGBX4CD0AB", "XN--MIX891F", "XN--MK1BU44C", "XN--MXTQ1M", "XN--NGBC5AZD", "XN--NGBE9E0A", "XN--NGBRX",
+                   "XN--NODE", "XN--NQV7F", "XN--NQV7FS00EMA", "XN--NYQY26A", "XN--O3CW4H", "XN--OGBPF8FL", "XN--OTU796D", "XN--P1ACF", "XN--P1AI", "XN--PBT977C", "XN--PGBS0DH", "XN--PSSY2U", "XN--Q9JYB4C", "XN--QCKA1PMC", "XN--QXAM", "XN--RHQV96G",
+                   "XN--ROVU88B", "XN--RVC1E0AM3E", "XN--S9BRJ9C", "XN--SES554G", "XN--T60B56A", "XN--TCKWE", "XN--TIQ49XQYJ", "XN--UNUP4Y", "XN--VERMGENSBERATER-CTB", "XN--VERMGENSBERATUNG-PWB", "XN--VHQUV", "XN--VUQ861B", "XN--W4R85EL8FHU5DNRA",
+                   "XN--W4RS40L", "XN--WGBH1C", "XN--WGBL6A", "XN--XHQ521B", "XN--XKC2AL3HYE2A", "XN--XKC2DL3A5EE0H", "XN--Y9A3AQ", "XN--YFRO4I67O", "XN--YGBI2AMMX", "XN--ZFR164B", "XXX", "XYZ", "YACHTS", "YAHOO", "YAMAXUN", "YANDEX", "YE",
+                   "YODOBASHI", "YOGA", "YOKOHAMA", "YOU", "YOUTUBE", "YT", "YUN", "ZA", "ZAPPOS", "ZARA", "ZERO", "ZIP", "ZM", "ZONE", "ZUERICH", "ZW");
+    public static final String US_ASCII_CHARSET = "US-ASCII", UTF8_CHARSET = "UTF-8", UTF16_CHARSET = "UTF-16";
+    public static final long DAY_LENGTH_MILLISECONDS = 24L * 60L * 60L * 1_000L, HOUR_LENGTH_MILLISECONDS = 60L * 60L * 1_000L, MINUTE_LENGTH_MILLISECONDS = 60L * 1_000L, MEGABYTE = 1_024L << 10; // 1_024L * 1_024L
     public static final TimeZone UTC_TIMEZONE = TimeZone.getTimeZone("UTC"), BUCHAREST_TIMEZONE = TimeZone.getTimeZone("Europe/Bucharest");
     public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
 
     private Generic() {
     }
 
+    @Contract(pure = true)
     public static int booleanToInt(final boolean boo) {
         return boo ? 1 : 0;
     }
 
-    public static double roundDouble(final double value, int places, final RoundingMode roundingMode) {
+    public static double roundDouble(final double value, final int places, final RoundingMode roundingMode) {
         if (places < 0) {
             logger.error("negative places in roundDouble: {} {} {}", value, places, roundingMode);
-            places = 0;
         } else { // no error, the method will continue, nothing to be done on branch
         }
 
         final BigDecimal bd = new BigDecimal(value);
-        final BigDecimal result = bd.setScale(places, roundingMode);
+        final BigDecimal result = bd.setScale(Math.max(places, 0), roundingMode);
         return result.doubleValue();
     }
 
@@ -180,25 +173,24 @@ public class Generic {
         return roundDouble(value, places, RoundingMode.HALF_DOWN);
     }
 
-    public static double roundDoubleAmount(double value) {
-        if (value < 0d) {
+    public static double roundDoubleAmount(final double value) {
+        if (value < 0d) { // values should always be positive, as these are amount to be placed on bets, but the method works fine with negative
             logger.error("negative value in roundDoubleAmount: {}", value);
-            value = 0d;
-        } else { // no error, the method will continue, nothing to be done on branch
+        } else { // no error, nothing to be done on branch
         }
 
         return roundDouble(value, 2, RoundingMode.HALF_DOWN);
     }
 
-    public static int getMiddleIndex(final String string, final String subString) {
+    public static int getMiddleIndex(final CharSequence mainString, final CharSequence subString) {
         final int result;
-        if (string == null || subString == null) {
-            logger.error("null string in getMiddleIndex for: {} {}", string, subString);
+        if (mainString == null || subString == null) {
+            logger.error("null mainString in getMiddleIndex for: {} {}", mainString, subString);
             result = -1;
         } else {
-            final int nMatches = StringUtils.countMatches(string, subString);
+            final int nMatches = StringUtils.countMatches(mainString, subString);
             final int middle = (nMatches + 1) / 2;
-            result = StringUtils.ordinalIndexOf(string, subString, middle);
+            result = StringUtils.ordinalIndexOf(mainString, subString, middle);
         }
 
         return result;
@@ -209,12 +201,12 @@ public class Generic {
         return createAndFill(clazz, 0);
     }
 
-    public static <T> T createAndFill(final Class<T> clazz, final int recursionCounter)
+    public static <T> T createAndFill(@NotNull final Class<T> clazz, final int recursionCounter)
             throws IllegalAccessException, InvocationTargetException, InstantiationException {
         // fills a class with random value for fields, using reflection; in case of no arguments in the constructor; used in tests
         // final or static fields are not touched; also this might not work with every class, depending on field types; and it only works with classes that can be instantiated by this method
 
-        T instance;
+        @Nullable T instance;
         try {
             instance = clazz.getConstructor().newInstance();
         } catch (NoSuchMethodException e) {
@@ -222,12 +214,12 @@ public class Generic {
             logger.warn("class {} doesn't have constructor without arguments in Generic.createAndFill", clazz.getSimpleName());
         }
         if (instance != null) {
-            for (Field field : clazz.getDeclaredFields()) {
+            for (final Field field : clazz.getDeclaredFields()) {
                 final int fieldModifiers = field.getModifiers();
                 if (Modifier.isFinal(fieldModifiers) || Modifier.isStatic(fieldModifiers)) {
                     // I won't touch final or static fields; nothing to be done
                 } else {
-                    Object value = getRandomValueForField(field, recursionCounter); // recursionCounter gets increased in getRandomValueForField
+                    final Object value = getRandomValueForField(field, recursionCounter); // recursionCounter gets increased in getRandomValueForField
                     field.set(instance, value);
                 }
             }
@@ -238,10 +230,10 @@ public class Generic {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T createAndFillWithPrimitiveCheck(final Class<T> clazz, final int recursionCounter)
+    public static <T> T createAndFillWithPrimitiveCheck(@NotNull final Class<T> clazz, final int recursionCounter)
             throws IllegalAccessException, InvocationTargetException, InstantiationException {
-        T instance;
-        final Random random = new Random();
+        @Nullable T instance;
+        final SecureRandom random = new SecureRandom();
 
         if (clazz.isEnum()) {
             final Object[] enumValues = clazz.getEnumConstants();
@@ -259,26 +251,26 @@ public class Generic {
         } else if (clazz.equals(String.class)) {
             instance = (T) UUID.randomUUID().toString();
         } else if (clazz.equals(BigInteger.class)) {
-            instance = (T) BigInteger.valueOf(random.nextInt());
+            instance = (T) BigInteger.valueOf(random.nextLong());
         } else if (clazz.equals(Date.class)) {
             // Get an Epoch value roughly between 1940 and 2040
             // -946771200000L = January 1, 1940
             // Add up to approx 100 years to it (using modulus on the next long)
-            instance = (T) new Date(-946771200000L + (Math.abs(random.nextLong()) % (100L * 365 * 24 * 60 * 60 * 1000)));
+            instance = (T) new Date(-946_771_200_000L + (Math.abs(random.nextLong()) % (100L * 365L * 24L * 60L * 60L * 1_000L)));
         } else {
             try {
                 instance = clazz.getConstructor().newInstance();
             } catch (NoSuchMethodException e) {
                 instance = null;
-                logger.warn("class {} doesn't have constructor without arguments in Generic.createAndFill", clazz.getSimpleName());
+                logger.warn("class {} doesn't have constructor without arguments in Generic.createAndFillWithPrimitiveCheck", clazz.getSimpleName());
             }
             if (instance != null) {
-                for (Field field : clazz.getDeclaredFields()) {
+                for (final Field field : clazz.getDeclaredFields()) {
                     final int fieldModifiers = field.getModifiers();
                     if (Modifier.isFinal(fieldModifiers) || Modifier.isStatic(fieldModifiers)) {
                         // I won't touch final or static fields; nothing to be done
                     } else {
-                        Object value = getRandomValueForField(field, recursionCounter); // recursionCounter gets increased in getRandomValueForField
+                        final Object value = getRandomValueForField(field, recursionCounter); // recursionCounter gets increased in getRandomValueForField
                         field.set(instance, value);
                     }
                 }
@@ -294,11 +286,11 @@ public class Generic {
         fillRandom(instance, 0);
     }
 
-    public static void fillRandom(final Object instance, final int recursionCounter)
+    public static void fillRandom(@NotNull final Object instance, final int recursionCounter)
             throws IllegalAccessException, InvocationTargetException, InstantiationException {
         // fills a class object with random value for fields, using reflection; used in tests
         // final or static fields are not touched; also this might not work with every class, depending on field types
-        for (Field field : instance.getClass().getDeclaredFields()) {
+        for (final Field field : instance.getClass().getDeclaredFields()) {
             final int fieldModifiers = field.getModifiers();
             if (Modifier.isFinal(fieldModifiers) || Modifier.isStatic(fieldModifiers)) {
                 // I won't touch final or static fields; nothing to be done
@@ -309,10 +301,10 @@ public class Generic {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public static Object getRandomValueForField(final Field field, final int recursionCounter)
+    @SuppressWarnings("NestedConditionalExpression")
+    public static Object getRandomValueForField(@NotNull final Field field, final int recursionCounter)
             throws IllegalAccessException, InvocationTargetException, InstantiationException { // used in tests; for field null will throw null exception, as null is not acceptable
-        final Object result;
+        @Nullable final Object result;
         field.setAccessible(true);
         final Class<?> type = field.getType();
 
@@ -323,7 +315,7 @@ public class Generic {
             logger.warn("recursionCounter maximum reached in getRandomValueForField: {} {}", recursionCounter, type);
             result = type.isPrimitive() ? type.equals(Boolean.TYPE) ? false : 0 : null;
         } else {
-            final Random random = new Random();
+            final SecureRandom random = new SecureRandom();
 
             if (type.isEnum()) {
                 final Object[] enumValues = type.getEnumConstants();
@@ -341,17 +333,17 @@ public class Generic {
             } else if (type.equals(String.class)) {
                 result = UUID.randomUUID().toString();
             } else if (type.equals(BigInteger.class)) {
-                result = BigInteger.valueOf(random.nextInt());
+                result = BigInteger.valueOf(random.nextLong());
             } else if (type.equals(Date.class)) {
                 // Get an Epoch value roughly between 1940 and 2040
                 // -946771200000L = January 1, 1940
                 // Add up to approx 100 years to it (using modulus on the next long)
-                result = new Date(-946771200000L + (Math.abs(random.nextLong()) % (100L * 365 * 24 * 60 * 60 * 1000)));
+                result = new Date(-946_771_200_000L + (Math.abs(random.nextLong()) % (100L * 365L * 24L * 60L * 60L * 1_000L)));
             } else if (type.equals(ArrayList.class)) {
                 final ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
                 final Class<?> parameterClass = convertTypeToClass(parameterizedType.getActualTypeArguments()[0]);
                 final int randomListSize = random.nextInt(16);
-                final ArrayList arrayList = new ArrayList<>(randomListSize);
+                final List<Object> arrayList = new ArrayList<>(randomListSize);
                 for (int i = 0; i < randomListSize; i++) {
                     arrayList.add(i, createAndFillWithPrimitiveCheck(parameterClass, recursionCounter + 1));
                 }
@@ -362,7 +354,7 @@ public class Generic {
                 final Class<?> parameterClass0 = convertTypeToClass(parameterTypes[0]);
                 final Class<?> parameterClass1 = convertTypeToClass(parameterTypes[1]);
                 final int randomListSize = random.nextInt(16);
-                final LinkedHashMap map = new LinkedHashMap<>(randomListSize);
+                final Map<Object, Object> map = new LinkedHashMap<>(randomListSize);
                 for (int i = 0; i < randomListSize; i++) {
                     map.put(createAndFillWithPrimitiveCheck(parameterClass0, recursionCounter + 1), createAndFillWithPrimitiveCheck(parameterClass1, recursionCounter + 1));
                 }
@@ -375,6 +367,7 @@ public class Generic {
         return result;
     }
 
+    @Contract(pure = true)
     public static Class<?> convertTypeToClass(final Type type) {
         Class<?> result;
         try {
@@ -386,16 +379,16 @@ public class Generic {
     }
 
     public static String createStringFromCodes(final int... codes) {
-        final String returnString;
+        @Nullable final String returnString;
 
         if (codes == null) {
             returnString = null;
         } else {
             final int codesSize = codes.length;
             final StringBuilder stringBuilder = new StringBuilder(codesSize);
-            for (int i = 0; i < codesSize; i++) {
-                stringBuilder.appendCodePoint(codes[i]);
-            } // end for
+            for (final int code : codes) {
+                stringBuilder.appendCodePoint(code);
+            }
 
             returnString = stringBuilder.toString();
         }
@@ -403,39 +396,48 @@ public class Generic {
         return returnString;
     }
 
-    public static <T> T getEqualElementFromSet(final Set<T> set, final T searchedElement) {
+    @Contract(pure = true)
+    public static <T> T getEqualElementFromSet(final Iterable<? extends T> set, final T searchedElement) {
         T returnElement = null;
 
         if (set == null || searchedElement == null) { // will just return null
         } else {
-            for (T iteratorElement : set) {
+            for (final T iteratorElement : set) {
                 if (searchedElement.equals(iteratorElement)) {
                     returnElement = iteratorElement;
                     break; // break from for
                 }
-            } // end for
+            }
         }
         return returnElement;
     }
 
+    @Contract("null -> null")
     public static String getStringCodePointValues(final String initialString) {
+        @Nullable final String result;
         if (initialString == null) {
-            return null;
+            result = null;
         } else {
             final int initialStringLength = initialString.length();
             final StringBuilder returnStringBuilder = new StringBuilder(6 * initialStringLength);
 
-            for (int i = 0; i < initialStringLength; ) {
-                final int codePoint = initialString.codePointAt(i);
-                i += Character.charCount(codePoint);
+            int index = 0, whileCounter = 0;
+            while (index < initialStringLength && whileCounter < initialStringLength) {
+                final int codePoint = initialString.codePointAt(index);
+                index += Character.charCount(codePoint);
                 returnStringBuilder.append(codePoint);
-                if (i < initialStringLength) {
+                if (index < initialStringLength) {
                     returnStringBuilder.append(" ");
                 }
-            } // end for
+                whileCounter++;
+            }
+            if (index < initialStringLength) {
+                logger.error("bad loop exit in getStringCodePointValues for: {} {} {} {}", initialString, initialStringLength, index, whileCounter);
+            }
 
-            return returnStringBuilder.toString();
+            result = returnStringBuilder.toString();
         }
+        return result;
     }
 
     //    @SuppressWarnings("AssignmentToForLoopParameter")
@@ -469,7 +471,7 @@ public class Generic {
 
     public static String properTimeStamp(final long millis) {
         String returnValue = new Timestamp(millis).toString();
-        int length = returnValue.length();
+        final int length = returnValue.length();
         if (length < 21 || length > 23) {
             logger.error("wrong timeStamp length {} in properTimeStamp: {}", length, returnValue);
         } else if (length == 21) {
@@ -485,7 +487,7 @@ public class Generic {
     public static void changeDefaultCharset(final String newCharset) {
         System.setProperty("file.encoding", newCharset);
         try {
-            Field charset = Charset.class.getDeclaredField("defaultCharset");
+            final Field charset = Charset.class.getDeclaredField("defaultCharset");
             charset.setAccessible(true);
             charset.set(null, null);
         } catch (NoSuchFieldException noSuchFieldException) {
@@ -499,8 +501,9 @@ public class Generic {
         return replaceStandardStreams(outFileName, errFileName, logsFolderName, true); // closed by default, left open for JUnit tests
     }
 
+    @SuppressWarnings("ImplicitDefaultCharsetUsage")
     public static ArrayList<? extends OutputStream> replaceStandardStreams(final String outFileName, final String errFileName, final String logsFolderName, final boolean closeExistingStreams) {
-        ArrayList<OutputStream> list;
+        @Nullable ArrayList<OutputStream> list;
         FileOutputStream outFileOutputStream = null, errFileOutputStream = null;
         PrintStream outPrintStream = null, errPrintStream = null;
         try {
@@ -527,7 +530,8 @@ public class Generic {
             errPrintStream = new PrintStream(errFileOutputStream);
             list.add(errPrintStream);
 
-            @SuppressWarnings("UseOfSystemOutOrSystemErr") final PrintStream existingSystemOut = System.out, existingSystemErr = System.err;
+            @SuppressWarnings("UseOfSystemOutOrSystemErr") final PrintStream existingSystemOut = System.out;
+            @SuppressWarnings("UseOfSystemOutOrSystemErr") final PrintStream existingSystemErr = System.err;
 //            if (closeExistingStreams) {
 //                Generic.closeStandardStreams();
 //            } else { // error message printed at the end of method, nothing to be done here
@@ -536,13 +540,13 @@ public class Generic {
             System.setOut(outPrintStream);
             System.setErr(errPrintStream);
             if (closeExistingStreams) {
-                Generic.closeObjects(System.in, existingSystemOut, existingSystemErr);
+                closeObjects(System.in, existingSystemOut, existingSystemErr);
             } else { // error message printed at the end of method, nothing to be done here
             }
         } catch (FileNotFoundException fileNotFoundException) {
             list = null;
             logger.error("fileNotFoundException in replaceStandardStreams: {} {}", outFileName, errFileName, fileNotFoundException);
-            Generic.closeObjects(outFileOutputStream, errFileOutputStream, outPrintStream, errPrintStream);
+            closeObjects(outFileOutputStream, errFileOutputStream, outPrintStream, errPrintStream);
         }
         logger.info("have replaced standard streams: out={} err={} logsFolder={}", outFileName, errFileName, logsFolderName);
         if (closeExistingStreams) { // normal behaviour, nothing to be done
@@ -553,25 +557,27 @@ public class Generic {
         return list;
     }
 
-    public static void backupFiles(final String backupFolderName, final String... fileNames) {
+    public static void backupFiles(@NotNull final String backupFolderName, @NotNull final String... fileNames) {
         backupFiles(backupFolderName, false, fileNames);
     }
 
-    public static void backupFiles(final String backupFolderName, final boolean removeOriginal, final String... fileNames) {
+    public static void backupFiles(@NotNull final String backupFolderName, final boolean removeOriginal, @NotNull final String... fileNames) {
+        //noinspection ResultOfMethodCallIgnored
         new File(backupFolderName).mkdirs();
-        for (String fileName : fileNames) {
+        for (final String fileName : fileNames) {
             final File previousFile = new File(fileName);
-            if (previousFile.exists() && previousFile.length() > 0) { // moving existing out log file to the logs folder
+            if (previousFile.exists() && previousFile.length() > 0L) { // moving existing out log file to the logs folder
                 final String fileNameWithoutFolder = previousFile.getName();
-                final String backupFileName = Generic.tempFileName(backupFolderName + "/" + fileNameWithoutFolder);
+                final String backupFileName = tempFileName(backupFolderName + File.separator + fileNameWithoutFolder);
                 final File backupFile = new File(backupFileName);
                 if (removeOriginal) {
+                    //noinspection ResultOfMethodCallIgnored
                     previousFile.renameTo(backupFile);
                 } else {
                     try {
                         Files.copy(previousFile.toPath(), backupFile.toPath());
                     } catch (IOException e) {
-                        logger.error("IOException in backupfile for: {} {} {} {} {}", backupFolderName, removeOriginal, fileName, fileNameWithoutFolder, backupFileName, e);
+                        logger.error("IOException in backup file for: {} {} {} {} {}", backupFolderName, removeOriginal, fileName, fileNameWithoutFolder, backupFileName, e);
                     }
                 }
             } else { // file does not exist, or is empty; it's sometimes normal
@@ -580,64 +586,63 @@ public class Generic {
     }
 
     public static <T> Set<Class<? extends T>> getSubclasses(final String prefix, final Class<T> myInterface) {
-        Reflections reflections = new Reflections(prefix);
-        Set<Class<? extends T>> classes = reflections.getSubTypesOf(myInterface);
-        return classes;
+        final Reflections reflections = new Reflections(prefix);
+        return reflections.getSubTypesOf(myInterface);
     }
 
-    public static <T> Collection<T> collectionKeepMultiples(final Collection<T> collection, final int minNMultiple) {
+    public static <T> void collectionKeepMultiples(final Collection<T> collection, final int minNMultiple) {
         if (minNMultiple <= 1) {
             logger.error("minNMultiple {} should be at least 2 in order to have effect in collectionKeepMultiples", minNMultiple);
         } else {
-            HashSet<T> set = new HashSet<>(collection);
+            final Iterable<T> set = new HashSet<>(collection);
             for (int i = 0; i < minNMultiple - 1; i++) {
-                for (T element : set) {
+                for (final T element : set) {
                     collection.remove(element);
                 }
             }
         }
-        return collection;
     }
 
+    @Contract(pure = true)
     public static boolean isPowerOfTwo(final long x) { // alternative: ((value & -value) == value)
-        return x != 0 && ((x & (x - 1)) == 0);
+        return x != 0L && ((x & (x - 1L)) == 0L);
     }
 
-    public static void stringBuilderReplace(final StringBuilder stringBuilder, final String string) {
-        stringBuilder.replace(0, stringBuilder.length(), string);
+    public static void stringBuilderReplace(@NotNull final StringBuilder stringBuilder, final String initialString) {
+        stringBuilder.replace(0, stringBuilder.length(), initialString);
     }
 
+    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
     public static double middleValue(final double a, final double b, final double c) {
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
     }
 
+    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
     public static float middleValue(final float a, final float b, final float c) {
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
     }
 
+    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
     public static int middleValue(final int a, final int b, final int c) {
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
     }
 
+    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
     public static long middleValue(final long a, final long b, final long c) {
         return Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
     }
 
     public static double truncateDouble(final double doubleValue, final int decimals) {
-        double power10double = Math.pow(10, decimals);
-        long power10long = (long) power10double;
+        final double power10double = StrictMath.pow(10d, decimals);
+        @SuppressWarnings("NumericCastThatLosesPrecision") final long power10long = (long) power10double;
         return Math.floor(doubleValue * power10double) / power10long;
     }
 
-    public static String quotedReplaceAll(final String string, final String pattern, final String replacement) {
-        String result;
-        if (string != null) {
-            String quotedPattern = Pattern.quote(pattern);
-            if (string.contains(pattern)) {
-                result = string.replaceAll(quotedPattern, replacement);
-            } else {
-                result = string;
-            }
+    public static String quotedReplaceAll(final String initialString, final String pattern, final String replacement) {
+        @Nullable final String result;
+        if (initialString != null) {
+            final String quotedPattern = Pattern.quote(pattern);
+            result = initialString.contains(pattern) ? initialString.replaceAll(quotedPattern, replacement) : initialString;
         } else {
             result = null;
         }
@@ -653,16 +658,17 @@ public class Generic {
         return stringMatchChance(stringFirst, stringSecond, ignoreCase, true);
     }
 
+    @SuppressWarnings({"BooleanParameter", "OverlyComplexMethod", "OverlyLongMethod", "OverlyNestedMethod"})
     public static double stringMatchChance(final String stringFirst, final String stringSecond, final boolean ignoreCase, final boolean trimStrings) {
-        double result;
+        final double result;
 
         if (stringFirst == null || stringSecond == null) {
-            result = 0;
+            result = 0d;
         } else {
             String localFirst = stringFirst, localSecond = stringSecond;
             if (ignoreCase) {
-                localFirst = localFirst.toLowerCase();
-                localSecond = localSecond.toLowerCase();
+                localFirst = localFirst.toLowerCase(Locale.ENGLISH);
+                localSecond = localSecond.toLowerCase(Locale.ENGLISH);
             }
             if (trimStrings) {
                 localFirst = localFirst.trim();
@@ -670,11 +676,11 @@ public class Generic {
             }
 
             if (stringFirst.isEmpty() || stringSecond.isEmpty()) {
-                result = 0;
+                result = 0d;
             } else {
-                final int numberOfIterations = 3, matchedChars[] = new int[numberOfIterations], sequencedChars[] = new int[numberOfIterations],
-                        firstLength = localFirst.length(), secondLength = localSecond.length();
-                String loopLocalFirst[] = new String[numberOfIterations], loopLocalSecond[] = new String[numberOfIterations];
+                final int numberOfIterations = 3, matchedChars[] = new int[numberOfIterations], sequencedChars[] = new int[numberOfIterations], firstLength = localFirst.length(), secondLength = localSecond.length();
+                final String[] loopLocalFirst = new String[numberOfIterations];
+                final String[] loopLocalSecond = new String[numberOfIterations];
                 loopLocalFirst[0] = localFirst;
                 loopLocalSecond[0] = localSecond;
                 loopLocalFirst[1] = backwardString(localFirst);
@@ -702,14 +708,14 @@ public class Generic {
                             int indexFirst = -1, indexSecond = -1, increaseSecond = 0, increaseFirst = 0;
 
                             for (int increaseCounter = 0; counterFirst + increaseCounter < firstLength; increaseCounter++) {
-                                int tempIndex = loopLocalSecond[i].indexOf(loopLocalFirst[i].charAt(counterFirst + increaseFirst), counterSecond);
+                                final int tempIndex = loopLocalSecond[i].indexOf(loopLocalFirst[i].charAt(counterFirst + increaseFirst), counterSecond);
                                 if (tempIndex >= 0 && (indexSecond < 0 || tempIndex + increaseCounter < indexSecond + increaseFirst)) {
                                     indexSecond = tempIndex;
                                     increaseFirst = increaseCounter;
                                 }
                             } // end for
                             for (int increaseCounter = 0; counterSecond + increaseCounter < secondLength; increaseCounter++) {
-                                int tempIndex = loopLocalFirst[i].indexOf(loopLocalSecond[i].charAt(counterSecond + increaseSecond), counterFirst);
+                                final int tempIndex = loopLocalFirst[i].indexOf(loopLocalSecond[i].charAt(counterSecond + increaseSecond), counterFirst);
                                 if (tempIndex >= 0 && (indexFirst < 0 || tempIndex + increaseCounter < indexFirst + increaseSecond)) {
                                     indexFirst = tempIndex;
                                     increaseSecond = increaseCounter;
@@ -728,8 +734,8 @@ public class Generic {
                                 counterFirst = indexFirst;
                                 counterSecond += increaseSecond;
                             } else { // see which index is skipping more chars
-                                int skipFirst = indexFirst - counterFirst + increaseSecond;
-                                int skipSecond = indexSecond - counterSecond + increaseFirst;
+                                final int skipFirst = indexFirst - counterFirst + increaseSecond;
+                                final int skipSecond = indexSecond - counterSecond + increaseFirst;
 
                                 if (skipFirst < skipSecond) {
                                     counterFirst = indexFirst;
@@ -738,8 +744,8 @@ public class Generic {
                                     counterSecond = indexSecond;
                                     counterFirst += increaseFirst;
                                 } else { // they're equal
-                                    int remainFirst = Math.min(firstLength - indexFirst, secondLength - counterSecond - increaseSecond);
-                                    int remainSecond = Math.min(secondLength - indexSecond, firstLength - counterFirst - increaseFirst);
+                                    final int remainFirst = Math.min(firstLength - indexFirst, secondLength - counterSecond - increaseSecond);
+                                    final int remainSecond = Math.min(secondLength - indexSecond, firstLength - counterFirst - increaseFirst);
 
                                     if (remainFirst < remainSecond) {
                                         counterSecond = indexSecond;
@@ -766,6 +772,7 @@ public class Generic {
                 int chosenI = -1, maxSequenced = -1, maxMatched = -1;
                 for (int i = 0; i < numberOfIterations; i++) {
                     if (sequencedChars[i] > maxSequenced || (sequencedChars[i] == maxSequenced && matchedChars[i] > maxMatched)) {
+                        //noinspection UnusedAssignment
                         chosenI = i;
                         maxSequenced = sequencedChars[i];
                         maxMatched = matchedChars[i];
@@ -773,13 +780,13 @@ public class Generic {
                 } // end for
 
                 if (maxMatched > 0) {
-                    double unMatchedProportionFirst = (double) (firstLength - maxMatched) / firstLength,
-                            unMatchedProportionSecond = (double) (secondLength - maxMatched) / secondLength; // casting is important, else error
+                    double unMatchedProportionFirst = (double) (firstLength - maxMatched) / firstLength, unMatchedProportionSecond = (double) (secondLength - maxMatched) / secondLength; // casting is important, else error
 
                     // applied to the shorter string
-                    int minLength = Math.min(firstLength, secondLength), maxLength = Math.max(firstLength, secondLength);
+                    final int minLength = Math.min(firstLength, secondLength);
+                    final int maxLength = Math.max(firstLength, secondLength);
 
-                    double minimumChanceNot = Math.abs(Math.sqrt(firstLength) - Math.sqrt(secondLength)) / maxLength;
+                    final double minimumChanceNot = Math.abs(Math.sqrt(firstLength) - Math.sqrt(secondLength)) / maxLength;
 
                     if (firstLength < secondLength) {
                         unMatchedProportionFirst = unMatchedProportionFirst * (1 - minimumChanceNot) + minimumChanceNot;
@@ -788,17 +795,17 @@ public class Generic {
                     } else { // they're equal, don't change anything
                     }
 
-                    double chanceNot = 1;
-                    chanceNot /= Math.pow((double) 4 * maxLength / (4 * maxLength - 1), maxMatched);
-                    chanceNot /= Math.pow((double) 2 * minLength / (2 * minLength - 1), maxSequenced); // higher importance for sequenced chars
-                    chanceNot *= Math.pow(unMatchedProportionFirst * unMatchedProportionSecond, .5); // sqrt to lessen the effect on chanceNot
+                    double chanceNot = 1d;
+                    chanceNot /= StrictMath.pow(4d * maxLength / (4 * maxLength - 1), maxMatched);
+                    chanceNot /= StrictMath.pow(2d * minLength / (2 * minLength - 1), maxSequenced); // higher importance for sequenced chars
+                    chanceNot *= StrictMath.pow(unMatchedProportionFirst * unMatchedProportionSecond, .5d); // sqrt to lessen the effect on chanceNot
 
-                    result = 1 - chanceNot;
+                    result = 1d - chanceNot;
 
                     // logger.info("{} {} {} {} {} {} {} {} {} {}", firstLength, secondLength, matchedChars[0], matchedChars[1], sequencedChars[0], sequencedChars[1],
                     //         unMatchedProportionFirst, unMatchedProportionSecond, minimumChanceNot, chanceNot);
                 } else { // not matched a single char
-                    result = 0;
+                    result = 0d;
                 }
                 // logger.info("stringMatchChance parsing firstString: {} , secondString: {} , matchedChars={} sequencedChars={} result={}", stringFirst, stringSecond,
                 //         matchedChars[chosenI], sequencedChars[chosenI], result);
@@ -813,12 +820,7 @@ public class Generic {
     }
 
     public static int getCollectionCapacity(final Collection<?> collection, final float loadFactor) {
-        int size;
-        if (collection == null) {
-            size = 0;
-        } else {
-            size = collection.size();
-        }
+        final int size = collection == null ? 0 : collection.size();
         return getCollectionCapacity(size, loadFactor);
     }
 
@@ -827,14 +829,15 @@ public class Generic {
     }
 
     public static int getCollectionCapacity(final int size, final float loadFactor) {
-        return (int) Generic.ceilingPowerOf(2, size / loadFactor);
+        //noinspection NumericCastThatLosesPrecision
+        return (int) ceilingPowerOf(2, size / loadFactor);
     }
 
     // public static void printStackTraces ()
     // {
     //     printStackTraces (System.out); // intentionally printed to System.out, as this doesn't represent an error, it's just used for debugging
     // }
-    @SuppressWarnings({"BroadCatchBlock", "TooBroadCatch"})
+    @SuppressWarnings({"ImplicitDefaultCharsetUsage", "OverlyBroadCatchBlock"})
     public static void printStackTraces(final String fileName) {
         FileOutputStream stackFileOutputStream = null;
         PrintStream stackPrintStream = null;
@@ -847,23 +850,25 @@ public class Generic {
         } catch (Throwable throwable) {
             logger.error("STRANGE ERROR inside printStackTraces: {}", fileName, throwable);
         } finally {
-            Generic.closeObjects(stackPrintStream, stackFileOutputStream);
+            closeObjects(stackPrintStream, stackFileOutputStream);
         }
     }
 
-    public static void printStackTraces(final PrintStream printStream) {
+    public static void printStackTraces(@NotNull final PrintStream printStream) {
         printStream.println("Printing stack traces for all threads:");
-        Map<Thread, StackTraceElement[]> stacksMap = Thread.getAllStackTraces();
+        final Map<Thread, StackTraceElement[]> stacksMap = Thread.getAllStackTraces();
 
-        for (Thread thread : stacksMap.keySet()) {
+        for (final Entry<Thread, StackTraceElement[]> entry : stacksMap.entrySet()) {
+            final Thread thread = entry.getKey();
             printStream.println(thread + " " + thread.getState() + " isDaemon=" + thread.isDaemon());
-            printStackTrace(stacksMap.get(thread), printStream);
+            printStackTrace(entry.getValue(), printStream);
         }
     }
 
     // public static void printStackTrace(StackTraceElement[] stackTraceElementsArray) {
     //     printStackTrace(stackTraceElementsArray, System.out); // intentionally printed to System.out, as this doesn't represent an error, it's just used for debugging
     // }
+    @SuppressWarnings("ImplicitDefaultCharsetUsage")
     public static void printStackTrace(final StackTraceElement[] stackTraceElementsArray, final String fileName) {
         FileOutputStream stackFileOutputStream = null;
         PrintStream stackPrintStream = null;
@@ -878,29 +883,30 @@ public class Generic {
             // } catch (Throwable throwable) {
             //     logger.error("STRANGE ERROR inside printStackTraces: {}", fileName, throwable);
         } finally {
-            Generic.closeObjects(stackPrintStream, stackFileOutputStream);
+            closeObjects(stackPrintStream, stackFileOutputStream);
         }
     }
 
     @SuppressWarnings("ThrowableInstanceNotThrown")
     public static void printStackTrace(final StackTraceElement[] stackTraceElementsArray, final PrintStream printStream) {
         if (stackTraceElementsArray != null && printStream != null) {
-            Throwable throwable = new Throwable();
+            final Throwable throwable = new Throwable();
             throwable.setStackTrace(stackTraceElementsArray);
             throwable.printStackTrace(printStream);
         }
     }
 
-    public static boolean[] closeObjects(final Object... objects) {
-        boolean[] closeSuccess = new boolean[objects.length];
-
-        for (int i = 0; i < objects.length; i++) {
+    public static boolean[] closeObjects(@NotNull final Object... objects) {
+        final boolean[] closeSuccess = new boolean[objects.length];
+        final int arrayLength = objects.length;
+        for (int i = 0; i < arrayLength; i++) {
             closeSuccess[i] = closeObject(objects[i]);
         }
 
         return closeSuccess;
     }
 
+    @SuppressWarnings("NestedTryStatement")
     public static boolean setSoLinger(final Object object) {
         boolean setSoLingerSuccess;
 
@@ -911,11 +917,12 @@ public class Generic {
                 objectClass = object.getClass();
                 Method objectSetSoLingerMethod = null;
 
+                final String LINGER = "setSoLinger";
                 try {
-                    objectSetSoLingerMethod = objectClass.getDeclaredMethod("setSoLinger", boolean.class, int.class);
+                    objectSetSoLingerMethod = objectClass.getDeclaredMethod(LINGER, boolean.class, int.class);
                 } catch (NoSuchMethodException noSuchMethodException) {
                     try {
-                        objectSetSoLingerMethod = objectClass.getMethod("setSoLinger", boolean.class, int.class);
+                        objectSetSoLingerMethod = objectClass.getMethod(LINGER, boolean.class, int.class);
                     } catch (NoSuchMethodException innerNoSuchMethodException) {
                         // no setSoLinger method exists, no output required
                     } catch (SecurityException securityException) {
@@ -930,9 +937,9 @@ public class Generic {
                 // }
                 try {
                     if (objectSetSoLingerMethod != null) {
-                        if (!objectSetSoLingerMethod.canAccess(object)) {
+                        if (objectSetSoLingerMethod.canAccess(object)) { // already accessible, nothing to be done
+                        } else {
                             objectSetSoLingerMethod.setAccessible(true);
-                        } else { // already accessible, nothing to be done
                         }
                         setSoLingerSuccess = true;
                         objectSetSoLingerMethod.invoke(object, true, 0);
@@ -941,7 +948,7 @@ public class Generic {
                     }
                 } catch (java.lang.reflect.InvocationTargetException invocationTargetException) {
                     setSoLingerSuccess = false;
-                    Throwable exceptionCause = invocationTargetException.getCause();
+                    final Throwable exceptionCause = invocationTargetException.getCause();
 
                     if (exceptionCause instanceof java.net.SocketException) {
                         // often setSoLinger is invoked on a closed socket, causing an exception, no output required
@@ -956,7 +963,7 @@ public class Generic {
                 //     setSoLingerSuccess = false;
                 //     logger.error("Throwable in setSoLinger invoke: {} {}", objectClass, objectToString(object), throwable);
                 // }
-            } catch (Exception exception) {
+            } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {
                 setSoLingerSuccess = false;
                 logger.error("STRANGE exception inside setSoLinger: {} {}", objectClass, objectToString(object), exception);
             } // catch (Throwable throwable) {
@@ -970,6 +977,7 @@ public class Generic {
         return setSoLingerSuccess;
     }
 
+    @SuppressWarnings("NestedTryStatement")
     public static boolean closeObject(final Object object) {
         // closes an object and catches all exceptions
         // the object.setSoLinger (true, 0) is invoked if a setSoLinger method exists
@@ -1010,11 +1018,12 @@ public class Generic {
                 //     exception.printStackTrace();
                 // }
                 Method objectCloseMethod = null;
+                final String CLOSE = "close";
                 try {
-                    objectCloseMethod = objectClass.getDeclaredMethod("close");
+                    objectCloseMethod = objectClass.getDeclaredMethod(CLOSE);
                 } catch (java.lang.NoSuchMethodException noSuchMethodException) {
                     try {
-                        objectCloseMethod = objectClass.getMethod("close");
+                        objectCloseMethod = objectClass.getMethod(CLOSE);
                     } catch (NoSuchMethodException | SecurityException exception) {
                         logger.error("STRANGE ERROR inside closeObject() close inner: {}", new Object[]{objectClass, objectToString(object)}, exception);
                     }
@@ -1039,7 +1048,7 @@ public class Generic {
 
                     closeSuccess = false;
                 }
-            } catch (Exception exception) {
+            } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {
                 logger.error("STRANGE exception inside closeObject: {} {}", objectClass, objectToString(object), exception);
                 closeSuccess = false;
             } // catch (Throwable throwable) {
@@ -1055,49 +1064,37 @@ public class Generic {
 
     public static byte[] concatByte(final byte[] a, final int startIndexA, final int endIndexA, final byte[] b, final int startIndexB, final int endIndexB) {
         // endIndexA & endIndexB are excluded
-        int localStartIndexA, localStartIndexB, localEndIndexA, localEndIndexB;
+        final int localStartIndexA, localStartIndexB, localEndIndexA, localEndIndexB;
 
-        if (startIndexA < 0) {
-            localStartIndexA = 0;
-        } else {
-            localStartIndexA = startIndexA;
-        }
-        if (endIndexA < 0) {
-            localEndIndexA = 0;
-        } else {
-            localEndIndexA = endIndexA;
-        }
-        if (startIndexB < 0) {
-            localStartIndexB = 0;
-        } else {
-            localStartIndexB = startIndexB;
-        }
-        if (endIndexB < 0) {
-            localEndIndexB = 0;
-        } else {
-            localEndIndexB = endIndexB;
-        }
+        localStartIndexA = startIndexA < 0 ? 0 : startIndexA;
+        localEndIndexA = endIndexA < 0 ? 0 : endIndexA;
+        localStartIndexB = startIndexB < 0 ? 0 : startIndexB;
+        localEndIndexB = endIndexB < 0 ? 0 : endIndexB;
 
-        byte[] resultArray = new byte[localEndIndexA - localStartIndexA + localEndIndexB - localStartIndexB];
+        final byte[] resultArray = new byte[localEndIndexA - localStartIndexA + localEndIndexB - localStartIndexB];
         System.arraycopy(a, localStartIndexA, resultArray, 0, localEndIndexA - localStartIndexA);
         System.arraycopy(b, localStartIndexB, resultArray, localEndIndexA - localStartIndexA, localEndIndexB - localStartIndexB);
 
         return resultArray;
     }
 
-    public static String encryptString(final String string, final int encryptKey) {
-        String result = string;
+    @SuppressWarnings({"HardcodedLineSeparator", "MagicCharacter"})
+    public static String encryptString(final String initialString, final int encryptKey) {
+        @Nullable final String result;
 
-        if (string != null) {
-            char[] tempCharArray = string.toCharArray();
-            int tempInt = tempCharArray.length;
+        if (initialString != null) {
+            final char[] tempCharArray = initialString.toCharArray();
+            final int tempInt = tempCharArray.length;
 
             for (int i = 0; i < tempInt; i++) {
                 if (tempCharArray[i] != '\r' && tempCharArray[i] != '\n') {
-                    tempCharArray[i] += encryptKey;
+                    //noinspection NumericCastThatLosesPrecision
+                    tempCharArray[i] += (char) encryptKey;
                 }
             }
             result = new String(tempCharArray);
+        } else {
+            result = null;
         }
 
         return result;
@@ -1110,7 +1107,8 @@ public class Generic {
         if (new File(fileName).exists()) {
             SynchronizedReader synchronizedReader = null;
             SynchronizedWriter synchronizedWriter = null;
-            String fileLine = null, tempFileName = tempFileName(fileName);
+            String fileLine = null;
+            final String tempFileName = tempFileName(fileName);
 
             try {
                 synchronizedReader = new SynchronizedReader(fileName);
@@ -1123,16 +1121,18 @@ public class Generic {
                 } // end while
                 synchronizedWriter.flush();
                 success = true;
-            } catch (IOException iOException) {
+            } catch (@SuppressWarnings("OverlyBroadCatchBlock") IOException iOException) {
                 logger.error("STRANGE ERROR inside encryptFile: {} {}", new Object[]{fileName, fileLine}, iOException);
             } finally {
-                Generic.closeObjects(synchronizedReader, synchronizedWriter);
+                closeObjects(synchronizedReader, synchronizedWriter);
             }
 
             try {
+                //noinspection ResultOfMethodCallIgnored
                 new File(fileName).delete();
+                //noinspection ResultOfMethodCallIgnored
                 new File(tempFileName).renameTo(new File(fileName));
-            } catch (Exception exception) {
+            } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {
                 logger.error("STRANGE exception inside readInputFile() File.delete: {} {}", fileName, tempFileName, exception);
             }
         } else {
@@ -1142,18 +1142,19 @@ public class Generic {
         return success;
     }
 
+    @NotNull
     public static String tempFileName(final String fileName) {
         int nameTrailer = -1;
-        long time = System.currentTimeMillis();
+        final long time = System.currentTimeMillis();
 
         try {
-            Random generator = new Random();
+            final SecureRandom generator = new SecureRandom();
             nameTrailer = generator.nextInt();
 
             while (new File(fileName + time + "." + nameTrailer).exists()) {
                 nameTrailer = generator.nextInt();
             }
-        } catch (Exception exception) {
+        } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {
             logger.error("STRANGE ERROR inside tempFileNameRandom: {} {} {}", fileName, time, nameTrailer, exception);
         }
 
@@ -1171,12 +1172,13 @@ public class Generic {
                 if (new File(fileName).exists()) {
                     fileInputStream = new FileInputStream(fileName);
                     bufferedInputStream = new BufferedInputStream(fileInputStream);
+                    //noinspection resource,IOResourceOpenedButNotSafelyClosed
                     objectInputStream = new ObjectInputStream(bufferedInputStream);
                     object = objectInputStream.readObject();
                 } else {
                     logger.warn("Can't read object, file {} does not exist!", fileName);
                 }
-            } catch (IOException | ClassNotFoundException exception) {
+            } catch (@SuppressWarnings("OverlyBroadCatchBlock") IOException | ClassNotFoundException exception) {
                 logger.error("STRANGE ERROR inside readObjectFromFile: {}", fileName, exception);
             } finally {
                 closeObjects(objectInputStream, bufferedInputStream, fileInputStream);
@@ -1188,29 +1190,29 @@ public class Generic {
         return object;
     }
 
-    public static void synchronizedWriteObjectToFile(final Object object, final String fileName) {
+    public static void synchronizedWriteObjectToFile(final Serializable object, final String fileName) {
         synchronizedWriteObjectToFile(object, fileName, false);
     }
 
-    public static void synchronizedWriteObjectToFile(final Object object, final String fileName, final boolean appendFile) {
+    public static void synchronizedWriteObjectToFile(@NotNull final Serializable object, final String fileName, final boolean appendFile) {
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
         synchronized (object) {
             writeObjectToFile(object, fileName, appendFile);
         }
     }
 
-    public static void synchronizedWriteObjectsToFiles(final Map<Object, String> fileNamesMap) {
-        // should not be used if objects in keyset are collections; strange behaviour results
-        Set<Object> keySet = fileNamesMap.keySet();
-        for (Object key : keySet) {
-            synchronizedWriteObjectToFile(key, fileNamesMap.get(key));
+    public static void synchronizedWriteObjectsToFiles(@NotNull final Map<Serializable, String> fileNamesMap) {
+        // should not be used if objects in keySet are collections; strange behaviour results
+        for (final Entry<Serializable, String> entry : fileNamesMap.entrySet()) {
+            synchronizedWriteObjectToFile(entry.getKey(), entry.getValue());
         }
     }
 
-    public static void writeObjectToFile(final Object object, final String fileName) {
+    public static void writeObjectToFile(final Serializable object, final String fileName) {
         writeObjectToFile(object, fileName, false);
     }
 
-    public static void writeObjectToFile(final Object object, final String fileName, final boolean appendFile) {
+    public static void writeObjectToFile(final Serializable object, final String fileName, final boolean appendFile) {
         ObjectOutputStream objectOutputStream = null;
         BufferedOutputStream bufferedOutputStream = null;
         FileOutputStream fileOutputStream = null;
@@ -1218,9 +1220,10 @@ public class Generic {
         try {
             fileOutputStream = new FileOutputStream(fileName, appendFile);
             bufferedOutputStream = new BufferedOutputStream(fileOutputStream);
+            //noinspection resource,IOResourceOpenedButNotSafelyClosed
             objectOutputStream = new ObjectOutputStream(bufferedOutputStream);
             objectOutputStream.writeObject(object);
-        } catch (IOException iOException) {
+        } catch (@SuppressWarnings("OverlyBroadCatchBlock") IOException iOException) {
             logger.error("STRANGE iOException inside writeObjectToFile: {}", fileName, iOException);
             // } catch (Throwable throwable) {
             //     logger.error("STRANGE ERROR inside writeObjectToFile: {}", fileName, throwable);
@@ -1229,34 +1232,34 @@ public class Generic {
         }
     }
 
-    public static void writeObjectsToFiles(final Map<Object, String> fileNamesMap) {
-        // should not be used if objects in keyset are collections; strange behaviour results
-        Set<Object> keySet = fileNamesMap.keySet();
-        for (Object key : keySet) {
-            writeObjectToFile(key, fileNamesMap.get(key));
+    public static void writeObjectsToFiles(@NotNull final Map<Serializable, String> fileNamesMap) {
+        // should not be used if objects in keySet are collections; strange behaviour results
+        for (final Entry<Serializable, String> entry : fileNamesMap.entrySet()) {
+            writeObjectToFile(entry.getKey(), entry.getValue());
         }
     }
 
-    public static String getHexString(final byte[] b) {
+    @NotNull
+    public static String getHexString(@NotNull final byte[] b) {
         // convert a byte array to a Hex string
-        StringBuilder result = new StringBuilder(b.length);
-        for (int i = 0; i < b.length; i++) {
-            result.append(Integer.toString((b[i] & 0xff) + 0x100, 16).substring(1));
+        final StringBuilder result = new StringBuilder(b.length);
+        for (final byte value : b) {
+            result.append(Integer.toString((value & 0xff) + 0x100, 16).substring(1));
         }
 
         return result.toString();
     }
 
-    public static String backwardWordsString(final String string) {
-        // returns the string with words ordered in reverse; words are bordered by spaces
-        String result;
+    public static String backwardWordsString(final String initialString) {
+        // returns the initialString with words ordered in reverse; words are bordered by spaces
+        @Nullable final String result;
 
-        if (string != null) {
-            StringTokenizer stringTokenizer = new StringTokenizer(string, " ", true);
-            Stack<String> stack = new Stack<>();
-            StringBuilder stringBuilder = new StringBuilder(string.length());
+        if (initialString != null) {
+            @SuppressWarnings("UseOfStringTokenizer") final StringTokenizer stringTokenizer = new StringTokenizer(initialString, " ", true);
+            final Stack<String> stack = new Stack<>();
+            final StringBuilder stringBuilder = new StringBuilder(initialString.length());
             while (stringTokenizer.hasMoreElements()) {
-                String word = stringTokenizer.nextToken();
+                final String word = stringTokenizer.nextToken();
                 if (!word.isEmpty()) {
                     stack.push(word);
                 }
@@ -1267,41 +1270,44 @@ public class Generic {
 
             result = stringBuilder.toString();
         } else {
-            logger.error("STRANGE string null in backwardString, timeStamp={}", System.currentTimeMillis());
-            result = string;
+            logger.error("STRANGE initialString null in backwardWordsString, timeStamp={}", System.currentTimeMillis());
+            result = null;
         }
 
         return result;
     }
 
-    public static String backwardString(final String string) {
-        // returns the string in reverse
-        String result;
+    public static String backwardString(final String initialString) {
+        // returns the initialString in reverse
+        @Nullable final String result;
 
-        if (string != null) {
-            char[] charArray = string.toCharArray();
-            int arrayLength = charArray.length;
+        if (initialString != null) {
+            final char[] charArray = initialString.toCharArray();
+            final int arrayLength = charArray.length;
 
             for (int i = 0; i < arrayLength; i++) {
-                charArray[i] = string.charAt(arrayLength - 1 - i);
+                charArray[i] = initialString.charAt(arrayLength - 1 - i);
             }
             result = new String(charArray);
         } else {
-            logger.error("STRANGE string null in backwardString, timeStamp={}", System.currentTimeMillis());
-            result = string;
+            logger.error("STRANGE initialString null in backwardString, timeStamp={}", System.currentTimeMillis());
+            result = null;
         }
 
         return result;
     }
 
-    public static String trimIP(final String IP) {
+    @SuppressWarnings("CharacterComparison")
+    @NotNull
+    public static String trimIP(@NotNull final String IP) {
         // removes heading zeros from IP values
         boolean isIP = true;
         int numberOfDots = 0;
         StringBuilder resultStringBuilder = new StringBuilder(IP);
 
         try {
-            for (int i = 0; i < IP.length(); i++) {
+            final int length = IP.length();
+            for (int i = 0; i < length; i++) {
                 if ((IP.charAt(i) < '0' || IP.charAt(i) > '9') && IP.charAt(i) != '.') {
                     isIP = false;
                     break;
@@ -1314,12 +1320,14 @@ public class Generic {
                 }
             }
             if (isIP && numberOfDots == 3) {
-                int IP1, IP2, IP3, IP4;
+                final int secondPointIndex = IP.indexOf('.', IP.indexOf('.') + ".".length());
+                final int afterSecondPointIndex = secondPointIndex + ".".length();
+
+                final int IP1, IP2, IP3, IP4;
                 IP1 = Integer.parseInt(IP.substring(0, IP.indexOf('.')));
-                IP2 = Integer.parseInt(IP.substring(IP.indexOf('.') + ".".length(), IP.indexOf('.', IP.indexOf('.') + ".".length())));
-                IP3 = Integer.parseInt(IP.substring(IP.indexOf('.', IP.indexOf('.') + ".".length()) + ".".length(),
-                                                    IP.indexOf('.', IP.indexOf('.', IP.indexOf('.') + ".".length()) + ".".length())));
-                IP4 = Integer.parseInt(IP.substring(IP.indexOf('.', IP.indexOf('.', IP.indexOf('.') + ".".length()) + ".".length()) + ".".length()));
+                IP2 = Integer.parseInt(IP.substring(IP.indexOf('.') + ".".length(), secondPointIndex));
+                IP3 = Integer.parseInt(IP.substring(afterSecondPointIndex, IP.indexOf('.', afterSecondPointIndex)));
+                IP4 = Integer.parseInt(IP.substring(IP.indexOf('.', afterSecondPointIndex) + ".".length()));
                 resultStringBuilder = new StringBuilder(String.valueOf(IP1)).append('.').append(IP2).append('.').append(IP3).append('.').append(IP4);
             } else {
                 logger.error("not IP in trimIP: {}", IP);
@@ -1345,8 +1353,7 @@ public class Generic {
             if (port >= 1) {
                 isGood = true;
             }
-        } catch (NumberFormatException numberFormatException) {
-            isGood = false;
+        } catch (NumberFormatException numberFormatException) { // isGood == false
         } // catch (Throwable throwable) {
         //     logger.error("STRANGE ERROR inside goodPort: {}", tempPort, throwable);
         //     isGood = false;
@@ -1355,151 +1362,139 @@ public class Generic {
         return isGood;
     }
 
+    @SuppressWarnings({"OverlyNestedMethod", "OverlyComplexMethod", "OverlyLongMethod", "CharacterComparison"})
     public static boolean goodDomain(final String host) {
         boolean isGood = false;
 
-        if (host == null || !isPureAscii(host) || host.indexOf('.') <= 0 || host.lastIndexOf('.') >= host.length() - 1) {
-            return isGood;
+        if (host == null || !isPureAscii(host) || host.indexOf('.') <= 0 || host.lastIndexOf('.') >= host.length() - 1) { // isGood already false, nothing to be done
         } else {
-            try {
-                String modifiedHost = URLDecoder.decode(host, "UTF-8");
+            String modifiedHost = URLDecoder.decode(host, StandardCharsets.UTF_8);
 
-                if (modifiedHost.indexOf('/') >= 0 || modifiedHost.indexOf('?') >= 0 || modifiedHost.indexOf(' ') >= 0) {
-                    return isGood;
-                } else {
-                    try {
-                        modifiedHost = IDN.toASCII(modifiedHost, IDN.ALLOW_UNASSIGNED);
-                        // } catch (IndexOutOfBoundsException indexOutOfBoundsException) {
-                    } catch (IllegalArgumentException illegalArgumentException) {
-                    } catch (Exception exception) {
-                        logger.error("STRANGE ERROR inside goodDomain() IDN.toASCII: {}", modifiedHost, exception);
-                    }
+            if (modifiedHost.contains(File.separator) || modifiedHost.indexOf('?') >= 0 || modifiedHost.indexOf(' ') >= 0) { // isGood already false, nothing to be done
+            } else {
+                try {
+                    modifiedHost = IDN.toASCII(modifiedHost, IDN.ALLOW_UNASSIGNED);
+                    // } catch (IndexOutOfBoundsException indexOutOfBoundsException) {
+                } catch (IllegalArgumentException illegalArgumentException) {
+                    logger.error("STRANGE ERROR inside goodDomain() IDN.toASCII: {}", modifiedHost, illegalArgumentException);
+                }
 
-                    modifiedHost = modifiedHost.toLowerCase().trim();
-
-                    isGood = true;
-
-                    for (int i = 0; i < modifiedHost.length(); i++) {
-                        if ((modifiedHost.charAt(i) < '0' || modifiedHost.charAt(i) > '9') && (modifiedHost.charAt(i) < 'a' || modifiedHost.charAt(i) > 'z') &&
-                            modifiedHost.charAt(i) != '.' && modifiedHost.charAt(i) != '-' && modifiedHost.charAt(i) != '_') {
-                            // '_' is not standard but it is sometimes, rarely, used
-                            isGood = false;
-                            break;
-                        }
-                    }
-
-                    if (isGood) {
-                        boolean isIP = true;
-                        int numberOfDots = 0;
-
-                        for (int i = 0; i < modifiedHost.length(); i++) {
-                            if ((modifiedHost.charAt(i) < '0' || modifiedHost.charAt(i) > '9') && modifiedHost.charAt(i) != '.') {
-                                isIP = false;
-                            }
-                            if (modifiedHost.charAt(i) == '.') {
-                                numberOfDots++;
-                            }
-                        }
-
-                        if (isIP) {
-                            if (numberOfDots == 3) {
-                                try {
-                                    int IP1, IP2, IP3, IP4;
-                                    IP1 = Integer.parseInt(modifiedHost.substring(0, modifiedHost.indexOf('.')));
-                                    IP2 = Integer.parseInt(modifiedHost.substring(modifiedHost.indexOf('.') + ".".length(),
-                                                                                  modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length())));
-                                    IP3 = Integer.parseInt(modifiedHost.substring(modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length()) + ".".length(),
-                                                                                  modifiedHost.indexOf('.', modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length()) +
-                                                                                                            ".".length())));
-                                    IP4 = Integer.parseInt(modifiedHost.substring(modifiedHost.indexOf('.', modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length()) +
-                                                                                                            ".".length()) + ".".length()));
-                                    if (IP1 <= 0 || IP1 >= 224 || IP1 == 7 || IP1 == 10 || IP1 == 127 || IP2 < 0 || IP2 > 255 || IP3 < 0 || IP3 > 255 || IP4 < 0 || IP4 > 255) {
-                                        isGood = false;
-                                    } else if (IP1 == 169 && IP2 == 254) {
-                                        isGood = false;
-                                    } else if (IP1 == 192 && IP2 == 168) {
-                                        isGood = false;
-                                    } else if (IP1 == 172 && IP2 >= 16 && IP2 <= 31) {
-                                        isGood = false;
-                                    } else if (IP1 == 203 && IP2 == 0 && IP3 == 113) {
-                                        isGood = false;
-                                    } else if (IP1 == 198 && IP2 == 51 && IP3 == 100) {
-                                        isGood = false;
-                                    } else if (IP1 == 192 && IP2 == 88 && IP3 == 99) {
-                                        isGood = false;
-                                    } else if (IP1 == 192 && IP2 == 0 && IP3 == 0) {
-                                        isGood = false;
-                                    } else if (IP1 == 192 && IP2 == 0 && IP3 == 2) {
-                                        isGood = false;
-                                    } else if (IP1 == 198 && IP2 >= 18 && IP2 <= 19) {
-                                        isGood = false;
-                                    } else { // isGood is true, nothing to be done
-                                    }
-                                    // last updated 30-12-2013 from http://en.wikipedia.org/wiki/Reserved_IP_addresses#Reserved_IPv4_addresses and
-                                    //     http://www.iana.org/assignments/ipv4-address-space/
-                                    // (only reserved ranges were taken out, not the unallocated ones)
-                                } catch (NumberFormatException numberFormatException) {
-                                    logger.error("NumberFormatException inside goodDomain() isIP: {}", modifiedHost, numberFormatException);
-                                    isGood = false;
-                                } // catch (Throwable throwable) {
-                                //     logger.error("STRANGE ERROR inside goodDomain isIP: {}", modifiedHost, throwable);
-                                //     isGood = false;
-                                // }
-                            } else {
-                                isGood = false;
-                            }
-                        } else {
-                            if (modifiedHost.length() > 253) {
-                                isGood = false;
-                            } else {
-                                int pointIndex1 = 0, pointIndex2;
-
-                                pointIndex2 = modifiedHost.indexOf('.', pointIndex1 + 1);
-                                while (pointIndex2 > 0) {
-                                    if (pointIndex2 - pointIndex1 > 63) {
-                                        isGood = false;
-                                        break;
-                                    }
-                                    pointIndex1 = pointIndex2;
-
-                                    pointIndex2 = modifiedHost.indexOf('.', pointIndex1 + 1);
-                                } // end while
-
-                                if (isGood) {
-                                    if (modifiedHost.length() - pointIndex1 > 63) {
-                                        isGood = false;
-                                    } else {
-
-                                        String lastLabel = modifiedHost.substring(modifiedHost.lastIndexOf('.') + ".".length()).toUpperCase();
-                                        if (lastLabel.length() == 0 || !TLDs.contains(lastLabel)) {
-                                            isGood = false;
-                                        } else { // it seems I reached the end of checking and isGood is true
-                                        }
-                                    }
-                                } else { // isGood already false, nothing to be done
-                                }
-                            }
-                        }
-                    } else { // isGood already false, nothing to be done
+                modifiedHost = modifiedHost.toLowerCase(Locale.ENGLISH).trim();
+                isGood = true;
+                final int length = modifiedHost.length();
+                for (int i = 0; i < length; i++) {
+                    if ((modifiedHost.charAt(i) < '0' || modifiedHost.charAt(i) > '9') && (modifiedHost.charAt(i) < 'a' || modifiedHost.charAt(i) > 'z') &&
+                        modifiedHost.charAt(i) != '.' && modifiedHost.charAt(i) != '-' && modifiedHost.charAt(i) != '_') {
+                        // '_' is not standard but it is sometimes, rarely, used
+                        isGood = false;
+                        break;
                     }
                 }
-            } catch (UnsupportedEncodingException unsupportedEncodingException) {
-                logger.error("STRANGE unsupportedEncodingException inside goodDomain: {}", host, unsupportedEncodingException);
-                isGood = false;
-            } // catch (Throwable throwable) {
-            //     logger.error("STRANGE ERROR inside goodDomain: {}", host, throwable);
-            //     isGood = false;
-            // }
 
-            return isGood;
+                if (isGood) {
+                    boolean isIP = true;
+                    int numberOfDots = 0;
+                    for (int i = 0; i < length; i++) {
+                        if ((modifiedHost.charAt(i) < '0' || modifiedHost.charAt(i) > '9') && modifiedHost.charAt(i) != '.') {
+                            isIP = false;
+                        }
+                        if (modifiedHost.charAt(i) == '.') {
+                            numberOfDots++;
+                        }
+                    }
+
+                    if (isIP) {
+                        if (numberOfDots == 3) {
+                            try {
+                                final int secondPointIndex = modifiedHost.indexOf('.', modifiedHost.indexOf('.') + ".".length());
+                                final int afterSecondPointIndex = secondPointIndex + ".".length();
+
+                                final int IP1, IP2, IP3, IP4;
+                                IP1 = Integer.parseInt(modifiedHost.substring(0, modifiedHost.indexOf('.')));
+                                IP2 = Integer.parseInt(modifiedHost.substring(modifiedHost.indexOf('.') + ".".length(), secondPointIndex));
+                                IP3 = Integer.parseInt(modifiedHost.substring(afterSecondPointIndex, modifiedHost.indexOf('.', afterSecondPointIndex)));
+                                IP4 = Integer.parseInt(modifiedHost.substring(modifiedHost.indexOf('.', afterSecondPointIndex) + ".".length()));
+                                if (IP1 <= 0 || IP1 >= 224 || IP1 == 7 || IP1 == 10 || IP1 == 127 || IP2 < 0 || IP2 > 255 || IP3 < 0 || IP3 > 255 || IP4 < 0 || IP4 > 255) {
+                                    isGood = false;
+                                } else if (IP1 == 169 && IP2 == 254) {
+                                    isGood = false;
+                                } else if (IP1 == 192 && IP2 == 168) {
+                                    isGood = false;
+                                } else if (IP1 == 172 && IP2 >= 16 && IP2 <= 31) {
+                                    isGood = false;
+                                } else if (IP1 == 203 && IP2 == 0 && IP3 == 113) {
+                                    isGood = false;
+                                } else if (IP1 == 198 && IP2 == 51 && IP3 == 100) {
+                                    isGood = false;
+                                } else if (IP1 == 192 && IP2 == 88 && IP3 == 99) {
+                                    isGood = false;
+                                } else if (IP1 == 192 && IP2 == 0 && IP3 == 0) {
+                                    isGood = false;
+                                } else if (IP1 == 192 && IP2 == 0 && IP3 == 2) {
+                                    isGood = false;
+                                } else if (IP1 == 198 && IP2 >= 18 && IP2 <= 19) {
+                                    isGood = false;
+                                } else { // isGood is true, nothing to be done
+                                }
+                                // last updated 30-12-2013 from http://en.wikipedia.org/wiki/Reserved_IP_addresses#Reserved_IPv4_addresses and
+                                //     http://www.iana.org/assignments/ipv4-address-space/
+                                // (only reserved ranges were taken out, not the unallocated ones)
+                            } catch (NumberFormatException numberFormatException) {
+                                logger.error("NumberFormatException inside goodDomain() isIP: {}", modifiedHost, numberFormatException);
+                                isGood = false;
+                            } // catch (Throwable throwable) {
+                            //     logger.error("STRANGE ERROR inside goodDomain isIP: {}", modifiedHost, throwable);
+                            //     isGood = false;
+                            // }
+                        } else {
+                            isGood = false;
+                        }
+                    } else {
+                        if (modifiedHost.length() > 253) {
+                            isGood = false;
+                        } else {
+                            int pointIndex1 = 0, pointIndex2;
+
+                            pointIndex2 = modifiedHost.indexOf('.', pointIndex1 + 1);
+                            while (pointIndex2 > 0) {
+                                if (pointIndex2 - pointIndex1 > 63) {
+                                    isGood = false;
+                                    break;
+                                }
+                                pointIndex1 = pointIndex2;
+
+                                pointIndex2 = modifiedHost.indexOf('.', pointIndex1 + 1);
+                            } // end while
+
+                            if (isGood) {
+                                if (modifiedHost.length() - pointIndex1 > 63) {
+                                    isGood = false;
+                                } else {
+
+                                    final String lastLabel = modifiedHost.substring(modifiedHost.lastIndexOf('.') + ".".length()).toUpperCase(Locale.ENGLISH);
+                                    if (lastLabel.isEmpty() || !TLDs.contains(lastLabel)) {
+                                        isGood = false;
+                                    } else { // it seems I reached the end of checking and isGood is true
+                                    }
+                                }
+                            } else { // isGood already false, nothing to be done
+                            }
+                        }
+                    }
+                } else { // isGood already false, nothing to be done
+                }
+            }
         }
+        return isGood;
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     public static String getUserAgent() {
         String userAgent = "Mozilla/";
 
         try {
-            switch ((int) (3 * Math.random())) {
+            final SecureRandom secureRandom = new SecureRandom();
+            switch (secureRandom.nextInt(3)) {
                 case 0:
                     userAgent += "4.0 (compatible; MSIE 7.0; ";
                     break;
@@ -1510,7 +1505,7 @@ public class Generic {
                     userAgent += "5.0 (Windows; U; ";
                     break;
             }
-            switch ((int) (7 * Math.random())) {
+            switch (secureRandom.nextInt(7)) {
                 case 0:
                     userAgent += "Windows NT 6.0";
                     break;
@@ -1534,19 +1529,20 @@ public class Generic {
                     break;
             }
             userAgent += ")";
-        } catch (Exception exception) {
+        } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {
             logger.error("STRANGE ERROR inside getUserAgent: {}", userAgent, exception);
         }
 
         return userAgent;
     }
 
-    public static byte getSocksType(final String proxyType) {
-        byte socksType;
+    @SuppressWarnings({"CallToSuspiciousStringMethod", "ImplicitNumericConversion"})
+    public static byte getSocksType(@NotNull final String proxyType) {
+        final byte socksType;
 
-        if (proxyType.equalsIgnoreCase("socks4")) {
+        if ("socks4".equalsIgnoreCase(proxyType)) {
             socksType = 4;
-        } else if (proxyType.equalsIgnoreCase("socks5")) {
+        } else if ("socks5".equalsIgnoreCase(proxyType)) {
             socksType = 5;
         } else {
             socksType = 5;
@@ -1557,79 +1553,71 @@ public class Generic {
     }
 
     public static String linkRemoveProtocol(final String link) {
-        String result;
+        final String result;
+        @SuppressWarnings("HardcodedFileSeparator") final String SEPARATOR = "://";
 
-        if (link != null && link.contains("://")) {
-            result = new String(link.substring(link.indexOf("://") + "://".length()));
-        } else {
-            result = link;
-        }
+        result = link != null && link.contains(SEPARATOR) ? new String(link.substring(link.indexOf(SEPARATOR) + SEPARATOR.length())) : link;
 
         return result;
     }
 
     public static String linkRemovePort(final String link) {
-        String result;
+        @Nullable String result;
+        @SuppressWarnings("HardcodedFileSeparator") final String SEPARATOR = "://";
 
         if (link != null) {
             String modifiedLink = link;
 
-            if (modifiedLink.contains("://")) {
-                result = modifiedLink.substring(0, modifiedLink.indexOf("://") + "://".length());
-                modifiedLink = modifiedLink.substring(modifiedLink.indexOf("://") + "://".length());
+            if (modifiedLink.contains(SEPARATOR)) {
+                final int afterSeparatorIndex = modifiedLink.indexOf(SEPARATOR) + SEPARATOR.length();
+                result = modifiedLink.substring(0, afterSeparatorIndex);
+                modifiedLink = modifiedLink.substring(afterSeparatorIndex);
             } else {
                 result = "";
             }
 
-            if (modifiedLink.indexOf(':') >= 0 &&
-                (modifiedLink.indexOf(':') < modifiedLink.indexOf('/') ||
-                 (modifiedLink.indexOf('/') < 0 && modifiedLink.indexOf(':') < modifiedLink.indexOf('?')) || (modifiedLink.indexOf('/') < 0 && modifiedLink.indexOf('?') < 0))) {
-                if (modifiedLink.indexOf(':') < modifiedLink.indexOf('/')) {
-                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + modifiedLink.substring(modifiedLink.indexOf('/'));
-                } else if (modifiedLink.indexOf('/') < 0 && modifiedLink.indexOf(':') < modifiedLink.indexOf('?')) {
-                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + "/" + modifiedLink.substring(modifiedLink.indexOf('?'));
+            @SuppressWarnings("HardcodedFileSeparator") final char urlSeparator = '/';
+            final boolean noSlashAndColonBeforeQuestionMark = modifiedLink.indexOf(urlSeparator) < 0 && modifiedLink.indexOf(':') < modifiedLink.indexOf('?');
+            final boolean colonBeforeSeparator = modifiedLink.indexOf(':') < modifiedLink.indexOf(urlSeparator);
+            if (modifiedLink.indexOf(':') >= 0 && (colonBeforeSeparator || noSlashAndColonBeforeQuestionMark || (modifiedLink.indexOf(urlSeparator) < 0 && modifiedLink.indexOf('?') < 0))) {
+                if (colonBeforeSeparator) {
+                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + modifiedLink.substring(modifiedLink.indexOf(urlSeparator));
+                } else if (noSlashAndColonBeforeQuestionMark) {
+                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + urlSeparator + modifiedLink.substring(modifiedLink.indexOf('?'));
                 } else {
                     // the case when: modifiedLink.indexOf ("/") < 0 && modifiedLink.indexOf ("?") < 0
-                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + "/";
+                    result += modifiedLink.substring(0, modifiedLink.indexOf(':')) + urlSeparator;
                 }
             } else {
                 result += modifiedLink;
             }
         } else {
-            result = link;
+            result = null;
         }
 
         return result;
     }
 
     public static String linkRemoveQuery(final String link) {
-        String result;
+        final String result;
 
-        if (link != null && link.indexOf('?') >= 0) {
-            result = new String(link.substring(0, link.indexOf('?')));
-        } else {
-            result = link;
-        }
+        result = link != null && link.indexOf('?') >= 0 ? new String(link.substring(0, link.indexOf('?'))) : link;
 
         return result;
     }
 
-    @SuppressWarnings("null")
     public static String getLinkHost(final String link) {
-        String result;
+        @Nullable String result;
         String modifiedLink = link;
+        @SuppressWarnings("HardcodedFileSeparator") final char urlSeparator = '/';
         modifiedLink = linkRemoveProtocol(modifiedLink);
         modifiedLink = linkRemovePort(modifiedLink);
         modifiedLink = linkRemoveQuery(modifiedLink);
 
-        if (modifiedLink != null && modifiedLink.indexOf('/') >= 0) {
-            result = new String(modifiedLink.substring(0, modifiedLink.indexOf('/')));
-        } else {
-            result = modifiedLink;
-        }
+        result = modifiedLink != null && modifiedLink.indexOf(urlSeparator) >= 0 ? new String(modifiedLink.substring(0, modifiedLink.indexOf(urlSeparator))) : modifiedLink;
 
         if (goodDomain(result)) {
-            result = result.toLowerCase();
+            result = result != null ? result.toLowerCase(Locale.ENGLISH) : null;
         } else {
             result = null;
         }
@@ -1638,11 +1626,14 @@ public class Generic {
     }
 
     public static boolean linkMatches(final String path, final String checkedLink) {
-        // all subdomains are taken
-        // if path is a folder, only links to that folder and subfolders are taken
+        // all sub-domains are taken
+        // if path is a folder, only links to that folder and sub-folders are taken
         // if path is a particular page, only that page is taken
-        boolean linkMatches;
-        String checkedHost, modifiedLink = checkedLink, modifiedPath = path;
+        final boolean linkMatches;
+        final String checkedHost;
+        String modifiedLink = checkedLink;
+        String modifiedPath = path;
+        @SuppressWarnings("HardcodedFileSeparator") final char urlSeparator = '/';
 
         // no support for protocol, so protocol is removed
         modifiedLink = linkRemoveProtocol(modifiedLink);
@@ -1659,33 +1650,30 @@ public class Generic {
         checkedHost = getLinkHost(modifiedLink);
 
         if (checkedHost != null) {
-            if (modifiedLink.indexOf('/') >= 0) {
-                modifiedLink = checkedHost + modifiedLink.substring(modifiedLink.indexOf('/'));
-            } else {
-                modifiedLink = checkedHost + '/';
-            }
+            modifiedLink = modifiedLink.indexOf(urlSeparator) >= 0 ? checkedHost + modifiedLink.substring(modifiedLink.indexOf(urlSeparator)) : checkedHost + urlSeparator;
 
             if (goodDomain(modifiedPath)) {
-                modifiedPath = modifiedPath.toLowerCase();
+                modifiedPath = modifiedPath.toLowerCase(Locale.ENGLISH);
 
-                // check if link is on same domain or a subdomain
+                // check if link is on same domain or a sub-domain
                 linkMatches = checkedHost.equalsIgnoreCase(modifiedPath) || checkedHost.endsWith("." + modifiedPath);
-            } else if (modifiedPath.indexOf('/') >= 0 && goodDomain(modifiedPath.substring(0, modifiedPath.indexOf('/')))) {
-                modifiedPath = modifiedPath.substring(0, modifiedPath.indexOf('/')).toLowerCase() + modifiedPath.substring(modifiedPath.indexOf('/'));
-
-                if (modifiedPath.endsWith("/")) {
-                    // path is folder, check if link is in the same folder or subfolders (same domain as well)
-                    linkMatches = modifiedLink.startsWith(modifiedPath);
-                } else { // path is a particular page and has to be identical with link in this case
-                    linkMatches = modifiedLink.equals(modifiedPath);
-                }
             } else {
-                logger.warn("Bogus path in linkMatches: {}", path);
-                linkMatches = false;
+                final String substring = modifiedPath.substring(0, modifiedPath.indexOf(urlSeparator));
+                if (modifiedPath.indexOf(urlSeparator) >= 0 && goodDomain(substring)) {
+                    modifiedPath = substring.toLowerCase(Locale.ENGLISH) + modifiedPath.substring(modifiedPath.indexOf(urlSeparator));
+
+                    // path is folder, check if link is in the same folder or sub-folders (same domain as well)
+                    // path is a particular page and has to be identical with link in this case
+                    linkMatches = !modifiedPath.isEmpty() && modifiedPath.charAt(modifiedPath.length() - 1) == urlSeparator ? modifiedLink.startsWith(modifiedPath) : modifiedLink.equals(modifiedPath);
+                } else {
+                    logger.warn("Bogus path in linkMatches: {}", path);
+                    linkMatches = false;
+                }
             }
         } else {
             linkMatches = false;
 
+            //noinspection SpellCheckingInspection
             if (modifiedLink.startsWith("XXXXXXXXXXX") || modifiedLink.startsWith("static.+") || modifiedLink.startsWith("%2568") || modifiedLink.startsWith("%01%25")) {
                 // known bogus or unavailable links, no need to fill logs with trash
             } else {
@@ -1732,18 +1720,10 @@ public class Generic {
     public static String addSpaces(final Object object, final int finalSize, final boolean inFront) {
         String returnString;
 
-        if (object != null) {
-            returnString = String.valueOf(object);
-        } else {
-            returnString = "";
-        }
+        returnString = object != null ? String.valueOf(object) : "";
 
-        String spacesString = "";
-        int spacesNeeded = finalSize - returnString.length();
-
-        for (int i = 0; i < spacesNeeded; i++) {
-            spacesString += " ";
-        }
+        final int spacesNeeded = finalSize - returnString.length();
+        final String spacesString = spacesNeeded > 0 ? new String(new char[spacesNeeded]).replace('\0', ' ') : "";
 
         if (inFront) {
             returnString = spacesString + returnString;
@@ -1754,13 +1734,15 @@ public class Generic {
         return returnString;
     }
 
-    public static String containsSubstring(final String string, final String[] substrings) {
+    @Contract(pure = true)
+    public static String containsSubstring(final String mainString, final String[] substrings) {
         String foundSubstring = null;
 
-        if (string != null && substrings != null) {
-            for (int i = 0; i < substrings.length && foundSubstring == null; i++) {
-                if (substrings[i] != null && string.contains(substrings[i])) {
-                    foundSubstring = substrings[i];
+        if (mainString != null && substrings != null) {
+            final int length = substrings.length;
+            for (int i = 0; i < length && foundSubstring == null; i++) {
+                if (substrings[i] != null && mainString.contains(substrings[i])) {
+                    foundSubstring = new String(substrings[i]); // will also invalidate a for condition that will cause loop exit
                 }
             }
         }
@@ -1768,93 +1750,108 @@ public class Generic {
         return foundSubstring;
     }
 
+    @NotNull
     public static String convertMillisToDate(final long millis, final String timeZoneName) {
         // 12.08.2010 23:45:19.342
-        DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
+        final DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone(timeZoneName));
 
         return dateFormat.format(new Date(millis));
     }
 
+    @NotNull
     public static String convertMillisToDate(final long millis) {
         return convertMillisToDate(millis, "UTC");
     }
 
+    @NotNull
     public static String getFormattedDate() {
         return getFormattedDate("UTC"); // defaults to UTC, not local time zone
     }
 
+    @NotNull
     public static String getFormattedDate(final String timeZoneName) {
         // 12.08.2010 23:45:19.342
-        DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
+        final DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone(timeZoneName));
 
         return dateFormat.format(new Date());
     }
 
+    @NotNull
     public static String addCommas(final Object value) {
         return addCommas(String.valueOf(value), (byte) 3, ",", ".");
     }
 
+    @NotNull
     public static String addCommas(final double value, final int nDecimals) {
+        //noinspection StringConcatenationInFormatCall
         return addCommas(String.format("%." + nDecimals + "f", value), (byte) 3, ",", ".");
     }
 
-    public static String addCommas(final String string, final byte groupSize, final String commaDelimiter, final String periodDelimiter) {
-        int periodIndex = string.indexOf(periodDelimiter);
+    @NotNull
+    public static String addCommas(@NotNull final String initialString, final byte groupSize, final String commaDelimiter, final String periodDelimiter) {
+        int periodIndex = initialString.indexOf(periodDelimiter);
 
         if (periodIndex < 0) {
-            periodIndex = string.length();
+            periodIndex = initialString.length();
         }
-        int nCommas = (periodIndex - 1) / groupSize, firstCommaIndex = periodIndex - nCommas * groupSize;
 
-        String resultString = string.substring(0, firstCommaIndex);
+        final int nCommas = (periodIndex - 1) / groupSize, firstCommaIndex = periodIndex - nCommas * groupSize;
+        final StringBuilder resultString = new StringBuilder(initialString.substring(0, firstCommaIndex));
 
         for (int i = 0; i < nCommas; i++) {
-            resultString += commaDelimiter + string.substring(firstCommaIndex + i * groupSize, firstCommaIndex + (i + 1) * groupSize);
+            resultString.append(commaDelimiter).append(initialString.substring(firstCommaIndex + i * groupSize, firstCommaIndex + (i + 1) * groupSize));
         }
-        if (periodIndex < string.length()) {
-            resultString += string.substring(periodIndex);
+        if (periodIndex < initialString.length()) {
+            resultString.append(initialString.substring(periodIndex));
         }
 
-        return resultString;
+        return resultString.toString();
     }
 
-    public static boolean isPureAscii(final String string) {
-        // return USASCII_CHARSET.newEncoder().canEncode (string);
-        return Charset.forName(USASCII_CHARSET).newEncoder().canEncode(string);
+    public static boolean isPureAscii(final CharSequence asciiString) {
+        return Charset.forName(US_ASCII_CHARSET).newEncoder().canEncode(asciiString);
     }
 
+    @Contract(pure = true)
     public static int byteArrayIndexOf(final byte[] data, final byte[] pattern) {
         return byteArrayIndexOf(data, pattern, 0);
     }
 
-    public static int byteArrayIndexOf(final byte[] data, final byte[] pattern, final int beginIndex) {
+    @Contract(pure = true)
+    public static int byteArrayIndexOf(@NotNull final byte[] data, final byte[] pattern, final int beginIndex) {
         // Search the data byte array for the first occurrence of the byte array pattern.
-        int[] failure = byteArrayComputeFailure(pattern);
+        int returnValue = -1;
+        final int[] failure = byteArrayComputeFailure(pattern);
         int j = 0;
+        final int length = data.length;
 
-        for (int i = beginIndex; i < data.length; i++) {
+        for (int i = beginIndex; i < length; i++) {
             while (j > 0 && pattern[j] != data[i]) {
                 j = failure[j - 1];
-            }
+            } // end while
+
             if (pattern[j] == data[i]) {
                 j++;
             }
             if (j == pattern.length) {
-                return i - pattern.length + 1;
+                returnValue = i - pattern.length + 1;
+                break;
             }
         }
 
-        return -1;
+        return returnValue;
     }
 
-    public static int[] byteArrayComputeFailure(final byte[] pattern) {
+    @Contract(pure = true)
+    public static int[] byteArrayComputeFailure(@NotNull final byte[] pattern) {
         // Computes the failure function using a boot-strapping process, where the pattern is matched against itself.
-        int[] failure = new int[pattern.length];
+        final int length = pattern.length;
+        final int[] failure = new int[length];
         int j = 0;
 
-        for (int i = 1; i < pattern.length; i++) {
+        for (int i = 1; i < length; i++) {
             while (j > 0 && pattern[j] != pattern[i]) {
                 j = failure[j - 1];
             }
@@ -1868,24 +1865,28 @@ public class Generic {
     }
 
     public static double logOfBase(final double base, final double num) {
-        return Math.log(num) / Math.log(base);
+        return StrictMath.log(num) / StrictMath.log(base);
     }
 
     public static double ceilingPowerOf(final double base, final double num) {
         // returns the closest higher or equal power of the base to the given num
-        return Math.pow(base, Math.ceil(logOfBase(base, num)));
+        return StrictMath.pow(base, Math.ceil(logOfBase(base, num)));
     }
 
-    public static <K, V> boolean compareLinkedHashMap(final LinkedHashMap<K, V> firstMap, final LinkedHashMap<K, V> secondMap) {
+    @SuppressWarnings("TypeMayBeWeakened")
+    public static <K, V> boolean compareSortedLinkedHashMap(@NotNull final LinkedHashMap<K, V> firstMap, final LinkedHashMap<K, V> secondMap) {
         boolean areEqual;
 
         areEqual = firstMap.equals(secondMap);
         if (areEqual) {
-            List<Map.Entry<K, V>> firstList = new ArrayList<>(firstMap.entrySet()), secondList = new ArrayList<>(secondMap.entrySet());
-            Iterator<Map.Entry<K, V>> firstIterator = firstList.iterator(), secondIterator = secondList.iterator();
+            final List<Map.Entry<K, V>> firstList = new ArrayList<>(firstMap.entrySet());
+            final List<Map.Entry<K, V>> secondList = new ArrayList<>(secondMap.entrySet());
+            final Iterator<Map.Entry<K, V>> firstIterator = firstList.iterator();
+            final Iterator<Map.Entry<K, V>> secondIterator = secondList.iterator();
 
             while (areEqual && firstIterator.hasNext() && secondIterator.hasNext()) {
-                Map.Entry<K, V> firstEntry = firstIterator.next(), secondEntry = secondIterator.next();
+                final Map.Entry<K, V> firstEntry = firstIterator.next();
+                final Map.Entry<K, V> secondEntry = secondIterator.next();
                 if (!firstEntry.getKey().equals(secondEntry.getKey()) || !firstEntry.getValue().equals(secondEntry.getValue())) {
                     areEqual = false; // no need for break, condition is checked by while
                 }
@@ -1896,77 +1897,81 @@ public class Generic {
         return areEqual;
     }
 
-    // @SuppressWarnings ("unchecked")
-    public static <K, V> LinkedHashMap<K, V> sortByValue(final LinkedHashMap<K, V> map, final boolean ascendingOrder) {
-        List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());
+    public static <K, V extends Comparable<V>> LinkedHashMap<K, V> sortByValue(@NotNull final Map<K, V> map, final boolean ascendingOrder) {
+        final List<Entry<K, V>> list = new ArrayList<>(map.entrySet());
 
-        Collections.sort(list, new Comparator<Object>() {
-            @Override
-            public int compare(final Object o1, final Object o2) {
-                @SuppressWarnings("unchecked")
-                int result = ((Comparable) ((Map.Entry) (o1)).getValue()).compareTo(((Map.Entry) (o2)).getValue());
+        list.sort((o1, o2) -> {
+            int result = (o1.getValue()).compareTo(o2.getValue());
 
-                if (!ascendingOrder) {
-                    result = -result;
-                }
-
-                return result;
+            if (!ascendingOrder) {
+                result = -result;
             }
+
+            return result;
         });
 
         // logger.info (list);
-        LinkedHashMap<K, V> result = new LinkedHashMap<>((int) ceilingPowerOf(2, map.size() / 0.75), 0.75f);
+        @SuppressWarnings("NumericCastThatLosesPrecision") final LinkedHashMap<K, V> result = new LinkedHashMap<>((int) ceilingPowerOf(2, map.size() / 0.75), 0.75f);
 
-        for (Map.Entry<K, V> entry : list) {
+        for (final Map.Entry<K, V> entry : list) {
             result.put(entry.getKey(), entry.getValue());
         }
 
         return result;
     }
 
-    public static <E> E getRandomElementFromSet(final Set<E> set) {
-        int setSize = set.size(), randomPosition = new Random().nextInt(setSize), counter = 0;
+    public static <E> E getRandomElementFromSet(@NotNull final Collection<E> collection) {
+        final int setSize = collection.size(), randomPosition = new SecureRandom().nextInt(setSize);
+        int counter = 0;
+        E returnValue = null;
 
-        for (E element : set) {
+        for (final E element : collection) {
             if (counter == randomPosition) {
-                return element;
+                returnValue = element;
+                break;
             }
             counter++;
         }
 
-        return null; // no object found for some reason
+        return returnValue;
     }
 
-    public static void copyFile(final File sourceFile, final File destFile)
+    @SuppressWarnings({"OverlyBroadThrowsClause", "resource", "IOResourceOpenedButNotSafelyClosed", "ChannelOpenedButNotSafelyClosed"})
+    public static void copyFile(final File sourceFile, @NotNull final File destFile)
             throws java.io.IOException {
         if (!destFile.exists()) {
+            //noinspection ResultOfMethodCallIgnored
             destFile.createNewFile();
         }
 
+        FileInputStream sourceStream = null;
+        FileOutputStream destinationStream = null;
         FileChannel source = null, destination = null;
 
         try {
-            source = new FileInputStream(sourceFile).getChannel();
-            destination = new FileOutputStream(destFile).getChannel();
+            sourceStream = new FileInputStream(sourceFile);
+            source = sourceStream.getChannel();
+            destinationStream = new FileOutputStream(destFile);
+            destination = destinationStream.getChannel();
             destination.transferFrom(source, 0, source.size());
         } finally {
-            closeObjects(source, destination);
+            closeObjects(source, sourceStream, destination, destinationStream);
         }
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T[] concatArrays(final T[] firstArray, final T[]... restArrays) {
+    public static <T> T[] concatArrays(@NotNull final T[] firstArray, @NotNull final T[]... restArrays) {
         // because this works with generic type, it won't work with primitive types
         int totalLength = firstArray.length;
 
-        for (T[] array : restArrays) {
+        for (final T[] array : restArrays) {
             totalLength += array.length;
         }
 
-        T[] resultArray = Arrays.copyOf(firstArray, totalLength);
+        final T[] resultArray = Arrays.copyOf(firstArray, totalLength);
         int offset = firstArray.length;
 
-        for (T[] array : restArrays) {
+        for (final T[] array : restArrays) {
             System.arraycopy(array, 0, resultArray, offset, array.length);
             offset += array.length;
         }
@@ -1974,6 +1979,7 @@ public class Generic {
         return resultArray;
     }
 
+    @SuppressWarnings({"resource", "IOResourceOpenedButNotSafelyClosed"})
     public static byte[] compressByteArray(final byte[] byteArray, final String compressionFormat)
             throws IOException {
         // gzip & deflate compression formats accepted
@@ -1985,15 +1991,15 @@ public class Generic {
         try {
             byteArrayOutputStream = new ByteArrayOutputStream();
 
-            boolean knownFormat;
+            final boolean knownFormat;
             if (compressionFormat != null) {
-                if (compressionFormat.equalsIgnoreCase("gzip")) {
+                if ("gzip".equalsIgnoreCase(compressionFormat)) {
                     gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
                     gzipOutputStream.write(byteArray);
                     gzipOutputStream.close(); // close() finishes the compression task
 
                     knownFormat = true;
-                } else if (compressionFormat.equalsIgnoreCase("deflate")) {
+                } else if ("deflate".equalsIgnoreCase(compressionFormat)) {
                     deflaterOutputStream = new DeflaterOutputStream(byteArrayOutputStream);
                     deflaterOutputStream.write(byteArray);
                     deflaterOutputStream.close(); // close() finishes the compression task
@@ -2006,17 +2012,13 @@ public class Generic {
                 knownFormat = false;
             }
 
-            if (knownFormat) {
-                returnValue = byteArrayOutputStream.toByteArray();
-            } else {
-                returnValue = byteArray;
-            }
+            returnValue = knownFormat ? byteArrayOutputStream.toByteArray() : byteArray;
         } finally {
             closeObjects(gzipOutputStream, deflaterOutputStream, byteArrayOutputStream);
         }
+        //noinspection ConstantConditions
         if (byteArrayOutputStream != null && byteArray != null && byteArray.length != 0) {
-            logger.debug("compressByteArray using {} , compression ratio {}", compressionFormat,
-                         String.format("%.2f %%", (double) byteArrayOutputStream.size() / byteArray.length * 100));
+            logger.debug("compressByteArray using {} , compression ratio {}", compressionFormat, String.format("%.2f %%", (double) byteArrayOutputStream.size() / byteArray.length * 100));
         } else {
             logger.error("byteArrayOutputStream null or byteArray null or byteArray.length zero in compressByteArray: {} {}", byteArrayOutputStream, byteArray);
         }
@@ -2024,6 +2026,7 @@ public class Generic {
         return returnValue;
     }
 
+    @SuppressWarnings({"resource", "IOResourceOpenedButNotSafelyClosed"})
     public static byte[] decompressByteArray(final byte[] byteArray, final String compressionFormat)
             throws IOException {
         // gzip & deflate compression formats accepted
@@ -2036,14 +2039,14 @@ public class Generic {
 
         try {
             byteArrayInputStream = new ByteArrayInputStream(byteArray);
-            boolean knownFormat;
+            final boolean knownFormat;
 
             if (compressionFormat != null) {
-                if (compressionFormat.equalsIgnoreCase("gzip")) {
+                if ("gzip".equalsIgnoreCase(compressionFormat)) {
                     gZIPInputStream = new GZIPInputStream(byteArrayInputStream);
                     bufferedInputStream = new BufferedInputStream(gZIPInputStream);
                     knownFormat = true;
-                } else if (compressionFormat.equalsIgnoreCase("deflate")) {
+                } else if ("deflate".equalsIgnoreCase(compressionFormat)) {
                     inflaterInputStream = new InflaterInputStream(byteArrayInputStream);
                     bufferedInputStream = new BufferedInputStream(inflaterInputStream);
                     knownFormat = true;
@@ -2056,7 +2059,7 @@ public class Generic {
 
             if (knownFormat) {
                 byteArrayOutputStream = new ByteArrayOutputStream();
-                byte[] buffer = new byte[1024];
+                final byte[] buffer = new byte[1024];
 
                 @SuppressWarnings("null")
                 int readLength = bufferedInputStream.read(buffer);
@@ -2109,7 +2112,7 @@ public class Generic {
         // maximum nSubstrings are taken
         //     - interSubstrings are counted as well
         //     - negative nSubstrings takes maximum possible
-        LinkedList<String> returnSet = new LinkedList<>();
+        final LinkedList<String> returnSet = new LinkedList<>();
 
         if (harvestInputString != null && searchInputString != null) {
             int beginIndex = 0, firstDelimiterIndex, secondDelimiterIndex, substringsCounter = 0;
@@ -2141,8 +2144,8 @@ public class Generic {
         return returnSet;
     }
 
-    public static LinkedList<String> getSubstringsIgnoreCase(final String inputString, final String firstDelimiter, final String secondDelimiter) {
-        return getSubstrings(inputString, inputString.toLowerCase(), firstDelimiter.toLowerCase(), secondDelimiter.toLowerCase(), false, -1);
+    public static LinkedList<String> getSubstringsIgnoreCase(final String inputString, @NotNull final String firstDelimiter, @NotNull final String secondDelimiter) {
+        return getSubstrings(inputString, inputString.toLowerCase(Locale.ENGLISH), firstDelimiter.toLowerCase(Locale.ENGLISH), secondDelimiter.toLowerCase(Locale.ENGLISH), false, -1);
     }
 
     public static String getSubstring(final String inputString, final String firstDelimiter, final String secondDelimiter) {
@@ -2151,8 +2154,7 @@ public class Generic {
         try {
             returnString = getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, false, 1).iterator().next();
         } catch (java.util.NoSuchElementException noSuchElementException) {
-        } catch (Exception exception) {
-            logger.error("STRANGE ERROR inside getSubstring: {}", new Object[]{inputString, firstDelimiter, secondDelimiter}, exception);
+            logger.error("STRANGE ERROR inside getSubstring: {}", new Object[]{inputString, firstDelimiter, secondDelimiter}, noSuchElementException);
         }
 
         return returnString;
@@ -2163,7 +2165,7 @@ public class Generic {
     }
 
     public static String removeSubstring(final String inputString, final String firstDelimiter, final String secondDelimiter, final String replacement) { // in current form, it just removes the first occurrence, and leaves delimiters in place
-        final String modifiedString;
+        @Nullable final String modifiedString;
         if (inputString == null || firstDelimiter == null || secondDelimiter == null || replacement == null) {
             logger.error("null argument in removeSubstring for: {} {} {} {}", inputString, firstDelimiter, secondDelimiter, replacement);
             modifiedString = null;
@@ -2182,6 +2184,7 @@ public class Generic {
         return modifiedString;
     }
 
+    @SuppressWarnings({"resource", "IOResourceOpenedButNotSafelyClosed"})
     public static <T extends Serializable> T serializedDeepCopy(final T sourceObject) {
         // sourceObject must be serializable
         ObjectOutputStream objectOutputStream = null;
@@ -2204,8 +2207,7 @@ public class Generic {
                 objectInputStream = new ObjectInputStream(byteArrayInputStream);
 
                 // read the serialized, and deep copied, object
-                @SuppressWarnings("unchecked")
-                T temporaryReturnValue = (T) objectInputStream.readObject(); // the temporary var is created only to attach the SuppressWarnings annotation
+                @SuppressWarnings("unchecked") final T temporaryReturnValue = (T) objectInputStream.readObject(); // the temporary var is created only to attach the SuppressWarnings annotation
                 returnValue = temporaryReturnValue;
             } catch (IOException | ClassNotFoundException exception) {
                 logger.error("STRANGE ERROR inside serializedDeepCopy: {}", new Object[]{sourceObject.getClass(), sourceObject}, exception);
@@ -2225,6 +2227,7 @@ public class Generic {
         return returnValue;
     }
 
+    @SuppressWarnings({"SynchronizationOnLocalVariableOrMethodParameter", "NestedTryStatement"})
     public static <T> void synchronizedCopyObjectFields(final T sourceObject, final T destinationObject) {
         try {
             if (sourceObject != null && destinationObject != null) {
@@ -2256,6 +2259,7 @@ public class Generic {
         }
     }
 
+    @SuppressWarnings("OverlyNestedMethod")
     public static <T> void copyObjectFields(final T sourceObject, final T destinationObject) {
         // not synchronized
         // fields from sourceObject are copied one by one to destinationObject
@@ -2264,21 +2268,23 @@ public class Generic {
         // doesn't work for static or final fields
         try {
             if (sourceObject != null && destinationObject != null) {
-                Class<?> sourceClass = sourceObject.getClass(), destinationClass = destinationObject.getClass();
-                Field[] sourceFieldsArray = sourceClass.getDeclaredFields(), destinationFieldsArray = destinationClass.getDeclaredFields();
-                LinkedHashSet<String> destinationFieldNamesSet = new LinkedHashSet<>((int) ceilingPowerOf(2, destinationFieldsArray.length / 0.75), 0.75f);
+                final Class<?> sourceClass = sourceObject.getClass();
+                final Class<?> destinationClass = destinationObject.getClass();
+                final Field[] sourceFieldsArray = sourceClass.getDeclaredFields();
+                final Field[] destinationFieldsArray = destinationClass.getDeclaredFields();
+                @SuppressWarnings("NumericCastThatLosesPrecision") final Collection<String> destinationFieldNamesSet = new LinkedHashSet<>((int) ceilingPowerOf(2, destinationFieldsArray.length / 0.75), 0.75f);
 
-                for (Field destinationField : destinationFieldsArray) {
+                for (final Field destinationField : destinationFieldsArray) {
                     destinationFieldNamesSet.add(destinationField.getName());
                 }
-                for (Field sourceField : sourceFieldsArray) {
+                for (final Field sourceField : sourceFieldsArray) {
                     sourceField.setAccessible(true);
-                    String sourceFieldName = sourceField.getName();
+                    final String sourceFieldName = sourceField.getName();
                     if (destinationFieldNamesSet.contains(sourceFieldName)) {
-                        Field destinationField = destinationClass.getDeclaredField(sourceFieldName);
+                        final Field destinationField = destinationClass.getDeclaredField(sourceFieldName);
                         destinationField.setAccessible(true);
-                        int destinationModifiers = destinationField.getModifiers();
-                        Class<?> fieldClass = sourceField.getType();
+                        final int destinationModifiers = destinationField.getModifiers();
+                        final Class<?> fieldClass = sourceField.getType();
 
                         if (fieldClass.equals(destinationField.getType()) && !Modifier.isFinal(destinationModifiers) && !Modifier.isStatic(destinationModifiers) &&
                             !Modifier.isTransient(destinationModifiers)) {
@@ -2308,8 +2314,7 @@ public class Generic {
                 logger.error("STRANGE sourceObject or destinationObject null in copyObjectFields, {} {} timeStamp={}", sourceObject, destinationObject, System.currentTimeMillis());
             }
         } catch (SecurityException | NoSuchFieldException | IllegalArgumentException | IllegalAccessException exception) {
-            logger.error("STRANGE ERROR inside copyObjectFields: {}", new Object[]{sourceObject.getClass(), sourceObject, destinationObject.getClass(), destinationObject},
-                         exception);
+            logger.error("STRANGE ERROR inside copyObjectFields: {}", new Object[]{sourceObject != null ? sourceObject.getClass() : null, sourceObject, destinationObject != null ? destinationObject.getClass() : null, destinationObject}, exception);
         }
     }
 
@@ -2331,28 +2336,29 @@ public class Generic {
         return objectToString(object, printDefaultValueFields, printFinalFields, true, 0);
     }
 
-    public static String objectToString(final Object object, final boolean printDefaultValueFields, final boolean printFinalFields, final boolean useToStringMethod, final int recursionCounter,
-                                        final String... excludePatterns) {
+    @Nullable
+    @SuppressWarnings({"ConstantConditions", "OverlyComplexMethod", "OverlyLongMethod", "OverlyNestedMethod", "NestedTryStatement"})
+    public static String objectToString(final Object object, final boolean printDefaultValueFields, final boolean printFinalFields, final boolean useToStringMethod, final int recursionCounter, final String... excludePatterns) {
         // synchronized on object
         // has option to use the default toString() method, disabled by default
         // does check to print final type fields
         // does check to print fields with the default value (null, 0, false)
-        // has failsafe against infinite recursion, max 10 levels
+        // has fail-safe against infinite recursion, max 10 levels
         // out of memory protection, max 4Mb
-        StringBuilder returnStringBuilder;
+        @Nullable StringBuilder returnStringBuilder;
 
         if (recursionCounter > 10) {
-            returnStringBuilder = new StringBuilder("STRANGE RECURSION ERROR!!!");
+            returnStringBuilder = new StringBuilder("recursionCounter=" + recursionCounter + " is too high!");
         } else {
             try {
                 if (object != null) {
-                    Class<?> objectClass = object.getClass();
-                    Method toStringMethod;
+                    final Class<?> objectClass = object.getClass();
+                    @Nullable Method toStringMethod;
 
                     if (useToStringMethod) {
                         try {
                             toStringMethod = objectClass.getDeclaredMethod("toString");
-                            // some default toString methods have undesired print, better leave them unused                            
+                            // some default toString methods have undesired print, better leave them unused
 //                            if (!toStringMethod.isAccessible()) {
 //                                toStringMethod.setAccessible(true);
 //                            }
@@ -2373,56 +2379,53 @@ public class Generic {
                         returnStringBuilder = new StringBuilder(32);
 
                         if (object instanceof Collection<?>) {
-                            Object[] arrayValue = ((Collection<?>) object).toArray(); // never null due to instanceof always being false for null
-                            returnStringBuilder.append(
-                                    objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
+                            final Object[] arrayValue = ((Collection<?>) object).toArray(); // never null due to instanceof always being false for null
+                            returnStringBuilder.append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
                         } else if (object instanceof Map<?, ?>) {
-                            Object[] arrayValue = ((Map<?, ?>) object).entrySet().toArray(); // never null due to instanceof always being false for null
-                            returnStringBuilder.append(
-                                    objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
+                            final Object[] arrayValue = ((Map<?, ?>) object).entrySet().toArray(); // never null due to instanceof always being false for null
+                            returnStringBuilder.append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
                         } else if (object instanceof Entry<?, ?>) {
-                            Entry<?, ?> entry = (Entry<?, ?>) object;
-                            Object key = entry.getKey(); // never null due to instanceof always being false for null
-                            Object value = entry.getValue(); // never null due to instanceof always being false for null
+                            final Entry<?, ?> entry = (Entry<?, ?>) object;
+                            final Object key = entry.getKey(); // never null due to instanceof always being false for null
+                            final Object value = entry.getValue(); // never null due to instanceof always being false for null
                             returnStringBuilder.append("(key=").
                                     append(objectToString(key, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).
-                                                       append(" value=").
-                                                       append(objectToString(value, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).append(") ");
+                                                       append(" value=").append(objectToString(value, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).append(") ");
                         } else if (objectClass.equals(Date.class)) {
-                            String stringValue = object.toString();
+                            final String stringValue = object.toString();
                             returnStringBuilder.append(stringValue).append(" ");
                         } else if (objectClass.equals(String.class)) {
-                            String stringValue = object.toString();
+                            final String stringValue = object.toString();
                             returnStringBuilder.append(stringValue).append(" ");
                         } else if (objectClass.equals(boolean.class) || objectClass.equals(byte.class) || objectClass.equals(char.class) || objectClass.equals(double.class) ||
                                    objectClass.equals(float.class) || objectClass.equals(int.class) || objectClass.equals(long.class) || objectClass.equals(short.class)) {
                             returnStringBuilder.append(object).append(" ");
                         } else if (objectClass.equals(Boolean.class)) {
-                            Boolean booleanValue = (Boolean) object;
+                            final Boolean booleanValue = (Boolean) object;
                             returnStringBuilder.append(booleanValue.booleanValue()).append(" ");
                         } else if (objectClass.equals(Byte.class)) {
-                            Byte byteValue = (Byte) object;
+                            final Byte byteValue = (Byte) object;
                             returnStringBuilder.append(byteValue.byteValue()).append(" ");
                         } else if (objectClass.equals(Double.class)) {
-                            Double doubleValue = (Double) object;
+                            final Double doubleValue = (Double) object;
                             returnStringBuilder.append(doubleValue.doubleValue()).append(" ");
                         } else if (objectClass.equals(Float.class)) {
-                            Float floatValue = (Float) object;
+                            final Float floatValue = (Float) object;
                             returnStringBuilder.append(floatValue.floatValue()).append(" ");
                         } else if (objectClass.equals(Integer.class)) {
-                            Integer integerValue = (Integer) object;
+                            final Integer integerValue = (Integer) object;
                             returnStringBuilder.append(integerValue.intValue()).append(" ");
                         } else if (objectClass.equals(Long.class)) {
-                            Long longValue = (Long) object;
+                            final Long longValue = (Long) object;
                             returnStringBuilder.append(longValue.longValue()).append(" ");
                         } else if (objectClass.equals(Short.class)) {
-                            Short shortValue = (Short) object;
+                            final Short shortValue = (Short) object;
                             returnStringBuilder.append(shortValue.shortValue()).append(" ");
                         } else {
                             if (objectClass.equals(char[].class)) {
                                 returnStringBuilder.append((char[]) object).append(" ");
                             } else if (objectClass.equals(byte[].class)) {
-                                returnStringBuilder.append(new String((byte[]) object, USASCII_CHARSET)).append(" ");
+                                returnStringBuilder.append(new String((byte[]) object, StandardCharsets.US_ASCII)).append(" ");
                             } else if (objectClass.equals(boolean[].class)) {
                                 returnStringBuilder.append(Arrays.toString((boolean[]) object)).append(" ");
                             } else if (objectClass.equals(double[].class)) {
@@ -2439,23 +2442,22 @@ public class Generic {
                                 returnStringBuilder.append("[");
 
                                 final Object[] objectArray = (Object[]) object;
-                                int objectArrayLength = objectArray.length, appendedCounter = 0;
-                                for (int i = 0; i < objectArrayLength; i++) {
-                                    if (objectArray[i] != null) {
+                                int appendedCounter = 0;
+                                for (final Object o : objectArray) {
+                                    if (o != null) {
                                         if (appendedCounter > 0) {
                                             returnStringBuilder.append(", ");
                                         }
-                                        returnStringBuilder.append(objectToString(objectArray[i], printDefaultValueFields, printFinalFields, useToStringMethod,
-                                                                                  recursionCounter + 1, excludePatterns));
+                                        returnStringBuilder.append(objectToString(o, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
                                         appendedCounter++;
                                     }
                                 }
                                 returnStringBuilder.append("] ");
                             } else if (object instanceof Enum<?>) {
-                                String name = ((Enum<?>) object).name(); // never null due to instanceof always being false for null
+                                final String name = ((Enum<?>) object).name(); // never null due to instanceof always being false for null
                                 returnStringBuilder.append(name).append(" ");
                             } else if (object instanceof Class<?>) {
-                                String name = ((Class<?>) object).getName(); // never null due to instanceof always being false for null
+                                final String name = ((Class<?>) object).getName(); // never null due to instanceof always being false for null
                                 returnStringBuilder.append(name).append(" ");
                             } else { // regular object
                                 returnStringBuilder.append("(");
@@ -2473,16 +2475,16 @@ public class Generic {
 
                                     // synchronized (object) {
                                     // synchronization removed as it's deadlock prone; it can be added externally
-                                    for (Field field : fieldsArray) {
+                                    for (final Field field : fieldsArray) {
                                         field.trySetAccessible();
 
-                                        Class<?> fieldClass = field.getType();
-                                        String fieldName = field.getName();
-                                        int fieldModifiers = field.getModifiers();
+                                        final Class<?> fieldClass = field.getType();
+                                        final String fieldName = field.getName();
+                                        final int fieldModifiers = field.getModifiers();
 
                                         boolean excludeField = false;
                                         if (excludePatterns != null && excludePatterns.length > 0) {
-                                            for (String excludePattern : excludePatterns) {
+                                            for (final String excludePattern : excludePatterns) {
                                                 if (fieldName.contains(excludePattern)) {
                                                     excludeField = true;
                                                     break;
@@ -2492,133 +2494,133 @@ public class Generic {
                                         }
 
                                         if (excludeField || field.isSynthetic() ||
-                                            ((Modifier.isTransient(fieldModifiers) || Modifier.isStatic(fieldModifiers) || fieldName.contains("$") || fieldName.equals("logger")) &&
+                                            ((Modifier.isTransient(fieldModifiers) || Modifier.isStatic(fieldModifiers) || fieldName.contains("$") || "logger".equals(fieldName)) &&
                                              Modifier.isFinal(fieldModifiers))) {
                                             // no need to print these fields
                                         } else if (printFinalFields || !Modifier.isFinal(fieldModifiers)) {
                                             if (Collection.class.isAssignableFrom(fieldClass)) {
-                                                Object objectValue = field.get(object);
-                                                Object[] arrayValue = objectValue == null ? null : ((Collection<?>) objectValue).toArray();
+                                                final Object objectValue = field.get(object);
+                                                final Object[] arrayValue = objectValue == null ? null : ((Collection<?>) objectValue).toArray();
                                                 returnStringBuilder.append(fieldName).append("=").
                                                         append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
                                                                               excludePatterns)).append(" ");
                                             } else if (Map.class.isAssignableFrom(fieldClass)) {
-                                                Object objectValue = field.get(object);
-                                                Object[] arrayValue = objectValue == null ? null : ((Map<?, ?>) objectValue).entrySet().toArray();
+                                                final Object objectValue = field.get(object);
+                                                final Object[] arrayValue = objectValue == null ? null : ((Map<?, ?>) objectValue).entrySet().toArray();
                                                 returnStringBuilder.append(fieldName).append("=").
                                                         append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
                                                                               excludePatterns)).append(" ");
                                             } else if (Entry.class.isAssignableFrom(fieldClass)) {
-                                                Entry<?, ?> entry = (Entry<?, ?>) field.get(object);
-                                                Object key = entry == null ? null : entry.getKey();
-                                                Object value = entry == null ? null : entry.getValue();
+                                                final Entry<?, ?> entry = (Entry<?, ?>) field.get(object);
+                                                final Object key = entry == null ? null : entry.getKey();
+                                                final Object value = entry == null ? null : entry.getValue();
                                                 returnStringBuilder.append(fieldName).append("=(key=").
                                                         append(objectToString(key, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
                                                                               excludePatterns)).append(" value=").
                                                                            append(objectToString(value, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
                                                                                                  excludePatterns)).append(") ");
                                             } else if (fieldClass.equals(String.class)) {
-                                                Object objectValue = field.get(object);
-                                                String stringValue = objectValue == null ? null : objectValue.toString();
+                                                final Object objectValue = field.get(object);
+                                                final String stringValue = objectValue == null ? null : objectValue.toString();
                                                 if (printDefaultValueFields || stringValue != null) {
                                                     returnStringBuilder.append(fieldName).append("=").append(stringValue).append(" ");
                                                 } else { // !printDefaultValueFields && stringValue == null , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(Date.class)) {
-                                                Object objectValue = field.get(object);
-                                                String stringValue = objectValue == null ? null : objectValue.toString();
+                                                final Object objectValue = field.get(object);
+                                                final String stringValue = objectValue == null ? null : objectValue.toString();
                                                 if (printDefaultValueFields || stringValue != null) {
                                                     returnStringBuilder.append(fieldName).append("=").append(stringValue).append(" ");
                                                 } else { // !printDefaultValueFields && stringValue == null , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(boolean.class)) {
-                                                boolean booleanValue = field.getBoolean(object);
+                                                final boolean booleanValue = field.getBoolean(object);
                                                 if (printDefaultValueFields || booleanValue) {
                                                     returnStringBuilder.append(fieldName).append("=").append(booleanValue).append(" ");
                                                 } else { // !printDefaultValueFields && !booleanValue , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(byte.class)) {
-                                                byte byteValue = field.getByte(object);
+                                                final byte byteValue = field.getByte(object);
                                                 if (printDefaultValueFields || byteValue != 0) {
                                                     returnStringBuilder.append(fieldName).append("=").append(byteValue).append(" ");
                                                 } else { // !printDefaultValueFields && byteValue == 0 , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(char.class)) {
-                                                char charValue = field.getChar(object);
+                                                final char charValue = field.getChar(object);
                                                 if (printDefaultValueFields || charValue != 0) {
                                                     returnStringBuilder.append(fieldName).append("=").append(charValue).append(" ");
                                                 } else { // !printDefaultValueFields && charValue == 0 , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(double.class)) {
-                                                double doubleValue = field.getDouble(object);
+                                                final double doubleValue = field.getDouble(object);
                                                 if (printDefaultValueFields || doubleValue != 0) {
                                                     returnStringBuilder.append(fieldName).append("=").append(doubleValue).append(" ");
                                                 } else { // !printDefaultValueFields && doubleValue == 0 , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(float.class)) {
-                                                float floatValue = field.getFloat(object);
+                                                final float floatValue = field.getFloat(object);
                                                 if (printDefaultValueFields || floatValue != 0) {
                                                     returnStringBuilder.append(fieldName).append("=").append(floatValue).append(" ");
                                                 } else { // !printDefaultValueFields && floatValue == 0 , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(int.class)) {
-                                                int intValue = field.getInt(object);
+                                                final int intValue = field.getInt(object);
                                                 if (printDefaultValueFields || intValue != 0) {
                                                     returnStringBuilder.append(fieldName).append("=").append(intValue).append(" ");
                                                 } else { // !printDefaultValueFields && intValue == 0 , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(long.class)) {
-                                                long longValue = field.getLong(object);
+                                                final long longValue = field.getLong(object);
                                                 if (printDefaultValueFields || longValue != 0) {
                                                     returnStringBuilder.append(fieldName).append("=").append(longValue).append(" ");
                                                 } else { // !printDefaultValueFields && longValue == 0 , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(short.class)) {
-                                                short shortValue = field.getShort(object);
+                                                final short shortValue = field.getShort(object);
                                                 if (printDefaultValueFields || shortValue != 0) {
                                                     returnStringBuilder.append(fieldName).append("=").append(shortValue).append(" ");
                                                 } else { // !printDefaultValueFields && shortValue == 0 , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(Boolean.class)) {
-                                                Boolean booleanValue = (Boolean) field.get(object);
+                                                final Boolean booleanValue = (Boolean) field.get(object);
                                                 if (printDefaultValueFields || booleanValue != null) {
-                                                    returnStringBuilder.append(fieldName).append("=").append(booleanValue == null ? null : booleanValue.booleanValue()).append(" ");
+                                                    returnStringBuilder.append(fieldName).append("=").append(booleanValue).append(" ");
                                                 } else { // !printDefaultValueFields && booleanValue == null , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(Byte.class)) {
-                                                Byte byteValue = (Byte) field.get(object);
+                                                final Byte byteValue = (Byte) field.get(object);
                                                 if (printDefaultValueFields || byteValue != null) {
-                                                    returnStringBuilder.append(fieldName).append("=").append(byteValue == null ? null : byteValue.byteValue()).append(" ");
+                                                    returnStringBuilder.append(fieldName).append("=").append(byteValue).append(" ");
                                                 } else { // !printDefaultValueFields && byteValue == null , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(Double.class)) {
-                                                Double doubleValue = (Double) field.get(object);
+                                                final Double doubleValue = (Double) field.get(object);
                                                 if (printDefaultValueFields || doubleValue != null) {
-                                                    returnStringBuilder.append(fieldName).append("=").append(doubleValue == null ? null : doubleValue.doubleValue()).append(" ");
+                                                    returnStringBuilder.append(fieldName).append("=").append(doubleValue).append(" ");
                                                 } else { // !printDefaultValueFields && doubleValue == null , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(Float.class)) {
-                                                Float floatValue = (Float) field.get(object);
+                                                final Float floatValue = (Float) field.get(object);
                                                 if (printDefaultValueFields || floatValue != null) {
-                                                    returnStringBuilder.append(fieldName).append("=").append(floatValue == null ? null : floatValue.floatValue()).append(" ");
+                                                    returnStringBuilder.append(fieldName).append("=").append(floatValue).append(" ");
                                                 } else { // !printDefaultValueFields && floatValue == null , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(Integer.class)) {
-                                                Integer integerValue = (Integer) field.get(object);
+                                                final Integer integerValue = (Integer) field.get(object);
                                                 if (printDefaultValueFields || integerValue != null) {
-                                                    returnStringBuilder.append(fieldName).append("=").append(integerValue == null ? null : integerValue.intValue()).append(" ");
+                                                    returnStringBuilder.append(fieldName).append("=").append(integerValue).append(" ");
                                                 } else { // !printDefaultValueFields && integerValue == null , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(Long.class)) {
-                                                Long longValue = (Long) field.get(object);
+                                                final Long longValue = (Long) field.get(object);
                                                 if (printDefaultValueFields || longValue != null) {
-                                                    returnStringBuilder.append(fieldName).append("=").append(longValue == null ? null : longValue.longValue()).append(" ");
+                                                    returnStringBuilder.append(fieldName).append("=").append(longValue).append(" ");
                                                 } else { // !printDefaultValueFields && longValue == null , this won't be printed
                                                 }
                                             } else if (fieldClass.equals(Short.class)) {
-                                                Short shortValue = (Short) field.get(object);
+                                                final Short shortValue = (Short) field.get(object);
                                                 if (printDefaultValueFields || shortValue != null) {
-                                                    returnStringBuilder.append(fieldName).append("=").append(shortValue == null ? null : shortValue.shortValue()).append(" ");
+                                                    returnStringBuilder.append(fieldName).append("=").append(shortValue).append(" ");
                                                 } else { // !printDefaultValueFields && shortValue == null , this won't be printed
                                                 }
                                             } else {
@@ -2630,8 +2632,7 @@ public class Generic {
                                                     if (fieldClass.equals(char[].class)) {
                                                         returnStringBuilder.append(fieldName).append("=").append((char[]) objectValue).append(" ");
                                                     } else if (fieldClass.equals(byte[].class)) {
-                                                        returnStringBuilder.append(fieldName).append("=").append(objectValue == null ? null : new String((byte[]) objectValue,
-                                                                                                                                                         USASCII_CHARSET)).append(" ");
+                                                        returnStringBuilder.append(fieldName).append("=").append(objectValue == null ? null : new String((byte[]) objectValue, StandardCharsets.US_ASCII)).append(" ");
                                                     } else if (fieldClass.equals(boolean[].class)) {
                                                         returnStringBuilder.append(fieldName).append("=").append(Arrays.toString((boolean[]) objectValue)).append(" ");
                                                     } else if (fieldClass.equals(double[].class)) {
@@ -2647,8 +2648,9 @@ public class Generic {
                                                     } else if (fieldClass.isArray()) {
                                                         returnStringBuilder.append(fieldName).append("[");
 
-                                                        Object[] objectArray = (Object[]) objectValue;
-                                                        int objectArrayLength = objectArray == null ? -1 : objectArray.length, appendedCounter = 0;
+                                                        final Object[] objectArray = (Object[]) objectValue;
+                                                        final int objectArrayLength = objectArray == null ? -1 : objectArray.length;
+                                                        int appendedCounter = 0;
                                                         for (int i = 0; i < objectArrayLength; i++) {
                                                             if (objectArray[i] != null) {
                                                                 if (appendedCounter > 0) {
@@ -2673,7 +2675,7 @@ public class Generic {
                                     } // end for
                                 } // end for
                                 // } // end synchronized block    
-                                int length = returnStringBuilder.length();
+                                final int length = returnStringBuilder.length();
                                 if (length > 0 && returnStringBuilder.charAt(length - 1) == ' ') {
                                     returnStringBuilder.setLength(length - 1);
                                 }
@@ -2687,20 +2689,20 @@ public class Generic {
                         // this is supposedly already synchronized on object in the classes I create
                         returnStringBuilder = new StringBuilder((String) toStringMethod.invoke(object));
                     }
-                } else {
+                } else { // object == null
                     returnStringBuilder = null;
                 }
-            } catch (SecurityException | IllegalArgumentException | IllegalAccessException | UnsupportedEncodingException | InvocationTargetException exception) {
+            } catch (SecurityException | IllegalArgumentException | IllegalAccessException | InvocationTargetException exception) {
                 logger.error("STRANGE ERROR inside objectToString: {}", new Object[]{object.getClass(), object}, exception);
                 returnStringBuilder = null;
             }
         }
         if (returnStringBuilder != null) {
             // out of memory protection
-            int returnStringBuilderLength = returnStringBuilder.length();
+            final int returnStringBuilderLength = returnStringBuilder.length();
             if (returnStringBuilderLength > 4194304) {
                 // logger.error("objectTooLarge: {}", returnStringBuilder.toString()); // printing this would fill the HDD fairly fast in case of error
-                returnStringBuilder = new StringBuilder("STRANGE OUT OF MEMORY ERROR!!!");
+                returnStringBuilder = new StringBuilder("returnStringBuilderLength=" + returnStringBuilderLength + " would lead to out of memory error!");
             }
         }
 
@@ -2709,26 +2711,27 @@ public class Generic {
 
     public static void disableHTTPSValidation() {
         // Create a trust manager that does not validate certificate chains
-        TrustManager[] trustAllCertsManager = new TrustManager[]{
+        final TrustManager[] trustAllCertsManager = {
                 new X509TrustManager() {
+                    @Nullable
                     @Override
                     public java.security.cert.X509Certificate[] getAcceptedIssuers() {
                         return null;
                     }
 
                     @Override
-                    public void checkClientTrusted(final java.security.cert.X509Certificate[] certs, final String authType) {
+                    public void checkClientTrusted(final java.security.cert.X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType) {
                     }
 
                     @Override
-                    public void checkServerTrusted(final java.security.cert.X509Certificate[] certs, final String authType) {
+                    public void checkServerTrusted(final java.security.cert.X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType) {
                     }
                 }
         };
 
         // Install the all-trusting trust manager
         try {
-            SSLContext sslContext = SSLContext.getInstance("SSL");
+            final SSLContext sslContext = SSLContext.getInstance("SSL");
             sslContext.init(null, trustAllCertsManager, new java.security.SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
         } catch (NoSuchAlgorithmException | KeyManagementException exception) {
@@ -2736,21 +2739,16 @@ public class Generic {
         }
 
         // should avoid the "HTTPS hostname wrong" exception
-        HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
-            @Override
-            public boolean verify(final String string, final SSLSession sslSession) {
-                return true;
-            }
-        });
+        HttpsURLConnection.setDefaultHostnameVerifier((verifyString, sslSession) -> true);
     }
 
-    @SuppressWarnings("RedundantStringConstructorCall")
+    @SuppressWarnings("NestedTryStatement")
     public static String specialCharParser(final String line) {
         String result = line;
 
-        if (line != null) {
+        if (result != null) {
             try {
-                LinkedHashMap<String, String> breakPoints = new LinkedHashMap<>(8, 0.75f);
+                final Map<String, String> breakPoints = new LinkedHashMap<>(8, 0.75f);
                 breakPoints.put("&nbsp;", " ");
                 breakPoints.put("&amp;", "&");
                 breakPoints.put("&quot;", "\"");
@@ -2762,41 +2760,31 @@ public class Generic {
                     modified = 0;
 
                     while (result.contains("&#") && result.indexOf(';', result.indexOf("&#") + "&#".length()) >= 0) {
-                        String tempString = result.substring(result.indexOf("&#") + "&#".length(), result.indexOf(';', result.indexOf("&#") + "&#".length()));
-                        int tempInt;
+                        final String tempString = result.substring(result.indexOf("&#") + "&#".length(), result.indexOf(';', result.indexOf("&#") + "&#".length()));
+                        final int tempInt;
 
                         try {
-                            if (tempString.indexOf('x') == 0) {
-                                tempInt = Integer.parseInt(tempString.substring(tempString.indexOf('x') + "x".length()), 16);
-                            } else {
-                                tempInt = Integer.parseInt(tempString);
-                            }
+                            tempInt = tempString.indexOf('x') == 0 ? Integer.parseInt(tempString.substring(tempString.indexOf('x') + "x".length()), 16) : Integer.parseInt(tempString);
 
+                            //noinspection NumericCastThatLosesPrecision
                             result = result.substring(0, result.indexOf("&#")) + (char) tempInt +
                                      result.substring(result.indexOf(';', result.indexOf("&#") + "&#".length()) + ";".length());
                             modified++;
                         } catch (NumberFormatException numberFormatException) {
-                            // if (Statics.debugger.getDebugLevel() >= 2) {
-                            //     String writeString = "STRANGE ERROR 2 inside SpecialCharParser: " + exception + "\r\n";
-                            //     Statics.debugVarsSynchronizedWriter.write (writeString, Statics.ENCRYPTION_KEY);
-                            // }
                             result = result.substring(0, result.indexOf("&#")) + " " + result.substring(result.indexOf("&#") + "&#".length());
                             modified++;
-                        } // catch (Throwable throwable) {
-                        //     logger.error("STRANGE ERROR inside specialCharParser: {}", resultStringBuilder, throwable);
-                        //     resultStringBuilder = resultStringBuilder.substring(0, resultStringBuilder.indexOf("&#")) + " " + resultStringBuilder.substring(resultStringBuilder.indexOf("&#") + "&#".length());
-                        //     modified++;
-                        // }
+                        }
                     }
 
-                    for (String element : breakPoints.keySet()) {
+                    for (final Entry<String, String> entry : breakPoints.entrySet()) {
+                        final String element = entry.getKey();
                         if (result.contains(element)) {
-                            result = result.replace(element, breakPoints.get(element));
+                            result = result.replace(element, entry.getValue());
                             modified++;
                         }
                     }
                 } // end while
-            } catch (Exception exception) {
+            } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {
                 logger.error("STRANGE ERROR inside SpecialCharParser: {}", result, exception);
             }
         } else {
@@ -2819,9 +2807,9 @@ public class Generic {
         return checkAtomicBooleans(true, atomicBooleans);
     }
 
-    public static boolean checkAtomicBooleans(final boolean valueToCheck, final AtomicBoolean... atomicBooleans) {
+    public static boolean checkAtomicBooleans(final boolean valueToCheck, @NotNull final AtomicBoolean... atomicBooleans) {
         boolean found = false;
-        for (AtomicBoolean atomicBoolean : atomicBooleans) {
+        for (final AtomicBoolean atomicBoolean : atomicBooleans) {
             if (atomicBoolean.get() == valueToCheck) {
                 found = true;
                 break;
@@ -2830,36 +2818,36 @@ public class Generic {
         return found;
     }
 
-    public static boolean checkObjects(final Object... objects) {
+    public static boolean checkObjects(@NotNull final Object... objects) {
         boolean found = false;
-        for (Object object : objects) {
-            if (object == null) {
-                logger.error("null object in checkObjects: {}", objectToString(objects));
-            } else {
-                final Class<?> clazz = object.getClass();
-                if (clazz.equals(AtomicBoolean.class)) {
-                    final AtomicBoolean atomicBoolean = (AtomicBoolean) object;
-                    if (atomicBoolean.get()) {
-                        found = true;
-                        break;
-                    }
-                } else if (clazz.equals(AtomicReference.class)) {
-                    final AtomicReference<?> atomicReference = (AtomicReference) object;
-                    if (atomicReference.get() != null) {
-                        found = true;
-                        break;
-                    }
-                    // boolean support is useless and can be confusing; primitive boolean has a value that doesn't change
+        for (final Object object : objects) {
+//            if (object == null) {
+//                logger.error("null object in checkObjects: {}", objectToString(objects));
+//            } else {
+            final Class<?> clazz = object.getClass();
+            if (clazz.equals(AtomicBoolean.class)) {
+                final AtomicBoolean atomicBoolean = (AtomicBoolean) object;
+                if (atomicBoolean.get()) {
+                    found = true;
+                    break;
+                }
+            } else if (clazz.equals(AtomicReference.class)) {
+                final AtomicReference<?> atomicReference = (AtomicReference<?>) object;
+                if (atomicReference.get() != null) {
+                    found = true;
+                    break;
+                }
+                // boolean support is useless and can be confusing; primitive boolean has a value that doesn't change
 //                } else if (clazz.equals(Boolean.class)) {
 //                    final Boolean boo = (Boolean) object;
 //                    if (boo) {
 //                        found = true;
 //                        break;
 //                    }
-                } else {
-                    logger.error("unsupported class in checkObjects: {}", object.getClass());
-                }
+            } else {
+                logger.error("unsupported class in checkObjects: {}", object.getClass());
             }
+//            }
         }
         return found;
     }
@@ -2871,7 +2859,7 @@ public class Generic {
         final boolean hasReachedEndOfSleep;
         if (totalSleepMillis > 0L && segmentMillis > 0L) {
             final long endTime = System.currentTimeMillis() + totalSleepMillis;
-            int segments = (int) (totalSleepMillis / segmentMillis);
+            @SuppressWarnings("NumericCastThatLosesPrecision") int segments = (int) (totalSleepMillis / segmentMillis);
 
             whileLoop:
             do {
@@ -2881,7 +2869,7 @@ public class Generic {
                     }
                     threadSleep(segmentMillis);
                 }
-                long leftTime = endTime - System.currentTimeMillis();
+                final long leftTime = endTime - System.currentTimeMillis();
 
                 if (leftTime <= 0) {
                     segments = 0;
@@ -2892,12 +2880,13 @@ public class Generic {
                     threadSleep(leftTime);
                     segments = 0;
                 } else {
+                    //noinspection NumericCastThatLosesPrecision
                     segments = (int) (leftTime / segmentMillis);
                 }
             } while (segments > 0);
             hasReachedEndOfSleep = segments <= 0;
         } else { // negative or zero variables
-            logger.error("negative or zero variables in threadSleepSegmented for: {} {} {}", totalSleepMillis, segmentMillis, Generic.objectToString(objects));
+            logger.error("negative or zero variables in threadSleepSegmented for: {} {} {}", totalSleepMillis, segmentMillis, objectToString(objects));
             hasReachedEndOfSleep = false;
         }
 
@@ -2959,12 +2948,7 @@ public class Generic {
         Object result = null;
 
         if (object != null && fieldName != null) {
-            final Class<?> clazz;
-            if (object instanceof Class<?>) {
-                clazz = (Class<?>) object;
-            } else {
-                clazz = object.getClass();
-            }
+            final Class<?> clazz = object instanceof Class<?> ? (Class<?>) object : object.getClass();
 
             Field field = null;
 //            boolean fieldAccessible = true;
@@ -3031,6 +3015,7 @@ public class Generic {
         return setSuccess;
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     public static void turnOffHtmlUnitLogger() {
         java.util.logging.Logger.getLogger("com.gargoylesoftware").setLevel(java.util.logging.Level.OFF);
         java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(java.util.logging.Level.OFF);
@@ -3046,8 +3031,9 @@ public class Generic {
         java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.html.HtmlScript").setLevel(java.util.logging.Level.OFF);
         java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.xml.XMLHttpRequest").setLevel(java.util.logging.Level.OFF);
         java.util.logging.Logger.getLogger("org.apache.http.client.protocol.ResponseProcessCookies").setLevel(java.util.logging.Level.OFF);
-        System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
-        System.setProperty("org.apache.commons.logging.simplelog.defaultlog", "org.apache.commons.logging.impl.NoOpLog");
-        System.getProperties().put("org.apache.commons.logging.simplelog.defaultlog", "fatal");
+        final String NO_OP_LOG = "org.apache.commons.logging.impl.NoOpLog", DEFAULT_LOG = "org.apache.commons.logging.simplelog.defaultlog";
+        System.setProperty("org.apache.commons.logging.Log", NO_OP_LOG);
+        System.setProperty(DEFAULT_LOG, NO_OP_LOG);
+        System.getProperties().setProperty(DEFAULT_LOG, "fatal");
     }
 }

@@ -14,13 +14,6 @@ public class Ignorable
     private boolean ignored;
     private long setIgnoredStamp, resetIgnoredStamp;
 
-    public Ignorable() {
-    }
-
-//    public Ignorable(long ignoredExpiration) {
-//        this.setIgnoredExpiration(ignoredExpiration);
-//    }
-
     public synchronized long timeSinceSetIgnored() {
         final long currentTime = System.currentTimeMillis();
         return timeSinceSetIgnored(currentTime);
@@ -40,7 +33,7 @@ public class Ignorable
     }
 
     public synchronized long getSetIgnoredStamp() {
-        return setIgnoredStamp;
+        return this.setIgnoredStamp;
     }
 
     private synchronized int setSetIgnoredStamp(final long stamp) { // private method
@@ -69,7 +62,7 @@ public class Ignorable
     }
 
     public synchronized long getResetIgnoredStamp() {
-        return resetIgnoredStamp;
+        return this.resetIgnoredStamp;
     }
 
     private synchronized int setResetIgnoredStamp(final long stamp) { // private method
@@ -98,34 +91,34 @@ public class Ignorable
     }
 
     public synchronized long getIgnoredExpiration() {
-        return ignoredExpiration;
+        return this.ignoredExpiration;
     }
 
-    private synchronized int setIgnoredExpiration(final long ignoredExpiration) { // private method; from outside setIgnored is used; new value will be set only if larger
+    private synchronized int setIgnoredExpiration(final long ignoredExpirationStamp) { // private method; from outside setIgnored is used; new value will be set only if larger
         final int modified;
 
-        if (ignoredExpiration > this.ignoredExpiration) {
-            this.ignoredExpiration = ignoredExpiration;
+        if (ignoredExpirationStamp > this.ignoredExpiration) {
+            this.ignoredExpiration = ignoredExpirationStamp;
 
             final long currentTime = System.currentTimeMillis();
             if (this.ignoredExpiration > currentTime) { // normal behaviour
                 Generic.alreadyPrintedMap.logOnce(1L, logger, LogLevel.INFO, AlreadyPrintedMap.NOT_IMPORTANT_PREFIX + "ignored set: {}", this.ignoredExpiration);
-//                logger.info("ignored set: {}", this.ignoredExpiration);
+//                logger.info("ignored set: {}", this.ignoredExpirationStamp);
                 this.ignored = true;
             } else {
-                logger.error("new ignoredExpiration {} not higher than currentTime {}", this.ignoredExpiration, currentTime);
+                logger.error("new ignoredExpirationStamp {} not higher than currentTime {}", this.ignoredExpiration, currentTime);
             }
             this.setSetIgnoredStamp(currentTime);
             modified = 1;
-        } else if (ignoredExpiration == this.ignoredExpiration) {
+        } else if (ignoredExpirationStamp == this.ignoredExpiration) {
             modified = 0;
         } else {
-            if (ignoredExpiration != 0) { // will not set new ignoredExpiration smaller than previous value
-//                if (Statics.debugLevel.check(2, 201)) {
-//                    logger.info("will not set new ignoredExpiration {} smaller than previous value {}", ignoredExpiration, this.ignoredExpiration);
-//                }
-            } else { // ignoredExpiration == 0
+            if (ignoredExpirationStamp == 0) { // ignoredExpirationStamp == 0
                 // nothing to be done, this might be normal during object updates
+            } else { // will not set new ignoredExpirationStamp smaller than previous value
+//                if (Statics.debugLevel.check(2, 201)) {
+//                    logger.info("will not set new ignoredExpirationStamp {} smaller than previous value {}", ignoredExpirationStamp, this.ignoredExpirationStamp);
+//                }
             }
             modified = 0;
         }
@@ -134,8 +127,7 @@ public class Ignorable
     }
 
     public synchronized boolean isIgnored() {
-        if (!this.ignored) { // result will be false, nothing to be done
-        } else { // this.ignored == true
+        if (this.ignored) { // this.ignored == true
             final long currentTime = System.currentTimeMillis();
 
             if (this.ignoredExpiration <= currentTime) {
@@ -144,18 +136,14 @@ public class Ignorable
                 this.setResetIgnoredStamp(currentTime);
             } else { // result is true, nothing to be done
             }
+        } else { // result will be false, nothing to be done
         }
 
         return this.ignored;
     }
 
     public synchronized boolean isIgnored(final long argumentTime) {
-        final boolean result;
-        if (this.ignoredExpiration <= argumentTime) {
-            result = false;
-        } else {
-            result = true;
-        }
+        final boolean result = this.ignoredExpiration > argumentTime;
         if (this.ignored && !result) { // ignored is true, but result is false; let's check if ignored needs reset (without this check, ignored will never get reset by this method)
             this.isIgnored();
         }

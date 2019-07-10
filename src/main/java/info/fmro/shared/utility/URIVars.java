@@ -1,5 +1,6 @@
 package info.fmro.shared.utility;
 
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -7,6 +8,8 @@ import java.io.Serializable;
 import java.net.IDN;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 public class URIVars
         implements Serializable, Cloneable {
@@ -15,7 +18,9 @@ public class URIVars
     // http://en.wikipedia.org/wiki/Uniform_Resource_Locator
     // it will work for http type URLs:
     // scheme://username:password@domain:port/path?query_string#fragment_id
+    @SuppressWarnings("FieldNotUsedInToString")
     private int port;
+    @Nullable
     private String protocol, username, password, host, path, fragmentId;
 
     public URIVars(final String url)
@@ -23,9 +28,7 @@ public class URIVars
         this.initialize(url);
     }
 
-    private URIVars() {
-    }
-
+    @Nullable
     public synchronized String getProtocol() {
         return this.protocol;
     }
@@ -39,15 +42,17 @@ public class URIVars
         this.setDefaultPort(initialize);
     }
 
+    @Nullable
     public synchronized String getHost() {
         return this.host;
     }
 
+    @Nullable
     public synchronized String getPath() {
         return this.path;
     }
 
-    public synchronized void setPath(final String newValue) {
+    public synchronized void setPath(@Nullable final String newValue) {
         this.path = newValue;
     }
 
@@ -55,13 +60,13 @@ public class URIVars
         return this.port;
     }
 
-    @SuppressWarnings({"BroadCatchBlock", "TooBroadCatch"})
+    @SuppressWarnings({"OverlyComplexMethod", "OverlyLongMethod"})
     public synchronized URIVars modify(final String argumentUrl, final boolean initialize)
             throws java.net.UnknownHostException {
         String url = argumentUrl;
 
         if (url != null) {
-            String initialUrl = url; // this remains unchanged
+            final String initialUrl = url; // this remains unchanged
             url = Generic.specialCharParser(url).trim();
 
             if (url.indexOf('\r') >= 0) {
@@ -87,7 +92,7 @@ public class URIVars
             }
 
             if (url.contains("://")) {
-                this.setProtocol(new String(url.substring(0, url.indexOf("://")).toLowerCase()), initialize);
+                this.setProtocol(new String(url.substring(0, url.indexOf("://")).toLowerCase(Locale.ENGLISH)), initialize);
                 url = url.substring(url.indexOf("://") + "://".length());
             } else if (initialize) {
                 this.setProtocol("http", initialize);
@@ -115,15 +120,16 @@ public class URIVars
                 // no username or password present, nothing to be done
             }
 
+            final boolean noSlashAndColonBeforeQuestionMark = url.indexOf('/') < 0 && url.indexOf(':') < url.indexOf('?');
             if (url.indexOf(':') >= 0 && (url.indexOf(':') < url.indexOf('/') ||
-                                          (url.indexOf('/') < 0 && url.indexOf(':') < url.indexOf('?')) ||
+                                          noSlashAndColonBeforeQuestionMark ||
                                           (url.indexOf('/') < 0 && url.indexOf('?') < 0))) {
-                String portString;
+                final String portString;
 
                 if (url.indexOf(':') < url.indexOf('/')) {
                     portString = url.substring(url.indexOf(':') + ":".length(), url.indexOf('/'));
                     url = url.substring(0, url.indexOf(':')) + url.substring(url.indexOf('/'));
-                } else if (url.indexOf('/') < 0 && url.indexOf(':') < url.indexOf('?')) {
+                } else if (noSlashAndColonBeforeQuestionMark) {
                     portString = url.substring(url.indexOf(':') + ":".length(), url.indexOf('?'));
                     url = url.substring(0, url.indexOf(':')) + "/" + url.substring(url.indexOf('?'));
                 } else { // the case when: url.indexOf ("/") < 0 && url.indexOf ("?") < 0
@@ -133,7 +139,7 @@ public class URIVars
 
                 try {
                     this.port = Integer.parseInt(portString);
-                } catch (Throwable throwable) {
+                } catch (@SuppressWarnings("OverlyBroadCatchBlock") Throwable throwable) {
                     // very rare error, found for "about:blank", with "blank" as port
                     // logger.error ("ERROR inside URIVars.modify() Integer.parseInt: {}", new Object[] {this, url, portString, initialize}, exception);
                     // no port present, nothing to be done, port has already been initialized with the protocol initialization
@@ -152,7 +158,8 @@ public class URIVars
             }
 
             url = url.trim();
-            String tempHost, tempPath;
+            String tempHost;
+            final String tempPath;
 
             if (url.indexOf('/') >= 0) {
                 tempHost = url.substring(0, url.indexOf('/'));
@@ -166,37 +173,33 @@ public class URIVars
             }
 
             if (Generic.goodDomain(tempHost)) {
-                try {
-                    tempHost = URLDecoder.decode(tempHost, "UTF-8");
-                } catch (java.io.UnsupportedEncodingException unsupportedEncodingException) {
-                    logger.error("Exception in URIVars", unsupportedEncodingException);
-                }
+                tempHost = URLDecoder.decode(tempHost, StandardCharsets.UTF_8);
 
                 try {
                     tempHost = IDN.toASCII(tempHost, IDN.ALLOW_UNASSIGNED);
-                } catch (Exception exception) {
+                } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {
                     // this error should never happen, as this is already managed earlier in Generic.goodDomain ()
                     logger.error("SPOOKY ERROR inside URIVars.modify() IDN.toASCII: {}", new Object[]{url, tempHost}, exception);
                 }
 
-                this.host = new String(tempHost.toLowerCase().trim());
+                this.host = new String(tempHost.toLowerCase(Locale.ENGLISH).trim());
                 this.path = new String(tempPath);
             } else if (initialize) {
-                logger.warn("domain is not good inside URIVars.modify(), initialize branch: {}", new Object[]{tempHost, url, this});
+                logger.warn("domain is not good inside URIVars.modify(), initialize branch: {} {} {}", tempHost, url, this);
                 // this.host = "www.google.com"; // default, leaving an invalid host is not an option, on second thought it is an option if I throw an exception
                 this.path = "/"; // default
 
                 throw new java.net.UnknownHostException(tempHost);
             } else { // maybe the remaining url represents a path instead of a host
-                if (url.startsWith("/")) {
+                if (!url.isEmpty() && url.charAt(0) == '/') {
                     // url is absolute path
                     this.path = new String(url);
-                } else if (url.length() == 0) {
+                } else if (url.isEmpty()) {
                     // nothing to be done on this branch
-                } else if (this.path == null || !this.path.startsWith("/")) {
+                } else if (this.path == null || !(!this.path.isEmpty() && this.path.charAt(0) == '/')) {
                     // this.path is invalid
                     this.path = "/" + url;
-                } else if (url.startsWith("?")) {
+                } else if (url.charAt(0) == '?') {
                     if (this.path.indexOf('?') >= 0) {
                         this.path = this.path.substring(0, this.path.indexOf('?')) + url;
                     } else {
@@ -227,6 +230,7 @@ public class URIVars
         return this;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     private synchronized URIVars initialize(final String url)
             throws java.net.UnknownHostException {
         return this.modify(url, true);
@@ -241,11 +245,10 @@ public class URIVars
         this.setDefaultPort(this.protocol, initialize);
     }
 
-    @SuppressWarnings({"BroadCatchBlock", "TooBroadCatch"})
     public synchronized void setDefaultPort(final String protocol, final boolean initialize) {
         try {
             this.port = new URL(protocol, "", "").getDefaultPort();
-        } catch (Throwable throwable) {
+        } catch (@SuppressWarnings("OverlyBroadCatchBlock") Throwable throwable) {
             logger.error("ERROR inside URIVars.setDefaultPort: {} {}", protocol, initialize, throwable);
 
             if (initialize) {
@@ -258,8 +261,7 @@ public class URIVars
 
     @Override
     public synchronized String toString() {
-
-        StringBuilder returnStringBuilder = new StringBuilder(this.protocol.toLowerCase());
+        final StringBuilder returnStringBuilder = new StringBuilder(this.protocol != null ? this.protocol.toLowerCase(Locale.ENGLISH) : "");
         returnStringBuilder.append("://");
 
         if (this.username != null) {
@@ -269,7 +271,7 @@ public class URIVars
             }
             returnStringBuilder.append('@');
         }
-        returnStringBuilder.append(this.host.toLowerCase()).append(this.path);
+        returnStringBuilder.append(this.host != null ? this.host.toLowerCase(Locale.ENGLISH) : "").append(this.path);
         if (this.fragmentId != null) {
             returnStringBuilder.append('#').append(this.fragmentId);
         }
@@ -278,10 +280,8 @@ public class URIVars
     }
 
     @Override
-    public synchronized URIVars clone()
-            throws CloneNotSupportedException {
+    public synchronized URIVars clone() {
         URIVars resultURIVars = null;
-
         try {
             resultURIVars = (URIVars) super.clone();
         } catch (CloneNotSupportedException cloneNotSupportedException) {

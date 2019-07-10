@@ -1,5 +1,7 @@
 package info.fmro.shared.utility;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,10 +23,12 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
         super(initialSize);
     }
 
+    @SuppressWarnings("unused")
     public SynchronizedSafeSet(final int initialSize, final float loadFactor) {
         super(initialSize, loadFactor);
     }
 
+    @SuppressWarnings("unused")
     public SynchronizedSafeSet(final Collection<? extends E> collection) {
         super(collection);
     }
@@ -48,9 +52,10 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     }
 
     @Override
-    public synchronized boolean addAll(final Collection<? extends E> c) {
+    @SuppressWarnings("unused")
+    public synchronized boolean addAll(@NotNull final Collection<? extends E> c) {
         boolean elementWasAdded = false;
-        for (E element : c) {
+        for (final E element : c) {
             if (!elementWasAdded && this.add(element)) {
                 elementWasAdded = true;
             } else { // not added, or elementWasAdded already true; nothing to do
@@ -62,9 +67,9 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
 
     @Override
     public synchronized void clear() {
-        final HashSet<E> copy = super.copy();
+        final HashSet<E> copy = copy();
         super.clear();
-        for (E element : copy) {
+        for (final E element : copy) {
             if (element != null) {
                 element.runAfterRemoval();
             } else { // null elements are allowed, nothing to be done
@@ -75,12 +80,12 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     @Override
     @SuppressWarnings("unchecked")
     public synchronized boolean remove(final Object object) {
-        E existingElement;
+        @Nullable E existingElement;
         try {
             //noinspection unchecked
             existingElement = object != null ? this.getEqualElement((E) object) : null;
         } catch (ClassCastException classCastException) {
-            logger.error("existingElement not the right class in SynchronizedSafeSet.remove: {} {} {}", object == null ? null : object.getClass(), Generic.objectToString(object), Generic.objectToString(this));
+            logger.error("existingElement not the right class in SynchronizedSafeSet.remove: {} {} {}", object.getClass(), Generic.objectToString(object), Generic.objectToString(this));
             existingElement = null;
         }
 
@@ -102,9 +107,9 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     }
 
     @Override
-    public synchronized boolean removeAll(final Collection<?> c) {
+    public synchronized boolean removeAll(@NotNull final Collection<?> c) {
         boolean elementWasRemoved = false;
-        for (Object object : c) {
+        for (final Object object : c) {
             if (!elementWasRemoved && this.remove(object)) {
                 elementWasRemoved = true;
             } else { // not added, or elementWasRemoved already true; nothing to do
@@ -115,9 +120,9 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
 
     @Override
     public synchronized boolean retainAll(final Collection<?> c) {
-        final HashSet<E> copy = super.copy();
+        final HashSet<E> copy = copy();
         final boolean result = super.retainAll(c);
-        for (E element : copy) {
+        for (final E element : copy) {
             if (element != null && !c.contains(element)) {
                 element.runAfterRemoval();
             } else { // null elements are allowed, nothing to be done

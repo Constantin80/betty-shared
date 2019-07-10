@@ -1,5 +1,8 @@
 package info.fmro.shared.utility;
 
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -9,15 +12,17 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.Queue;
 
-public class SerialClone {
-
+@SuppressWarnings("UtilityClass")
+public final class SerialClone {
+    @Contract(pure = true)
     private SerialClone() {
     }
 
-    public static <T> T clone(final T x) {
+    public static <T extends Serializable> T clone(final T x) {
         try {
             return cloneX(x);
         } catch (IOException | ClassNotFoundException e) {
@@ -25,25 +30,25 @@ public class SerialClone {
         }
     }
 
-    private static <T> T cloneX(final T x)
+    @SuppressWarnings("unchecked")
+    private static <T extends Serializable> T cloneX(final T x)
             throws IOException, ClassNotFoundException {
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        CloneOutput cout = new CloneOutput(bout);
-        cout.writeObject(x);
-        byte[] bytes = bout.toByteArray();
+        final ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        final CloneOutput cOut = new CloneOutput(bOut);
+        cOut.writeObject(x);
+        final byte[] bytes = bOut.toByteArray();
 
-        ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
-        CloneInput cin = new CloneInput(bin, cout);
-
-        @SuppressWarnings("unchecked")
-        T clone = (T) cin.readObject();
+        final ByteArrayInputStream bin = new ByteArrayInputStream(bytes);
+        final T clone;
+        try (final CloneInput cin = new CloneInput(bin, cOut)) {
+            clone = (T) cin.readObject();
+        }
         return clone;
     }
 
     private static class CloneOutput
             extends ObjectOutputStream {
-
-        Queue<Class<?>> classQueue = new LinkedList<>();
+        private final Queue<Class<?>> classQueue = new LinkedList<>();
 
         CloneOutput(final OutputStream out)
                 throws IOException {
@@ -51,19 +56,18 @@ public class SerialClone {
         }
 
         @Override
-        protected void annotateClass(final Class<?> c) {
-            classQueue.add(c);
+        protected void annotateClass(final Class<?> cl) {
+            this.classQueue.add(cl);
         }
 
         @Override
-        protected void annotateProxyClass(final Class<?> c) {
-            classQueue.add(c);
+        protected void annotateProxyClass(final Class<?> cl) {
+            this.classQueue.add(cl);
         }
     }
 
     private static class CloneInput
             extends ObjectInputStream {
-
         private final CloneOutput output;
 
         CloneInput(final InputStream in, final CloneOutput output)
@@ -73,22 +77,20 @@ public class SerialClone {
         }
 
         @Override
-        protected Class<?> resolveClass(final ObjectStreamClass osc)
-                throws IOException, ClassNotFoundException {
-            Class<?> c = output.classQueue.poll();
-            String expected = osc.getName();
-            String found = (c == null) ? null : c.getName();
+        protected Class<?> resolveClass(@NotNull final ObjectStreamClass desc)
+                throws InvalidClassException {
+            final Class<?> c = this.output.classQueue.poll();
+            final String expected = desc.getName();
+            final String found = (c == null) ? null : c.getName();
             if (!expected.equals(found)) {
-                throw new InvalidClassException("Classes desynchronized: " +
-                        "found " + found + " when expecting " + expected);
+                throw new InvalidClassException("Classes desynchronized: " + "found " + found + " when expecting " + expected);
             }
             return c;
         }
 
         @Override
-        protected Class<?> resolveProxyClass(final String[] interfaceNames)
-                throws IOException, ClassNotFoundException {
-            return output.classQueue.poll();
+        protected Class<?> resolveProxyClass(@SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String[] interfaceNames) {
+            return this.output.classQueue.poll();
         }
     }
 }

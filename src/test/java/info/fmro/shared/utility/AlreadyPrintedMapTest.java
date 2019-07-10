@@ -1,6 +1,5 @@
 package info.fmro.shared.utility;
 
-
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +13,7 @@ class AlreadyPrintedMapTest {
     @Test
     void logOnce() { // due to the inexact nature of system timer, this test could, rarely, fail
         String result = Generic.alreadyPrintedMap.logOnce(false, 500L, logger, LogLevel.ERROR, "test");
-        String expectedResult = "test";
+        final String expectedResult = "test";
         assertEquals(expectedResult, result, "1");
         result = Generic.alreadyPrintedMap.logOnce(false, 500L, logger, LogLevel.ERROR, "test");
         assertNull(result, "2");

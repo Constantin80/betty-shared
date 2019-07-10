@@ -3,10 +3,9 @@ package info.fmro.shared.utility;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,7 +15,7 @@ public class DebuggerTest {
     void setDebugLevel() {
         Debugger instance = null;
         try {
-            int newValue = 5;
+            final int newValue = 5;
             instance = new Debugger();
             instance.setDebugLevel(newValue);
             assertEquals(newValue, instance.getDebugLevel());
@@ -29,7 +28,7 @@ public class DebuggerTest {
     void setEncryption() {
         Debugger instance = null;
         try {
-            int newValue = 5;
+            final int newValue = 5;
             instance = new Debugger();
             instance.setEncryption(newValue);
             assertEquals(newValue, instance.getEncryption());
@@ -42,13 +41,13 @@ public class DebuggerTest {
     void addWriter_6args()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            boolean append = false;
-            String charsetName = "UTF-8";
-            int bufferSize = 8192;
-            String id = "testId";
-            int minDebugLevel = 0;
+            final boolean append = false;
+            final String charsetName = "UTF-8";
+            final int bufferSize = 8192;
+            final String id = "testId";
+            final int minDebugLevel = 0;
             instance = new Debugger();
             instance.addWriter(fileName, append, charsetName, bufferSize, id, minDebugLevel);
 
@@ -63,11 +62,11 @@ public class DebuggerTest {
     void addWriter_4args()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            boolean append = false;
-            String id = "testId";
-            int minDebugLevel = 0;
+            final boolean append = false;
+            final String id = "testId";
+            final int minDebugLevel = 0;
             instance = new Debugger();
             instance.addWriter(fileName, append, id, minDebugLevel);
 
@@ -82,10 +81,10 @@ public class DebuggerTest {
     void addWriter_3args()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            boolean append = false;
-            int minDebugLevel = 0;
+            final boolean append = false;
+            final int minDebugLevel = 0;
             instance = new Debugger();
             instance.addWriter(fileName, append, minDebugLevel);
 
@@ -98,25 +97,25 @@ public class DebuggerTest {
 
     @Test
     void checkDiskSpace()
-            throws FileNotFoundException, NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
+            throws Exception {
         //  "Less than 50Mb remain on disk. Reducing debugLevel." message is normal
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test"), changedFileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
+        final String changedFileName = Generic.tempFileName("test");
         try {
-            int debugLevel = 5;
+            final int debugLevel = 5;
             instance = new Debugger();
             instance.setDebugLevel(debugLevel);
             instance.addWriter(fileName, false, 0);
             instance.checkDiskSpace();
             assertEquals(debugLevel, instance.getDebugLevel(), "before");
 
-            Field mapField = Debugger.class.getDeclaredField("writersMap");
+            final Field mapField = Debugger.class.getDeclaredField("writersMap");
             mapField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            LinkedHashMap<SynchronizedWriter, Integer> writersMap = (LinkedHashMap<SynchronizedWriter, Integer>) mapField.get(instance);
-            SynchronizedWriter writer = writersMap.keySet().iterator().next();
+            @SuppressWarnings("unchecked") final Map<SynchronizedWriter, Integer> writersMap = (Map<SynchronizedWriter, Integer>) mapField.get(instance);
+            final SynchronizedWriter writer = writersMap.keySet().iterator().next();
 
-            Field writerField = SynchronizedWriter.class.getDeclaredField("file");
+            final Field writerField = SynchronizedWriter.class.getDeclaredField("file");
             writerField.setAccessible(true);
             writerField.set(writer, new File(changedFileName));
 
@@ -134,20 +133,20 @@ public class DebuggerTest {
     void enoughAvailableSpace()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            File file = new File(fileName);
+            final File file = new File(fileName);
             instance = new Debugger();
             instance.addWriter(fileName, false, 0);
-            long availableSpace = file.getUsableSpace();
+            final long availableSpace = file.getUsableSpace();
 //            logger.info("availableSpace = {}", availableSpace);
 
             boolean expResult = true;
-            boolean result = instance.enoughAvailableSpace(availableSpace - 1024 * 1024);
+            boolean result = instance.enoughAvailableSpace(availableSpace - Generic.MEGABYTE);
             assertEquals(expResult, result, "true");
 
             expResult = false;
-            result = instance.enoughAvailableSpace(availableSpace + 1024 * 1024);
+            result = instance.enoughAvailableSpace(availableSpace + Generic.MEGABYTE);
             assertEquals(expResult, result, "false");
         } finally {
             Generic.closeObject(instance);
@@ -160,8 +159,8 @@ public class DebuggerTest {
         Debugger instance = null;
         try {
             instance = new Debugger();
-            int expResult = 0;
-            int result = instance.getDebugLevel();
+            final int expResult = 0;
+            final int result = instance.getDebugLevel();
             assertEquals(expResult, result);
         } finally {
             Generic.closeObject(instance);
@@ -173,8 +172,8 @@ public class DebuggerTest {
         Debugger instance = null;
         try {
             instance = new Debugger();
-            int expResult = 0;
-            int result = instance.getEncryption();
+            final int expResult = 0;
+            final int result = instance.getEncryption();
             assertEquals(expResult, result);
         } finally {
             Generic.closeObject(instance);
@@ -186,8 +185,8 @@ public class DebuggerTest {
         Debugger instance = null;
         try {
             instance = new Debugger();
-            long expResult = 0;
-            long result = instance.getTimeLastCheckDiskSpace();
+            final long expResult = 0;
+            final long result = instance.getTimeLastCheckDiskSpace();
             assertEquals(expResult, result);
         } finally {
             Generic.closeObject(instance);
@@ -199,9 +198,9 @@ public class DebuggerTest {
         Debugger instance = null;
         try {
             instance = new Debugger();
-            long timeBefore = System.currentTimeMillis();
+            final long timeBefore = System.currentTimeMillis();
             instance.timeLastCheckDiskSpaceStamp();
-            long timeAfter = instance.getTimeLastCheckDiskSpace();
+            final long timeAfter = instance.getTimeLastCheckDiskSpace();
             assertTrue(timeAfter >= timeBefore);
         } finally {
             Generic.closeObject(instance);
@@ -212,11 +211,11 @@ public class DebuggerTest {
     void write_3args()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            File file = new File(fileName);
-            boolean append = false;
-            int writerDebugLevel = 0;
+            final File file = new File(fileName);
+            final boolean append = false;
+            final int writerDebugLevel = 0;
             instance = new Debugger();
 
             instance.addWriter(fileName, append, writerDebugLevel);
@@ -239,11 +238,11 @@ public class DebuggerTest {
     void write_2args()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            File file = new File(fileName);
-            boolean append = false;
-            int writerDebugLevel = 0;
+            final File file = new File(fileName);
+            final boolean append = false;
+            final int writerDebugLevel = 0;
             instance = new Debugger();
             instance.addWriter(fileName, append, writerDebugLevel);
 
@@ -263,11 +262,11 @@ public class DebuggerTest {
     void flush_int_int()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            File file = new File(fileName);
-            boolean append = false;
-            int writerDebugLevel = 0;
+            final File file = new File(fileName);
+            final boolean append = false;
+            final int writerDebugLevel = 0;
             instance = new Debugger();
             instance.addWriter(fileName, append, writerDebugLevel);
 
@@ -298,11 +297,11 @@ public class DebuggerTest {
     void flush_0args()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            File file = new File(fileName);
-            boolean append = false;
-            int writerDebugLevel = 0;
+            final File file = new File(fileName);
+            final boolean append = false;
+            final int writerDebugLevel = 0;
             instance = new Debugger();
             instance.addWriter(fileName, append, writerDebugLevel);
 
@@ -323,18 +322,18 @@ public class DebuggerTest {
     void close()
             throws IOException {
         Debugger instance = null;
-        String fileName = Generic.tempFileName("test");
+        final String fileName = Generic.tempFileName("test");
         try {
-            File file = new File(fileName);
-            boolean append = false;
-            int writerDebugLevel = 0;
+            final File file = new File(fileName);
+            final boolean append = false;
+            final int writerDebugLevel = 0;
             instance = new Debugger();
             instance.addWriter(fileName, append, writerDebugLevel);
 
             instance.close();
-            long timeBefore = System.currentTimeMillis();
+            final long timeBefore = System.currentTimeMillis();
             instance.write("testString", file.getPath());
-            long timeLastCheckDiskSpace = instance.getTimeLastCheckDiskSpace();
+            final long timeLastCheckDiskSpace = instance.getTimeLastCheckDiskSpace();
 
             assertTrue(timeLastCheckDiskSpace >= timeBefore);
         } finally {

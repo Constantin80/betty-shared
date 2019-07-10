@@ -6,15 +6,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class SynchronizedReaderTest {
-    public SynchronizedReaderTest() {
-    }
-
-  @Test
+    @Test
     void readLine_0args()
             throws IOException {
         FileOutputStream fileOutputStream = null;
@@ -22,25 +20,27 @@ public class SynchronizedReaderTest {
         File testFile = null;
         SynchronizedReader instance = null;
         try {
-            String testFileName = Generic.tempFileName("test");
-            String expResult = "testString";
+            final String testFileName = Generic.tempFileName("test");
+            final String expResult = "testString";
             testFile = new File(testFileName);
             fileOutputStream = new FileOutputStream(testFile, false);
-            outputStreamWriter = new OutputStreamWriter(fileOutputStream);
+            outputStreamWriter = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8);
             outputStreamWriter.write(expResult);
             Generic.closeObjects(outputStreamWriter, fileOutputStream);
 
             instance = new SynchronizedReader(testFile);
-            String result = instance.readLine();
+            final String result = instance.readLine();
 
             assertEquals(expResult, result);
         } finally {
             Generic.closeObjects(outputStreamWriter, fileOutputStream, instance);
-            testFile.delete();
+            if (testFile != null) {
+                testFile.delete();
+            }
         }
     }
 
-  @Test
+    @Test
     void readLine_int()
             throws IOException {
         FileOutputStream fileOutputStream = null;
@@ -48,38 +48,39 @@ public class SynchronizedReaderTest {
         File testFile = null;
         SynchronizedReader instance = null;
         try {
-            String testFileName = Generic.tempFileName("test");
-            String expResult = "testString";
+            final String testFileName = Generic.tempFileName("test");
+            final String expResult = "testString";
             testFile = new File(testFileName);
             fileOutputStream = new FileOutputStream(testFile, false);
-            outputStreamWriter = new OutputStreamWriter(fileOutputStream);
+            outputStreamWriter = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8);
             outputStreamWriter.write(Generic.encryptString(expResult, 2));
             Generic.closeObjects(outputStreamWriter, fileOutputStream);
 
             instance = new SynchronizedReader(testFile);
-            String result = instance.readLine(2);
+            final String result = instance.readLine(2);
 
             assertEquals(expResult, result);
         } finally {
             Generic.closeObjects(outputStreamWriter, fileOutputStream, instance);
-            testFile.delete();
+            if (testFile != null) {
+                testFile.delete();
+            }
         }
     }
 
-  @Test
-    void close()
-            throws IOException {
+    @Test
+    void close() {
         assertThrows(IOException.class, () -> {
             FileOutputStream fileOutputStream = null;
             OutputStreamWriter outputStreamWriter = null;
             File testFile = null;
             SynchronizedReader instance = null;
             try {
-                String testFileName = Generic.tempFileName("test");
-                String expResult = "testString";
+                final String testFileName = Generic.tempFileName("test");
+                final String expResult = "testString";
                 testFile = new File(testFileName);
                 fileOutputStream = new FileOutputStream(testFile, false);
-                outputStreamWriter = new OutputStreamWriter(fileOutputStream);
+                outputStreamWriter = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8);
                 outputStreamWriter.write(expResult);
                 Generic.closeObjects(outputStreamWriter, fileOutputStream);
 
@@ -88,7 +89,9 @@ public class SynchronizedReaderTest {
                 instance.readLine();
             } finally {
                 Generic.closeObjects(outputStreamWriter, fileOutputStream, instance);
-                testFile.delete();
+                if (testFile != null) {
+                    testFile.delete();
+                }
             }
         });
     }

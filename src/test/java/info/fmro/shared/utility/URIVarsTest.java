@@ -5,33 +5,28 @@ import org.junit.jupiter.api.Test;
 import java.net.UnknownHostException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class URIVarsTest {
-
-    public URIVarsTest() {
-    }
-
-  @Test
+    @Test
     void getProtocol()
             throws UnknownHostException {
-        URIVars instance = new URIVars("google.com");
-        String expResult = "http";
-        String result = instance.getProtocol();
+        final URIVars instance = new URIVars("google.com");
+        final String expResult = "http";
+        final String result = instance.getProtocol();
         assertEquals(expResult, result);
     }
 
-  @Test
+    @Test
     void setProtocol_String()
             throws UnknownHostException {
-        String protocol = "https";
-        URIVars instance = new URIVars("google.com");
+        final String protocol = "https";
+        final URIVars instance = new URIVars("google.com");
         instance.setProtocol(protocol);
         assertEquals(protocol, instance.getProtocol(), "equals");
-        assertTrue(443 == instance.getPort(), "true 443");
+        assertEquals(443, instance.getPort(), "true 443");
     }
 
-  @Test
+    @Test
     void setProtocol_String_boolean()
             throws UnknownHostException {
         String protocol = "https";
@@ -50,56 +45,56 @@ public class URIVarsTest {
         assertEquals(80, instance.getPort(), "port httpsxx true");
     }
 
-  @Test
+    @Test
     void getHost()
             throws UnknownHostException {
-        URIVars instance = new URIVars("google.com");
-        String expResult = "google.com";
-        String result = instance.getHost();
+        final URIVars instance = new URIVars("google.com");
+        final String expResult = "google.com";
+        final String result = instance.getHost();
         assertEquals(expResult, result);
     }
 
-  @Test
+    @Test
     void getPath()
             throws UnknownHostException {
-        URIVars instance = new URIVars("google.com");
-        String expResult = "/";
-        String result = instance.getPath();
+        final URIVars instance = new URIVars("google.com");
+        final String expResult = "/";
+        final String result = instance.getPath();
         assertEquals(expResult, result);
     }
 
-  @Test
+    @Test
     void setPath()
             throws UnknownHostException {
-        String newValue = "testPath";
-        URIVars instance = new URIVars("google.com");
+        final String newValue = "testPath";
+        final URIVars instance = new URIVars("google.com");
         instance.setPath(newValue);
         assertEquals(newValue, instance.getPath());
     }
 
-  @Test
+    @Test
     void getPort()
             throws UnknownHostException {
-        URIVars instance = new URIVars("google.com");
-        int expResult = 80;
-        int result = instance.getPort();
+        final URIVars instance = new URIVars("google.com");
+        final int expResult = 80;
+        final int result = instance.getPort();
         assertEquals(expResult, result);
     }
 
-  @Test
+    @Test
     void modify()
             throws UnknownHostException {
-        String url = "  '  htTp://testUser:testPass@yahoo.Co.uk:81/Path/Path2/Path3/File.html?query=1&query2=333&query3=#fragmentLabel  \"'  \r\n\r  ";
-        boolean initialize = true;
-        URIVars instance = new URIVars("google.com");
-        String expResult = "http://testUser:testPass@yahoo.co.uk/Path/Path2/Path3/File.html?query=1&query2=333&query3=#fragmentLabel";
+        final String url = "  '  htTp://testUser:testPass@yahoo.Co.uk:81/Path/Path2/Path3/File.html?query=1&query2=333&query3=#fragmentLabel  \"'  \r\n\r  ";
+        final boolean initialize = true;
+        final URIVars instance = new URIVars("google.com");
+        final String expResult = "http://testUser:testPass@yahoo.co.uk/Path/Path2/Path3/File.html?query=1&query2=333&query3=#fragmentLabel";
         instance.modify(url, initialize);
 
         assertEquals(expResult, instance.toString(), "complete toString");
         assertEquals(81, instance.getPort(), "complete port");
     }
 
-  @Test
+    @Test
     void newPage()
             throws UnknownHostException {
         String url = "  '  htTp://testUser:testPass@yahoo.Co.uk:81/Path/Path2/Path3/File.html?query=1&query2=333&query3=#fragmentLabel  \"'  \r\n\r  ";
@@ -135,7 +130,7 @@ public class URIVarsTest {
         assertEquals(80, instance.getPort(), "label port");
     }
 
-  @Test
+    @Test
     void setDefaultPort_boolean()
             throws UnknownHostException {
         boolean initialize = false;
@@ -149,7 +144,7 @@ public class URIVarsTest {
         assertEquals(80, instance.getPort(), "true");
     }
 
-  @Test
+    @Test
     void setDefaultPort_String_boolean()
             throws UnknownHostException {
         String protocol = "https";
@@ -179,21 +174,21 @@ public class URIVarsTest {
         assertEquals(80, instance.getPort(), "httpsxx false");
     }
 
-  @Test
+    @Test
     void testToString()
             throws UnknownHostException {
-        URIVars instance = new URIVars("google.com");
-        String expResult = "http://google.com/";
-        String result = instance.toString();
+        final URIVars instance = new URIVars("google.com");
+        final String expResult = "http://google.com/";
+        final String result = instance.toString();
         assertEquals(expResult, result);
     }
 
-  @Test
+    @Test
     void testClone()
-            throws UnknownHostException, CloneNotSupportedException {
-        URIVars instance = new URIVars("google.com");
+            throws UnknownHostException {
+        final URIVars instance = new URIVars("google.com");
         instance.setProtocol("https");
-        URIVars result = instance.clone();
+        final URIVars result = instance.clone();
 
         assertEquals(instance.getPort(), result.getPort(), "port");
         assertEquals(instance.getProtocol(), result.getProtocol(), "protocol");

@@ -1,14 +1,15 @@
 package info.fmro.shared.utility;
 
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SerialCloneTest {
-  @Test
+    @Test
     void cloneTest() {
-        String input = "abc";
-        Object expResult = "abc";
+        @Nullable String input = "abc";
+        @Nullable Object expResult = "abc";
         Object result = SerialClone.clone(input);
         assertEquals(expResult, result, "first");
 

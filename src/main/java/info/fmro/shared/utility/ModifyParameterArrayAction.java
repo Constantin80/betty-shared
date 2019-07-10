@@ -1,42 +1,45 @@
 package info.fmro.shared.utility;
 
 import org.hamcrest.Description;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jmock.api.Action;
 import org.jmock.api.Invocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // Only Byte/byte/byte[] are implemented for now
-public class ModifyParameterArrayAction<T>
+@SuppressWarnings("ClassOnlyUsedInOneModule")
+class ModifyParameterArrayAction<T>
         implements Action {
-
     private static final Logger logger = LoggerFactory.getLogger(ModifyParameterArrayAction.class);
     private final int parameterIndex, arrayIndex;
     private final T value;
 
-    public ModifyParameterArrayAction(final int parameterIndex, final int arrayIndex, final T value) {
+    @SuppressWarnings("SameParameterValue")
+    ModifyParameterArrayAction(final int parameterIndex, final int arrayIndex, final T value) {
         this.arrayIndex = arrayIndex;
         this.parameterIndex = parameterIndex;
         this.value = value;
     }
 
     @Override
-    public void describeTo(final Description description) {
+    public void describeTo(@NotNull final Description description) {
         description.appendText("modifies array element");
     }
 
-    @SuppressWarnings({"unchecked", "SuspiciousSystemArraycopy"})
+    @Nullable
+    @SuppressWarnings("SuspiciousSystemArraycopy")
     @Override
-    public Object invoke(final Invocation invocation)
-            throws Throwable {
-        if (value.getClass().equals(Byte.class)) {
+    public Object invoke(final Invocation invocation) {
+        if (this.value.getClass().equals(Byte.class)) {
             // System.out.println("byte");
-            ((byte[]) invocation.getParameter(parameterIndex))[arrayIndex] = Byte.valueOf(value.toString());
-        } else if (value.getClass().equals(byte[].class)) {
+            ((byte[]) invocation.getParameter(this.parameterIndex))[this.arrayIndex] = Byte.valueOf(this.value.toString());
+        } else if (this.value.getClass().equals(byte[].class)) {
             // System.out.println("byte array");
-            System.arraycopy(value, 0, invocation.getParameter(parameterIndex), arrayIndex, ((byte[]) value).length);
+            System.arraycopy(this.value, 0, invocation.getParameter(this.parameterIndex), this.arrayIndex, ((byte[]) this.value).length);
         } else {
-            logger.error("Not supported class: {}", value.getClass());
+            logger.error("Not supported class: {}", this.value.getClass());
             // System.out.println(value.getClass());
             // System.out.println(Byte[].class);
             // System.out.println(Byte.class);
@@ -45,5 +48,4 @@ public class ModifyParameterArrayAction<T>
         }
         return null;
     }
-
 }

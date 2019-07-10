@@ -1,6 +1,7 @@
 package info.fmro.shared.utility;
 
 import org.hamcrest.Description;
+import org.hamcrest.SelfDescribing;
 import org.hamcrest.StringDescription;
 import org.jmock.api.Invocation;
 import org.junit.jupiter.api.Test;
@@ -9,27 +10,24 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ModifyParameterArrayActionTest {
-    public ModifyParameterArrayActionTest() {
-    }
-
     @Test
     void describeTo() {
-        Description description = new StringDescription();
-        ModifyParameterArrayAction<Object> modifyParameterArrayAction = new ModifyParameterArrayAction<>(0, 0, null);
+        final Description description = new StringDescription();
+        final SelfDescribing modifyParameterArrayAction = new ModifyParameterArrayAction<>(0, 0, null);
         modifyParameterArrayAction.describeTo(description);
 
-        String expResult = "modifies array element";
+        final String expResult = "modifies array element";
         assertEquals(expResult, description.toString());
     }
 
+    @SuppressWarnings("ImplicitNumericConversion")
     @Test
-    void invoke()
-            throws Throwable {
-        byte[] byteArray = new byte[]{4, 1, 5};
-        Invocation invocation = new Invocation(null, null, byteArray);
+    void invoke() {
+        final byte[] byteArray = {4, 1, 5};
+        @SuppressWarnings("PrimitiveArrayArgumentToVarargsMethod") final Invocation invocation = new Invocation(null, null, byteArray);
         ModifyParameterArrayAction<?> modifyParameterArrayAction = new ModifyParameterArrayAction<>(0, 1, (byte) 3);
 
-        byte[] expResult = new byte[]{4, 3, 5};
+        byte[] expResult = {4, 3, 5};
         modifyParameterArrayAction.invoke(invocation);
         assertArrayEquals(expResult, byteArray);
 

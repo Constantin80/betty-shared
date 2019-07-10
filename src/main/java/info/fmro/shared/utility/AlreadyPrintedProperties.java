@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.UUID;
 
+@SuppressWarnings("CyclicClassDependency")
 public class AlreadyPrintedProperties
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(AlreadyPrintedProperties.class);
@@ -16,29 +17,32 @@ public class AlreadyPrintedProperties
     private long lastTimeStamp;
     private int nAppeared;
 
-    //    public AlreadyPrintedProperties(long initialTimeStamp) {
-//        this.initialTimeStamp = initialTimeStamp;
-//        this.lastTimeStamp = initialTimeStamp;
+    //    public AlreadyPrintedProperties(long timeStamp) {
+//        this.timeStamp = timeStamp;
+//        this.lastTimeStamp = timeStamp;
 //        this.nAppeared = 1;
-//        this.propertiesAreImportant = true; // true is default
+//        this.propertiesImportant = true; // true is default
 //
 //        logger.info("new AlreadyPrintedProperties created with id: {}", this.id);
 //    }
-    public AlreadyPrintedProperties(final long initialTimeStamp, final boolean propertiesAreImportant) {
-        this.initialTimeStamp = initialTimeStamp;
-        this.lastTimeStamp = initialTimeStamp;
+    @SuppressWarnings("WeakerAccess")
+    public AlreadyPrintedProperties(final long timeStamp, final boolean propertiesImportant) {
+        this.initialTimeStamp = timeStamp;
+        this.lastTimeStamp = timeStamp;
         this.nAppeared = 1;
-        this.propertiesAreImportant = propertiesAreImportant;
+        this.propertiesAreImportant = propertiesImportant;
 
         logger.info("new AlreadyPrintedProperties created with id: {}", this.id);
     }
 
-    public synchronized boolean isImportant() {
+    @SuppressWarnings("WeakerAccess")
+    public synchronized boolean propertiesAreImportant() {
         return this.propertiesAreImportant;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public synchronized void appeared(final long timeStamp) {
-        nAppeared++;
+        this.nAppeared++;
         this.lastTimeStamp = Math.max(this.lastTimeStamp, timeStamp);
     }
 
