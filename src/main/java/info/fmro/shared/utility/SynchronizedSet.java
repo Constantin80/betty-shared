@@ -42,7 +42,6 @@ public class SynchronizedSet<E>
         this.set = new HashSet<>(collection);
     }
 
-    @SuppressWarnings("unused")
     public synchronized void copyFrom(final SynchronizedSet<? extends E> other) { // doesn't copy static final or transient; does update the set
         if (!this.set.isEmpty()) {
             logger.error("not empty set in SynchronizedSet copyFrom: {}", Generic.objectToString(this));
@@ -70,12 +69,11 @@ public class SynchronizedSet<E>
         return this.set.add(element);
     }
 
-    @SuppressWarnings("unused")
     public synchronized boolean addAll(final Collection<? extends E> c) {
         return this.set.addAll(c);
     }
 
-    public synchronized void clear() {
+    synchronized void clear() {
         this.set.clear();
     }
 
@@ -101,7 +99,6 @@ public class SynchronizedSet<E>
         return this.set.contains(object);
     }
 
-    @SuppressWarnings("unused")
     public synchronized boolean containsAll(final Collection<?> c) {
         return this.set.containsAll(c);
     }
@@ -135,7 +132,6 @@ public class SynchronizedSet<E>
         this.timeStamp = timeStamp;
     }
 
-    @SuppressWarnings("unused")
     public synchronized void timeStamp() {
         this.timeStamp = System.currentTimeMillis();
     }
@@ -148,7 +144,6 @@ public class SynchronizedSet<E>
         this.timeStampRemoved = timeStampRemoved;
     }
 
-    @SuppressWarnings("unused")
     public synchronized void timeStampRemoved() {
         this.timeStampRemoved = System.currentTimeMillis();
     }
@@ -161,12 +156,10 @@ public class SynchronizedSet<E>
         this.timeClean = timeClean;
     }
 
-    @SuppressWarnings("unused")
     public synchronized void timeCleanStamp() {
         this.timeClean = System.currentTimeMillis();
     }
 
-    @SuppressWarnings("unused")
     public synchronized void timeCleanStamp(final long timeToAdd) {
         final long currentTime = System.currentTimeMillis();
         if (currentTime - this.timeClean >= timeToAdd) {

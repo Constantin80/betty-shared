@@ -7,12 +7,12 @@ import java.net.InetAddress;
 import java.util.Arrays;
 
 @SuppressWarnings("ClassOnlyUsedInOneModule")
-public class TargetBytes
+class TargetBytes
         implements Serializable {
     private static final long serialVersionUID = 8094499526857901587L;
     private final byte[] IPBytes = new byte[4], portBytes = new byte[2];
 
-    public TargetBytes(final String host, final int port)
+    TargetBytes(final String host, final int port)
             throws java.net.UnknownHostException {
         this.get(host, port);
     }

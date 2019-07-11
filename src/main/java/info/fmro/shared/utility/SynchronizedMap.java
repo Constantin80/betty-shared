@@ -38,7 +38,7 @@ public class SynchronizedMap<K, V>
         this(initialSize, DEFAULT_LOAD_FACTOR);
     }
 
-    public SynchronizedMap(final int initialSize, final float loadFactor) {
+    protected SynchronizedMap(final int initialSize, final float loadFactor) {
         this.map = new HashMap<>(initialSize, loadFactor);
         this.mapEntries = this.map.entrySet();
         this.mapKeys = this.map.keySet();
@@ -295,7 +295,6 @@ public class SynchronizedMap<K, V>
         this.timeClean = timeClean;
     }
 
-    @SuppressWarnings("unused")
     public synchronized void timeCleanStamp() {
         this.timeClean = System.currentTimeMillis();
     }

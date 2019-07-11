@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 
-@SuppressWarnings({"ClassWithTooManyConstructors", "CyclicClassDependency"})
+@SuppressWarnings("ClassWithTooManyConstructors")
 public class SynchronizedWriter {
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedWriter.class);
     private static final String DEFAULT_CHARSET = Generic.UTF8_CHARSET;
@@ -32,7 +32,6 @@ public class SynchronizedWriter {
         this.initialize(fileName, append, Charset.forName(charsetName), bufferSize, id);
     }
 
-    @SuppressWarnings("unused")
     public SynchronizedWriter(final String fileName, final boolean append, final String charsetName, final int bufferSize)
             throws java.io.FileNotFoundException {
         this.initialize(fileName, append, Charset.forName(charsetName), bufferSize, fileName);
@@ -58,7 +57,7 @@ public class SynchronizedWriter {
         this.encryptionKey = encryptionKey;
     }
 
-    @SuppressWarnings({"SameParameterValue", "ParameterHidesMemberVariable"})
+    @SuppressWarnings("ParameterHidesMemberVariable")
     private synchronized void initialize(final String fileName, final boolean append, final String charsetName, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         // this.close();
@@ -92,7 +91,7 @@ public class SynchronizedWriter {
         this.bufferedWriter = new BufferedWriter(this.outputStreamWriter, bufferSize);
     }
 
-    @SuppressWarnings({"ParameterHidesMemberVariable", "SameParameterValue"})
+    @SuppressWarnings("ParameterHidesMemberVariable")
     private synchronized void initialize(final File file, final boolean append, final String charsetName, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         // this.close();
@@ -111,7 +110,7 @@ public class SynchronizedWriter {
         }
     }
 
-    @SuppressWarnings({"unused", "ParameterHidesMemberVariable"})
+    @SuppressWarnings("ParameterHidesMemberVariable")
     public synchronized void initialize(final File file, final boolean append, @NotNull final Charset charset, final int bufferSize, final String id)
             throws java.io.FileNotFoundException {
         this.close();
@@ -143,7 +142,7 @@ public class SynchronizedWriter {
         }
     }
 
-    @SuppressWarnings({"unused", "ParameterHidesMemberVariable"})
+    @SuppressWarnings("ParameterHidesMemberVariable")
     public synchronized void initialize(final String fileName, final boolean append, final String charsetName)
             throws java.io.FileNotFoundException {
         this.close();

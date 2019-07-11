@@ -23,13 +23,11 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
         super(initialSize);
     }
 
-    @SuppressWarnings("unused")
-    public SynchronizedSafeSet(final int initialSize, final float loadFactor) {
+    private SynchronizedSafeSet(final int initialSize, final float loadFactor) {
         super(initialSize, loadFactor);
     }
 
-    @SuppressWarnings("unused")
-    public SynchronizedSafeSet(final Collection<? extends E> collection) {
+    private SynchronizedSafeSet(final Collection<? extends E> collection) {
         super(collection);
     }
 
@@ -52,7 +50,6 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     }
 
     @Override
-    @SuppressWarnings("unused")
     public synchronized boolean addAll(@NotNull final Collection<? extends E> c) {
         boolean elementWasAdded = false;
         for (final E element : c) {

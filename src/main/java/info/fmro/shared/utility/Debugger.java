@@ -8,7 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public class Debugger {
+class Debugger {
     private static final Logger logger = LoggerFactory.getLogger(Debugger.class);
     private int debugLevel;
     private int encryption;
@@ -16,17 +16,17 @@ public class Debugger {
     private long timeLastCheckDiskSpace;
 
     @SuppressWarnings("unused")
-    public Debugger(final int level, final int encryptionKey) {
+    Debugger(final int level, final int encryptionKey) {
         this.debugLevel = level;
         this.encryption = encryptionKey;
     }
 
     @SuppressWarnings("unused")
-    public Debugger(final int encryptionKey) {
+    Debugger(final int encryptionKey) {
         this.encryption = encryptionKey;
     }
 
-    public Debugger() {
+    Debugger() {
     }
 
     public synchronized void setDebugLevel(final int newValue) {

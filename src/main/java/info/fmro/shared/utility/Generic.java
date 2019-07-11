@@ -73,7 +73,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.InflaterInputStream;
 
-@SuppressWarnings({"WeakerAccess", "unused", "UtilityClass", "ClassWithTooManyMethods", "OverlyComplexClass", "ClassWithTooManyDependents", "CyclicClassDependency"})
+@SuppressWarnings({"WeakerAccess", "UtilityClass", "ClassWithTooManyMethods", "OverlyComplexClass"})
 public final class Generic {
     private static final Logger logger = LoggerFactory.getLogger(Generic.class);
     // TLDs last updated 29-06-2019 from http://data.iana.org/TLD/tlds-alpha-by-domain.txt
@@ -769,11 +769,9 @@ public final class Generic {
                     } while (counterFirst < firstLength && counterSecond < secondLength);
                 } // end for
 
-                int chosenI = -1, maxSequenced = -1, maxMatched = -1;
+                int maxSequenced = -1, maxMatched = -1;
                 for (int i = 0; i < numberOfIterations; i++) {
                     if (sequencedChars[i] > maxSequenced || (sequencedChars[i] == maxSequenced && matchedChars[i] > maxMatched)) {
-                        //noinspection UnusedAssignment
-                        chosenI = i;
                         maxSequenced = sequencedChars[i];
                         maxMatched = matchedChars[i];
                     }
@@ -807,8 +805,6 @@ public final class Generic {
                 } else { // not matched a single char
                     result = 0d;
                 }
-                // logger.info("stringMatchChance parsing firstString: {} , secondString: {} , matchedChars={} sequencedChars={} result={}", stringFirst, stringSecond,
-                //         matchedChars[chosenI], sequencedChars[chosenI], result);
             }
         }
 

@@ -16,7 +16,6 @@ class ModifyParameterArrayAction<T>
     private final int parameterIndex, arrayIndex;
     private final T value;
 
-    @SuppressWarnings("SameParameterValue")
     ModifyParameterArrayAction(final int parameterIndex, final int arrayIndex, final T value) {
         this.arrayIndex = arrayIndex;
         this.parameterIndex = parameterIndex;

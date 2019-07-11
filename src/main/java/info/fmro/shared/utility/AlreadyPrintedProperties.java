@@ -6,8 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.UUID;
 
-@SuppressWarnings("CyclicClassDependency")
-public class AlreadyPrintedProperties
+class AlreadyPrintedProperties
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(AlreadyPrintedProperties.class);
     private static final long serialVersionUID = 1139020933506122249L;
@@ -26,7 +25,7 @@ public class AlreadyPrintedProperties
 //        logger.info("new AlreadyPrintedProperties created with id: {}", this.id);
 //    }
     @SuppressWarnings("WeakerAccess")
-    public AlreadyPrintedProperties(final long timeStamp, final boolean propertiesImportant) {
+    AlreadyPrintedProperties(final long timeStamp, final boolean propertiesImportant) {
         this.initialTimeStamp = timeStamp;
         this.lastTimeStamp = timeStamp;
         this.nAppeared = 1;

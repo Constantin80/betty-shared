@@ -37,9 +37,9 @@ public class IgnorableTest {
         currentTime = System.currentTimeMillis();
         instance.isIgnored();
         result = instance.timeSinceResetIgnored();
-        assertTrue(Math.abs(result) < 1_000L, "after sleep, no argument");
+        assertTrue(Math.abs(result) < 2_000L, "after sleep, no argument");
         result = instance.timeSinceResetIgnored(currentTime);
-        assertTrue(Math.abs(result) < 1_000L, "after sleep, with argument");
+        assertTrue(Math.abs(result) < 2_000L, "after sleep, with argument");
     }
 
     @Test

@@ -10,7 +10,6 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 
-@SuppressWarnings("CyclicClassDependency")
 public class AlreadyPrintedMap
 //        extends SynchronizedMap<String, Long>
         implements Serializable {
@@ -46,7 +45,6 @@ public class AlreadyPrintedMap
         return logOnce(false, expiryPeriod, synchronizedWriter, methodArgumentLogger, logLevel, format, objects);
     }
 
-    @SuppressWarnings("unused")
     public synchronized String logOnce(final boolean printAnyway, final SynchronizedWriter synchronizedWriter, final Logger methodArgumentLogger, final LogLevel logLevel, final String format, final Object... objects) {
         return logOnce(printAnyway, 0L, synchronizedWriter, methodArgumentLogger, logLevel, format, objects);
     }
@@ -125,12 +123,10 @@ public class AlreadyPrintedMap
         return this.put(isImportant, s, expiryPeriod); // current time will be added in the modified put method
     }
 
-    @SuppressWarnings("unused")
     public synchronized boolean containsOrAdd(final String s) {
         return this.containsOrAdd(defaultIsImportant, s, defaultExpirationPeriod);
     }
 
-    @SuppressWarnings("unused")
     public synchronized boolean containsOrAdd(final String s, final long expiryPeriod) {
         return containsOrAdd(defaultIsImportant, s, expiryPeriod);
     }

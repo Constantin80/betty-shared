@@ -1,7 +1,7 @@
 package info.fmro.shared.utility;
 
 @SuppressWarnings("unused")
-public class UncaughtExceptionHandlerTest {
+class UncaughtExceptionHandlerTest {
 //    @Test
 //    void uncaughtException()
 //            throws NoSuchFieldException, IllegalArgumentException, IllegalAccessException {

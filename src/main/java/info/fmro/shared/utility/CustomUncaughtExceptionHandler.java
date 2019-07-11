@@ -5,7 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("unused")
-public class CustomUncaughtExceptionHandler
+class CustomUncaughtExceptionHandler
         implements Thread.UncaughtExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(CustomUncaughtExceptionHandler.class);
 
