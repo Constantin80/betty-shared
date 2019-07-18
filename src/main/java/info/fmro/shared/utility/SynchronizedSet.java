@@ -73,8 +73,10 @@ public class SynchronizedSet<E>
         return this.set.addAll(c);
     }
 
-    synchronized void clear() {
+    public synchronized HashSet<E> clear() {
+        final HashSet<E> copy = new HashSet<>(this.set);
         this.set.clear();
+        return copy;
     }
 
     public synchronized E getEqualElement(final E elementToFind) {

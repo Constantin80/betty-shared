@@ -95,6 +95,51 @@ class GenericTest {
     }
 
     @Test
+    void parseDouble() {
+        String initialString = null;
+        double result = Generic.parseDouble(initialString);
+        assertTrue(Double.isNaN(result), "1");
+
+        initialString = "";
+        result = Generic.parseDouble(initialString);
+        assertTrue(Double.isNaN(result), "2");
+
+        initialString = " ";
+        result = Generic.parseDouble(initialString);
+        assertTrue(Double.isNaN(result), "3");
+
+        initialString = "-";
+        result = Generic.parseDouble(initialString);
+        assertTrue(Double.isNaN(result), "4");
+
+        initialString = "1.00";
+        result = Generic.parseDouble(initialString);
+        assertEquals(1d, result, "5");
+
+        //noinspection RedundantCast
+        assertTrue(Double.isNaN((Double) Double.NaN), "6");
+    }
+
+    @Test
+    void splitStringAroundSpaces() {
+        String initialString = "";
+        String[] result = Generic.splitStringAroundSpaces(initialString);
+        assertEquals(0, result.length, "1: " + Generic.objectToString(result));
+
+        initialString = " ";
+        result = Generic.splitStringAroundSpaces(initialString);
+        assertEquals(0, result.length, "2: " + Generic.objectToString(result));
+
+        initialString = "      ";
+        result = Generic.splitStringAroundSpaces(initialString);
+        assertEquals(0, result.length, "3: " + Generic.objectToString(result));
+
+        initialString = "     xxx    sasasa uuu     ";
+        result = Generic.splitStringAroundSpaces(initialString);
+        assertArrayEquals(new String[]{"xxx", "sasasa", "uuu"}, result, "4: " + Generic.objectToString(result));
+    }
+
+    @Test
     void booleanToInt() {
         int expected = 1;
         int result = Generic.booleanToInt(true);

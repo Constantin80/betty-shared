@@ -63,15 +63,15 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
     }
 
     @Override
-    public synchronized void clear() {
-        final HashSet<E> copy = copy();
-        super.clear();
+    public synchronized HashSet<E> clear() {
+        final HashSet<E> copy = super.clear();
         for (final E element : copy) {
             if (element != null) {
                 element.runAfterRemoval();
             } else { // null elements are allowed, nothing to be done
             }
         }
+        return copy;
     }
 
     @Override

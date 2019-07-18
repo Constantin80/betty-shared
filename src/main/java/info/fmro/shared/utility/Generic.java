@@ -145,12 +145,32 @@ public final class Generic {
                    "XN--ROVU88B", "XN--RVC1E0AM3E", "XN--S9BRJ9C", "XN--SES554G", "XN--T60B56A", "XN--TCKWE", "XN--TIQ49XQYJ", "XN--UNUP4Y", "XN--VERMGENSBERATER-CTB", "XN--VERMGENSBERATUNG-PWB", "XN--VHQUV", "XN--VUQ861B", "XN--W4R85EL8FHU5DNRA",
                    "XN--W4RS40L", "XN--WGBH1C", "XN--WGBL6A", "XN--XHQ521B", "XN--XKC2AL3HYE2A", "XN--XKC2DL3A5EE0H", "XN--Y9A3AQ", "XN--YFRO4I67O", "XN--YGBI2AMMX", "XN--ZFR164B", "XXX", "XYZ", "YACHTS", "YAHOO", "YAMAXUN", "YANDEX", "YE",
                    "YODOBASHI", "YOGA", "YOKOHAMA", "YOU", "YOUTUBE", "YT", "YUN", "ZA", "ZAPPOS", "ZARA", "ZERO", "ZIP", "ZM", "ZONE", "ZUERICH", "ZW");
+    public static final Pattern SPACE_PATTERN_COMPILE = Pattern.compile("\\s+");
+    public static final String[] EMPTY_STRING_ARRAY = {};
     public static final String US_ASCII_CHARSET = "US-ASCII", UTF8_CHARSET = "UTF-8", UTF16_CHARSET = "UTF-16";
     public static final long DAY_LENGTH_MILLISECONDS = 24L * 60L * 60L * 1_000L, HOUR_LENGTH_MILLISECONDS = 60L * 60L * 1_000L, MINUTE_LENGTH_MILLISECONDS = 60L * 1_000L, MEGABYTE = 1_024L << 10; // 1_024L * 1_024L
     public static final TimeZone UTC_TIMEZONE = TimeZone.getTimeZone("UTC"), BUCHAREST_TIMEZONE = TimeZone.getTimeZone("Europe/Bucharest");
     public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
 
     private Generic() {
+    }
+
+    public static double parseDouble(final String initialString) {
+        double result = Double.NaN;
+        if (initialString == null) { // value remains NaN, nothing to do
+        } else {
+            try {
+                result = Double.parseDouble(initialString);
+            } catch (NumberFormatException e) {
+                logger.error("NumberFormatException in parseDouble for: {}", initialString, e);
+            }
+        }
+        return result;
+    }
+
+    public static String[] splitStringAroundSpaces(@NotNull final String initialString) { // trims and splits a string around the spaces; spaces themselves will be removed and I shouldn't get any empty strings
+        final String[] result = SPACE_PATTERN_COMPILE.split(initialString.trim());
+        return Arrays.equals(new String[]{""}, result) ? EMPTY_STRING_ARRAY : result;
     }
 
     @Contract(pure = true)

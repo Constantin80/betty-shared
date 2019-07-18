@@ -97,8 +97,10 @@ public class SynchronizedMap<K, V>
         return new ArrayList<>(this.mapValues);
     }
 
-    public synchronized void clear() {
+    public synchronized HashMap<K, V> clear() {
+        final HashMap<K, V> copy = new HashMap<>(this.map);
         this.map.clear();
+        return copy;
     }
 
     public synchronized boolean containsKey(final K key) {
