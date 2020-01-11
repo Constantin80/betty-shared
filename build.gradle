@@ -1,15 +1,12 @@
 apply plugin: 'java'
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 apply plugin: 'idea'
 
 group = 'info.fmro'
 version = '0.1'
-description = """shared"""
-sourceCompatibility = 12
-targetCompatibility = 12
-//tasks.withType(JavaCompile) {
-//    options.encoding = 'UTF-8'
-//}
+description = "shared"
+sourceCompatibility = 13
+targetCompatibility = 13
 
 allprojects {
     tasks.withType(JavaCompile) {
@@ -30,15 +27,15 @@ repositories {
 }
 
 dependencies {
-    compile group: 'org.reflections', name: 'reflections', version: '0.9.11'
-    compile group: 'junit-addons', name: 'junit-addons', version: '1.4'
-    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.28'
-    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
-    compile group: 'ch.qos.logback', name: 'logback-core', version: '1.2.3'
-    compile group: 'org.jmock', name: 'jmock', version: '2.12.0'
-    compile group: 'net.sourceforge.htmlunit', name: 'htmlunit', version: '2.36.0'
-    compile group: 'org.jetbrains', name: 'annotations', version: '17.0.0'
-    testCompile group: 'org.assertj', name: 'assertj-core', version: '3.13.1'
+    implementation group: 'org.reflections', name: 'reflections', version: '0.9.11'
+    implementation group: 'junit-addons', name: 'junit-addons', version: '1.4'
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
+    implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+    implementation group: 'ch.qos.logback', name: 'logback-core', version: '1.2.3'
+    implementation group: 'org.jmock', name: 'jmock', version: '2.12.0'
+    implementation group: 'net.sourceforge.htmlunit', name: 'htmlunit', version: '2.36.0'
+    implementation group: 'org.jetbrains', name: 'annotations', version: '18.0.0'
+    testImplementation group: 'org.assertj', name: 'assertj-core', version: '3.14.0'
     testImplementation('org.junit.jupiter:junit-jupiter-api:5.5.2')
-    testRuntime "org.junit.jupiter:junit-jupiter-engine:5.5.2"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.5.2"
 }
