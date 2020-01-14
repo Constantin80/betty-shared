@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -42,8 +44,12 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -153,6 +159,26 @@ public final class Generic {
     public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
 
     private Generic() {
+    }
+
+    @Nullable
+    public static KeyManager[] getKeyManagers(final String keyStoreFileName, @NotNull final String keyStorePassword, final String keyStoreType) {
+        final File keyFile = new File(keyStoreFileName);
+        FileInputStream keyStoreFileInputStream = null;
+        KeyManagerFactory keyManagerFactory = null;
+        try {
+            keyStoreFileInputStream = new FileInputStream(keyFile);
+
+            final KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+            keyStore.load(keyStoreFileInputStream, keyStorePassword.toCharArray());
+            keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
+        } catch (@SuppressWarnings("OverlyBroadCatchBlock") KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException exception) {
+            logger.error("STRANGE ERROR inside getKeyManagers", exception);
+        } finally {
+            closeObject(keyStoreFileInputStream);
+        }
+        return keyManagerFactory == null ? null : keyManagerFactory.getKeyManagers();
     }
 
     public static double parseDouble(final String initialString) {

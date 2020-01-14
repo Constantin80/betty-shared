@@ -1,5 +1,6 @@
 package info.fmro.shared.utility;
 
+import info.fmro.shared.objects.SafeObjectInterface;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;

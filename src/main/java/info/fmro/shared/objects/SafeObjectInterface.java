@@ -1,4 +1,4 @@
-package info.fmro.shared.utility;
+package info.fmro.shared.objects;
 
 public interface SafeObjectInterface {
     int runAfterRemoval();
