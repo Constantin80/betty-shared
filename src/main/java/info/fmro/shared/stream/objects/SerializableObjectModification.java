@@ -1,6 +1,5 @@
 package info.fmro.shared.stream.objects;
 
-import info.fmro.shared.enums.RulesManagerModificationCommand;
 import org.apache.commons.lang3.SerializationUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -8,18 +7,18 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
-public class RulesManagerModification
+public class SerializableObjectModification<T extends Enum<T>>
         implements StreamObjectInterface, Serializable {
-    private static final Logger logger = LoggerFactory.getLogger(RulesManagerModification.class);
+    private static final Logger logger = LoggerFactory.getLogger(SerializableObjectModification.class);
     private static final long serialVersionUID = 140177397632319612L;
-    private final RulesManagerModificationCommand command;
+    private final T command;
     @Nullable
     private final Serializable[] objectsToModify;
 
-    public RulesManagerModification(final RulesManagerModificationCommand command, final Serializable... objectsToModify) {
+    public SerializableObjectModification(final T command, final Serializable... objectsToModify) {
         this.command = command;
         if (objectsToModify == null) {
-            logger.error("null objectsToModify in RulesManagerModification constructor for: {}", command);
+            logger.error("null objectsToModify in SerializableObjectModification constructor for: {} {}", command == null ? null : command.getClass(), command);
             this.objectsToModify = null;
         } else {
             final int size = objectsToModify.length;
@@ -44,7 +43,7 @@ public class RulesManagerModification
         return returnValue;
     }
 
-    public synchronized RulesManagerModification getCopy() {
+    public synchronized SerializableObjectModification<T> getCopy() {
         return SerializationUtils.clone(this);
     }
 
