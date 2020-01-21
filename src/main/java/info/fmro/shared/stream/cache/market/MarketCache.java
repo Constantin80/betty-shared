@@ -34,13 +34,6 @@ public class MarketCache
         return SerializationUtils.clone(this);
     }
 
-    public synchronized int runAfterReceive() {
-        return 0;
-    }
-
-    public synchronized void runBeforeSend() {
-    }
-
     public synchronized void onMarketChange(@NotNull final ChangeMessage<? extends MarketChange> changeMessage, @NotNull final AtomicDouble currencyRate) {
         if (changeMessage.isStartOfNewSubscription()) {
             // was it right to disable markets.clear() in isStartOfNewSubscription ?; maybe, it seems markets are properly updated, although some old no longer used markets are probably not removed, I'll see more with testing

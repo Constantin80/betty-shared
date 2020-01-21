@@ -48,16 +48,16 @@ public class SynchronizedSet<E>
         }
         if (other == null) {
             logger.error("null other in copyFrom for: {}", Generic.objectToString(this));
+        } else if (other.set == null) {
+            logger.error("null other.set in copyFrom for: {}", Generic.objectToString(other));
         } else {
-            this.timeStamp = other.timeStamp;
-            this.timeStampRemoved = other.timeStampRemoved;
-            this.timeClean = other.timeClean;
-            this.set.clear();
-            if (other.set == null) {
-                logger.error("null other.set in copyFrom for: {}", Generic.objectToString(other));
-            } else {
-                this.set.addAll(other.set);
-            }
+            Generic.updateObject(this, other);
+
+//            this.timeStamp = other.timeStamp;
+//            this.timeStampRemoved = other.timeStampRemoved;
+//            this.timeClean = other.timeClean;
+//            this.set.clear();
+//            this.set.addAll(other.set);
         }
     }
 

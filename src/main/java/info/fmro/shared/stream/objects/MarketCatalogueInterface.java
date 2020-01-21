@@ -2,7 +2,7 @@ package info.fmro.shared.stream.objects;
 
 import java.io.Serializable;
 
-public interface StreamObjectInterface
+public interface MarketCatalogueInterface
         extends Serializable {
-    StreamObjectInterface getCopy();
+    EventInterface getEventStump();
 }

@@ -95,6 +95,13 @@ class GenericTest {
     }
 
     @Test
+    void updateObject() {
+        final LocalTestObject mainObject = new LocalTestObject("Alex", 88), updateObject = new LocalTestObject("blah", 32);
+        Generic.updateObject(mainObject, updateObject);
+        assertEquals(mainObject, updateObject);
+    }
+
+    @Test
     void parseDouble() {
         String initialString = null;
         double result = Generic.parseDouble(initialString);

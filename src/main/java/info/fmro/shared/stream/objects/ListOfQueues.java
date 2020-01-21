@@ -15,7 +15,7 @@ public class ListOfQueues
     private static final long serialVersionUID = 8246293410799290222L;
     private final ArrayList<LinkedBlockingQueue<StreamObjectInterface>> list = new ArrayList<>(1);
 
-    public synchronized boolean registerQueue(@NotNull final LinkedBlockingQueue<StreamObjectInterface> queue, final StreamObjectInterface initialObject) {
+    public synchronized boolean registerQueue(@NotNull final LinkedBlockingQueue<StreamObjectInterface> queue, @NotNull final StreamObjectInterface initialObject) {
         final boolean addedQueue;
 
         queue.add(initialObject.getCopy());
@@ -38,7 +38,7 @@ public class ListOfQueues
         return foundQueue;
     }
 
-    public synchronized void send(final StreamObjectInterface object) {
+    public synchronized void send(final StreamObjectInterface object) { // will do nothing if list is empty
         for (final LinkedBlockingQueue<StreamObjectInterface> queue : this.list) {
             queue.add(object);
         }

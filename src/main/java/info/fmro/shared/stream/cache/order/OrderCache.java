@@ -37,13 +37,6 @@ public class OrderCache
         return SerializationUtils.clone(this);
     }
 
-    public synchronized int runAfterReceive() {
-        return 0;
-    }
-
-    public synchronized void runBeforeSend() {
-    }
-
     public synchronized void onOrderChange(@NotNull final ChangeMessage<? extends OrderMarketChange> changeMessage, @NotNull final AtomicBoolean orderCacheHasReset, @NotNull final AtomicBoolean newOrderMarketCreated,
                                            @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate) {
         if (changeMessage.isStartOfNewSubscription()) {

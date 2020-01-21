@@ -357,23 +357,25 @@ public class TimeStamps
         if (timeStamps == null) {
             logger.error("null timeStamps in copyFrom for: {}", Generic.objectToString(this));
         } else {
-            this.lastObjectsSave = timeStamps.lastObjectsSave;
-            this.lastSettingsSave = timeStamps.lastSettingsSave;
-            this.lastCleanScraperEventsMap = timeStamps.lastCleanScraperEventsMap;
-            this.lastParseEventResultList = timeStamps.lastParseEventResultList;
-            this.lastMapEventsToScraperEvents = timeStamps.lastMapEventsToScraperEvents;
-            this.lastGetMarketBooks = timeStamps.lastGetMarketBooks;
-            this.lastCleanSecondaryMaps = timeStamps.lastCleanSecondaryMaps;
-            this.lastFindSafeRunners = timeStamps.lastFindSafeRunners;
-            this.lastStreamMarkets = timeStamps.lastStreamMarkets;
-            this.lastGetAccountFunds = timeStamps.lastGetAccountFunds;
-            this.lastListCurrencyRates = timeStamps.lastListCurrencyRates;
-            this.lastFindInterestingMarkets = timeStamps.lastFindInterestingMarkets;
-            this.lastPrintDebug = timeStamps.lastPrintDebug;
-            this.lastPrintAverages = timeStamps.lastPrintAverages;
-            this.lastCleanTimedMaps = timeStamps.lastCleanTimedMaps;
-            this.lastCheckAliases = timeStamps.lastCheckAliases;
-            this.lastCheckDeadlock = timeStamps.lastCheckDeadlock;
+            Generic.updateObject(this, timeStamps);
+
+//            this.lastObjectsSave = timeStamps.lastObjectsSave;
+//            this.lastSettingsSave = timeStamps.lastSettingsSave;
+//            this.lastCleanScraperEventsMap = timeStamps.lastCleanScraperEventsMap;
+//            this.lastParseEventResultList = timeStamps.lastParseEventResultList;
+//            this.lastMapEventsToScraperEvents = timeStamps.lastMapEventsToScraperEvents;
+//            this.lastGetMarketBooks = timeStamps.lastGetMarketBooks;
+//            this.lastCleanSecondaryMaps = timeStamps.lastCleanSecondaryMaps;
+//            this.lastFindSafeRunners = timeStamps.lastFindSafeRunners;
+//            this.lastStreamMarkets = timeStamps.lastStreamMarkets;
+//            this.lastGetAccountFunds = timeStamps.lastGetAccountFunds;
+//            this.lastListCurrencyRates = timeStamps.lastListCurrencyRates;
+//            this.lastFindInterestingMarkets = timeStamps.lastFindInterestingMarkets;
+//            this.lastPrintDebug = timeStamps.lastPrintDebug;
+//            this.lastPrintAverages = timeStamps.lastPrintAverages;
+//            this.lastCleanTimedMaps = timeStamps.lastCleanTimedMaps;
+//            this.lastCheckAliases = timeStamps.lastCheckAliases;
+//            this.lastCheckDeadlock = timeStamps.lastCheckDeadlock;
         }
     }
 }

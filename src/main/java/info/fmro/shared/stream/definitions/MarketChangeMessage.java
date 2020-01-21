@@ -32,13 +32,6 @@ public class MarketChangeMessage
         return SerializationUtils.clone(this);
     }
 
-    public synchronized int runAfterReceive() {
-        return 0;
-    }
-
-    public synchronized void runBeforeSend() {
-    }
-
     public synchronized String getClk() {
         return this.clk;
     }

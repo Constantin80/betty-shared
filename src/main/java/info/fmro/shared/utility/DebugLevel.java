@@ -49,10 +49,11 @@ public class DebugLevel
         if (debugLevel == null) {
             logger.error("null debugLevel in copyFrom for: {}", Generic.objectToString(this));
         } else {
-            this.setLevel(debugLevel.level);
+            Generic.updateObject(this, debugLevel);
 
-            this.codesSet.clear();
-            this.codesSet.addAll(debugLevel.codesSet);
+//            this.setLevel(debugLevel.level);
+//            this.codesSet.clear();
+//            this.codesSet.addAll(debugLevel.codesSet);
         }
     }
 }

@@ -46,11 +46,4 @@ public class SerializableObjectModification<T extends Enum<T>>
     public synchronized SerializableObjectModification<T> getCopy() {
         return SerializationUtils.clone(this);
     }
-
-    public synchronized int runAfterReceive() {
-        return 0;
-    }
-
-    public synchronized void runBeforeSend() {
-    }
 }

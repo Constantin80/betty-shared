@@ -14,13 +14,4 @@ public class PoisonPill
     public synchronized PoisonPill getCopy() {
         return SerializationUtils.clone(this);
     }
-
-    public synchronized int runAfterReceive() {
-        logger.error("runAfterReceive from PoisonPill being run, this is useless");
-        return -1;
-    }
-
-    public synchronized void runBeforeSend() {
-        logger.error("runBeforeSend from PoisonPill being run, this is useless");
-    }
 }

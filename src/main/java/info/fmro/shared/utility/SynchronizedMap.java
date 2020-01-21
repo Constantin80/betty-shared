@@ -59,16 +59,16 @@ public class SynchronizedMap<K, V>
         }
         if (other == null) {
             logger.error("null other in copyFrom for: {}", Generic.objectToString(this));
+        } else if (other.map == null) {
+            logger.error("null other.map in copyFrom for: {}", Generic.objectToString(other));
         } else {
-            this.timeStamp = other.timeStamp;
-            this.timeStampRemoved = other.timeStampRemoved;
-            this.timeClean = other.timeClean;
-            this.map.clear();
-            if (other.map == null) {
-                logger.error("null other.map in copyFrom for: {}", Generic.objectToString(other));
-            } else {
-                this.map.putAll(other.map);
-            }
+            Generic.updateObject(this, other);
+
+//            this.timeStamp = other.timeStamp;
+//            this.timeStampRemoved = other.timeStampRemoved;
+//            this.timeClean = other.timeClean;
+//            this.map.clear();
+//            this.map.putAll(other.map);
         }
     }
 

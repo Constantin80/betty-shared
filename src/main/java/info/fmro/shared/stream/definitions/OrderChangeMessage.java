@@ -1,8 +1,8 @@
 package info.fmro.shared.stream.definitions;
 
-import info.fmro.shared.stream.objects.StreamObjectInterface;
 import info.fmro.shared.stream.enums.ChangeType;
 import info.fmro.shared.stream.enums.SegmentType;
+import info.fmro.shared.stream.objects.StreamObjectInterface;
 import org.apache.commons.lang3.SerializationUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -30,13 +30,6 @@ public class OrderChangeMessage
 
     public synchronized OrderChangeMessage getCopy() {
         return SerializationUtils.clone(this);
-    }
-
-    public synchronized int runAfterReceive() {
-        return 0;
-    }
-
-    public synchronized void runBeforeSend() {
     }
 
     public synchronized String getClk() {

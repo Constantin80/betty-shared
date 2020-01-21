@@ -1,5 +1,10 @@
 package info.fmro.shared.utility;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -159,6 +164,21 @@ public final class Generic {
     public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
 
     private Generic() {
+    }
+
+    public static <T> void updateObject(final T mainObject, final T updateSource) {
+        final ObjectMapper mapper = new ObjectMapper();
+        mapper.setVisibility(PropertyAccessor.ALL, Visibility.NONE); // remove visibility of everything, including getters/setters
+        mapper.setVisibility(PropertyAccessor.FIELD, Visibility.ANY); // add full visibility for fields
+        final ObjectWriter ow = mapper.writer().withDefaultPrettyPrinter();
+        final byte[] byteArray;
+        try {
+            byteArray = ow.writeValueAsBytes(updateSource);
+            final ObjectReader reader = mapper.readerForUpdating(mainObject);
+            reader.readValue(byteArray);
+        } catch (@SuppressWarnings("OverlyBroadCatchBlock") IOException e) {
+            logger.error("IOException in updateObject for: {} {}", objectToString(mainObject), objectToString(updateSource), e);
+        }
     }
 
     @Nullable
@@ -1104,14 +1124,15 @@ public final class Generic {
         return closeSuccess;
     }
 
+    @NotNull
     public static byte[] concatByte(final byte[] a, final int startIndexA, final int endIndexA, final byte[] b, final int startIndexB, final int endIndexB) {
         // endIndexA & endIndexB are excluded
         final int localStartIndexA, localStartIndexB, localEndIndexA, localEndIndexB;
 
-        localStartIndexA = startIndexA < 0 ? 0 : startIndexA;
-        localEndIndexA = endIndexA < 0 ? 0 : endIndexA;
-        localStartIndexB = startIndexB < 0 ? 0 : startIndexB;
-        localEndIndexB = endIndexB < 0 ? 0 : endIndexB;
+        localStartIndexA = Math.max(startIndexA, 0);
+        localEndIndexA = Math.max(endIndexA, 0);
+        localStartIndexB = Math.max(startIndexB, 0);
+        localEndIndexB = Math.max(endIndexB, 0);
 
         final byte[] resultArray = new byte[localEndIndexA - localStartIndexA + localEndIndexB - localStartIndexB];
         System.arraycopy(a, localStartIndexA, resultArray, 0, localEndIndexA - localStartIndexA);

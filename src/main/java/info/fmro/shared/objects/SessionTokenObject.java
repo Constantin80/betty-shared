@@ -48,8 +48,10 @@ public class SessionTokenObject
         if (sessionTokenObject == null) {
             logger.error("null sessionTokenObject in copyFrom for: {}", Generic.objectToString(this));
         } else {
-            this.sessionToken = sessionTokenObject.sessionToken;
-            this.timeStamp = sessionTokenObject.timeStamp;
+            Generic.updateObject(this, sessionTokenObject);
+
+//            this.sessionToken = sessionTokenObject.sessionToken;
+//            this.timeStamp = sessionTokenObject.timeStamp;
         }
     }
 }

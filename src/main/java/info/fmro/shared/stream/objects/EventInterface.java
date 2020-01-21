@@ -2,7 +2,7 @@ package info.fmro.shared.stream.objects;
 
 import java.io.Serializable;
 
-public interface StreamObjectInterface
+public interface EventInterface
         extends Serializable {
-    StreamObjectInterface getCopy();
+    String getId();
 }
