@@ -11,7 +11,6 @@ import info.fmro.shared.stream.cache.order.OrderMarket;
 import info.fmro.shared.stream.cache.order.OrderMarketRunner;
 import info.fmro.shared.stream.definitions.Order;
 import info.fmro.shared.stream.enums.Side;
-import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
@@ -29,7 +28,6 @@ import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
 public class ManagedRunner
@@ -351,6 +349,10 @@ public class ManagedRunner
         return modifications;
     }
 
+    public synchronized String getMarketId() {
+        return this.marketId;
+    }
+
     public synchronized double getToBeUsedBackOdds() {
         return this.toBeUsedBackOdds;
     }
@@ -435,24 +437,37 @@ public class ManagedRunner
         return this.maxLayOdds;
     }
 
-    synchronized void setProportionOfMarketLimitPerRunner(final double proportionOfMarketLimitPerRunner) {
-        if (proportionOfMarketLimitPerRunner >= 0d) {
-            this.proportionOfMarketLimitPerRunner = proportionOfMarketLimitPerRunner;
+    synchronized boolean setProportionOfMarketLimitPerRunner(final double newValue, @NotNull final RulesManager rulesManager) {
+        final boolean modified;
+        if (newValue >= 0d) {
+            if (newValue == this.proportionOfMarketLimitPerRunner) {
+                modified = false;
+            } else {
+                this.proportionOfMarketLimitPerRunner = newValue;
+                modified = true;
+            }
         } else {
-            logger.error("trying to set negative proportionOfMarketLimitPerRunner {} for: {} {}", proportionOfMarketLimitPerRunner, this.proportionOfMarketLimitPerRunner, Generic.objectToString(this));
+            modified = false;
+            logger.error("trying to set negative proportionOfMarketLimitPerRunner {} for: {} {}", newValue, this.proportionOfMarketLimitPerRunner, Generic.objectToString(this));
         }
+        if (modified) {
+            rulesManager.addMarketToCheck(this.marketId);
+        } else { // no modification, nothing to be done
+        }
+
+        return modified;
     }
 
     synchronized double getProportionOfMarketLimitPerRunner() {
         return this.proportionOfMarketLimitPerRunner;
     }
 
-    synchronized double addIdealBackExposure(final double idealBackExposureToBeAdded) {
-        return setIdealBackExposure(getIdealBackExposure() + idealBackExposureToBeAdded);
+    synchronized double addIdealBackExposure(final double idealBackExposureToBeAdded, @NotNull final RulesManager rulesManager) {
+        return setIdealBackExposure(getIdealBackExposure() + idealBackExposureToBeAdded, rulesManager);
     }
 
-    synchronized double setIdealBackExposure(final double newIdealBackExposure) {
-        final double newExposureAssigned;
+    synchronized double setIdealBackExposure(final double newIdealBackExposure, @NotNull final RulesManager rulesManager) {
+        final double newExposureAssigned, previousValue = this.idealBackExposure;
         if (newIdealBackExposure >= 0d) {
             if (Formulas.oddsAreUsable(this.minBackOdds)) {
                 if (newIdealBackExposure >= this.backAmountLimit) {
@@ -471,6 +486,11 @@ public class ManagedRunner
             this.idealBackExposure = 0d;
             newExposureAssigned = 0d; // in case of this strange error, I'll also return 0d, as I don't want to further try to setIdealBackExposure
         }
+        if (this.idealBackExposure == previousValue) { // no modification, nothing to be done
+        } else {
+            rulesManager.addMarketToCheck(this.marketId);
+        }
+
         return newExposureAssigned;
     }
 
@@ -478,7 +498,7 @@ public class ManagedRunner
         return this.idealBackExposure;
     }
 
-    private synchronized boolean setBackAmountLimit(final double newBackAmountLimit, @NotNull final ListOfQueues listOfQueues, @NotNull final AtomicBoolean rulesHaveChanged) {
+    synchronized boolean setBackAmountLimit(final double newBackAmountLimit, @NotNull final RulesManager rulesManager) {
         final boolean modified;
         if (Double.isNaN(newBackAmountLimit)) {
             modified = false;
@@ -491,13 +511,13 @@ public class ManagedRunner
             }
 
         if (modified) {
-            listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setBackAmountLimit, this.backAmountLimit));
-            rulesHaveChanged.set(true);
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setBackAmountLimit, this.marketId, this.runnerId, this.backAmountLimit));
+            rulesManager.rulesHaveChanged.set(true);
         }
         return modified;
     }
 
-    private synchronized boolean setLayAmountLimit(final double newLayAmountLimit, @NotNull final ListOfQueues listOfQueues, @NotNull final AtomicBoolean rulesHaveChanged) {
+    synchronized boolean setLayAmountLimit(final double newLayAmountLimit, @NotNull final RulesManager rulesManager) {
         final boolean modified;
         if (Double.isNaN(newLayAmountLimit)) {
             modified = false;
@@ -510,13 +530,13 @@ public class ManagedRunner
             }
 
         if (modified) {
-            listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setLayAmountLimit, this.layAmountLimit));
-            rulesHaveChanged.set(true);
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setLayAmountLimit, this.marketId, this.runnerId, this.layAmountLimit));
+            rulesManager.rulesHaveChanged.set(true);
         }
         return modified;
     }
 
-    private synchronized boolean setMinBackOdds(final double newMinBackOdds, @NotNull final ListOfQueues listOfQueues, @NotNull final AtomicBoolean rulesHaveChanged) {
+    synchronized boolean setMinBackOdds(final double newMinBackOdds, @NotNull final RulesManager rulesManager) {
         final boolean modified;
         if (Double.isNaN(newMinBackOdds)) {
             modified = false;
@@ -529,13 +549,13 @@ public class ManagedRunner
             }
 
         if (modified) {
-            listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMinBackOdds, this.minBackOdds));
-            rulesHaveChanged.set(true);
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMinBackOdds, this.marketId, this.runnerId, this.minBackOdds));
+            rulesManager.rulesHaveChanged.set(true);
         }
         return modified;
     }
 
-    private synchronized boolean setMaxLayOdds(final double newMaxLayOdds, @NotNull final ListOfQueues listOfQueues, @NotNull final AtomicBoolean rulesHaveChanged) {
+    synchronized boolean setMaxLayOdds(final double newMaxLayOdds, @NotNull final RulesManager rulesManager) {
         final boolean modified;
         if (Double.isNaN(newMaxLayOdds)) {
             modified = false;
@@ -548,18 +568,23 @@ public class ManagedRunner
             }
 
         if (modified) {
-            listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMaxLayOdds, this.maxLayOdds));
-            rulesHaveChanged.set(true);
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMaxLayOdds, this.marketId, this.runnerId, this.maxLayOdds));
+            rulesManager.rulesHaveChanged.set(true);
         }
         return modified;
     }
 
-    public synchronized int update(final double newMinBackOdds, final double newMaxLayOdds, final double newBackAmountLimit, final double newLayAmountLimit, @NotNull final ListOfQueues listOfQueues, @NotNull final AtomicBoolean rulesHaveChanged) {
+    public synchronized int update(final double newMinBackOdds, final double newMaxLayOdds, final double newBackAmountLimit, final double newLayAmountLimit, @NotNull final RulesManager rulesManager) {
         int modified = 0;
-        modified += Generic.booleanToInt(this.setMinBackOdds(newMinBackOdds, listOfQueues, rulesHaveChanged));
-        modified += Generic.booleanToInt(this.setMaxLayOdds(newMaxLayOdds, listOfQueues, rulesHaveChanged));
-        modified += Generic.booleanToInt(this.setBackAmountLimit(newBackAmountLimit, listOfQueues, rulesHaveChanged));
-        modified += Generic.booleanToInt(this.setLayAmountLimit(newLayAmountLimit, listOfQueues, rulesHaveChanged));
+        modified += Generic.booleanToInt(this.setMinBackOdds(newMinBackOdds, rulesManager));
+        modified += Generic.booleanToInt(this.setMaxLayOdds(newMaxLayOdds, rulesManager));
+        modified += Generic.booleanToInt(this.setBackAmountLimit(newBackAmountLimit, rulesManager));
+        modified += Generic.booleanToInt(this.setLayAmountLimit(newLayAmountLimit, rulesManager));
+
+        if (modified > 0) {
+            rulesManager.addMarketToCheck(this.marketId);
+        } else { // nothing to be done
+        }
         return modified;
     }
 

@@ -11,7 +11,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ManagedMarketsMap
         extends SynchronizedMap<String, ManagedMarket>
@@ -36,13 +35,13 @@ public class ManagedMarketsMap
 //        this.eventId = eventId; // the exact object reference
 //    }
 
-    private synchronized void initializeMap(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
+    private synchronized void initializeMap(@NotNull final RulesManager rulesManager) {
         if (this.isInitialized) { // already initialized, won't initialize again
         } else {
-            final ManagedEvent managedEvent = events.get(this.eventId, rulesHaveChanged);
+            final ManagedEvent managedEvent = rulesManager.events.get(this.eventId, rulesManager.rulesHaveChanged);
 
             for (final String marketId : managedEvent.marketIds.copy()) {
-                final ManagedMarket market = markets.get(marketId);
+                final ManagedMarket market = rulesManager.markets.get(marketId);
                 if (market == null) { // I'll print error message, but I'll still add the null value to the returnMap
                     logger.error("null managedMarket found during initializeMap in rulesManager markets map for: {}", marketId);
                 } else { // normal case, nothing to be done on branch
@@ -61,8 +60,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized HashMap<String, ManagedMarket> copy(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized HashMap<String, ManagedMarket> copy(@NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.copy();
     }
 
@@ -73,8 +72,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized Set<Map.Entry<String, ManagedMarket>> entrySetCopy(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized Set<Map.Entry<String, ManagedMarket>> entrySetCopy(@NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.entrySetCopy();
     }
 
@@ -85,8 +84,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized Set<String> keySetCopy(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized Set<String> keySetCopy(@NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.keySetCopy();
     }
 
@@ -97,8 +96,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized Collection<ManagedMarket> valuesCopy(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized Collection<ManagedMarket> valuesCopy(@NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.valuesCopy();
     }
 
@@ -109,8 +108,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized HashMap<String, ManagedMarket> clear(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized HashMap<String, ManagedMarket> clear(@NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.clear();
     }
 
@@ -120,8 +119,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean containsKey(final String key, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean containsKey(final String key, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.containsKey(key);
     }
 
@@ -131,8 +130,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean containsValue(final ManagedMarket value, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean containsValue(final ManagedMarket value, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.containsValue(value);
     }
 
@@ -143,8 +142,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized ManagedMarket get(final String key, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized ManagedMarket get(final String key, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.get(key);
     }
 
@@ -154,8 +153,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean isEmpty(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean isEmpty(@NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.isEmpty();
     }
 
@@ -166,9 +165,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized ManagedMarket put(final String key, final ManagedMarket value, final boolean intentionalPutInsteadOfPutIfAbsent, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged,
-                                          @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized ManagedMarket put(final String key, final ManagedMarket value, final boolean intentionalPutInsteadOfPutIfAbsent, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.put(key, value, intentionalPutInsteadOfPutIfAbsent);
     }
 
@@ -179,8 +177,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized ManagedMarket put(final String key, final ManagedMarket value, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized ManagedMarket put(final String key, final ManagedMarket value, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.put(key, value);
     }
 
@@ -191,8 +189,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized ManagedMarket putIfAbsent(final String key, final ManagedMarket value, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized ManagedMarket putIfAbsent(final String key, final ManagedMarket value, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.putIfAbsent(key, value);
     }
 
@@ -201,8 +199,8 @@ public class ManagedMarketsMap
         logger.error("don't use this putAll method !");
     }
 
-    public synchronized void putAll(final Map<String, ? extends ManagedMarket> m, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized void putAll(final Map<String, ? extends ManagedMarket> m, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         super.putAll(m);
     }
 
@@ -213,8 +211,8 @@ public class ManagedMarketsMap
         return null;
     }
 
-    public synchronized ManagedMarket remove(final String key, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized ManagedMarket remove(final String key, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.remove(key);
     }
 
@@ -224,8 +222,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean remove(final String key, final ManagedMarket value, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean remove(final String key, final ManagedMarket value, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.remove(key, value);
     }
 
@@ -235,8 +233,8 @@ public class ManagedMarketsMap
         return -1;
     }
 
-    public synchronized int size(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized int size(@NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.size();
     }
 
@@ -246,8 +244,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean containsEntry(final Map.Entry<String, ManagedMarket> entry, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean containsEntry(final Map.Entry<String, ManagedMarket> entry, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.containsEntry(entry);
     }
 
@@ -257,8 +255,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean containsAllEntries(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean containsAllEntries(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.containsAllEntries(c);
     }
 
@@ -268,8 +266,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean removeEntry(final Map.Entry<String, ManagedMarket> entry, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean removeEntry(final Map.Entry<String, ManagedMarket> entry, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.removeEntry(entry);
     }
 
@@ -279,8 +277,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean removeAllEntries(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean removeAllEntries(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.removeAllEntries(c);
     }
 
@@ -290,8 +288,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean retainAllEntries(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean retainAllEntries(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.retainAllEntries(c);
     }
 
@@ -301,8 +299,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean containsAllKeys(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean containsAllKeys(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.containsAllKeys(c);
     }
 
@@ -312,8 +310,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean removeAllKeys(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean removeAllKeys(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.removeAllKeys(c);
     }
 
@@ -323,8 +321,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean retainAllKeys(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean retainAllKeys(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.retainAllKeys(c);
     }
 
@@ -334,8 +332,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean containsAllValues(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean containsAllValues(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.containsAllValues(c);
     }
 
@@ -345,8 +343,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean removeValue(final ManagedMarket value, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean removeValue(final ManagedMarket value, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.removeValue(value);
     }
 
@@ -356,8 +354,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean removeValueAll(final ManagedMarket value, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean removeValueAll(final ManagedMarket value, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.removeValueAll(value);
     }
 
@@ -367,8 +365,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean removeAllValues(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean removeAllValues(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.removeAllValues(c);
     }
 
@@ -378,8 +376,8 @@ public class ManagedMarketsMap
         return false;
     }
 
-    public synchronized boolean retainAllValues(final Collection<?> c, @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        initializeMap(events, rulesHaveChanged, markets);
+    public synchronized boolean retainAllValues(final Collection<?> c, @NotNull final RulesManager rulesManager) {
+        initializeMap(rulesManager);
         return super.retainAllValues(c);
     }
 

@@ -3,10 +3,8 @@ package info.fmro.shared.logic;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.stream.cache.Utils;
 import info.fmro.shared.stream.cache.order.OrderCache;
-import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
-import info.fmro.shared.utility.SynchronizedMap;
 import info.fmro.shared.utility.SynchronizedSet;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -14,7 +12,6 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ManagedEvent
         implements Serializable {
@@ -45,12 +42,9 @@ public class ManagedEvent
 //        return new HashMap<>(marketsMap);
 //    }
 
-    public synchronized double getAmountLimit() {
-        return this.amountLimit;
-    }
-
     @SuppressWarnings("UnusedReturnValue")
-    synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final ListOfQueues listOfQueues, @NotNull final AtomicBoolean rulesHaveChanged) {
+    synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final RulesManager rulesManager, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache,
+                                        @NotNull final SafetyLimitsInterface safetyLimits) {
         final boolean modified;
         if (Double.isNaN(newAmountLimit)) {
             modified = false;
@@ -63,8 +57,9 @@ public class ManagedEvent
             }
 
         if (modified) {
-            listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setEventAmountLimit, this.amountLimit));
-            rulesHaveChanged.set(true);
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setEventAmountLimit, this.id, this.amountLimit));
+            calculateMarketLimits(rulesManager, pendingOrdersThread, orderCache, safetyLimits);
+            rulesManager.rulesHaveChanged.set(true);
         }
         return modified;
     }
@@ -85,18 +80,17 @@ public class ManagedEvent
 //        return marketIds.contains(marketId);
 //    }
 
-    private synchronized double getMaxEventLimit(@NotNull final SafetyLimitsInterface safetyLimits) {
+    private synchronized double getAmountLimit(@NotNull final SafetyLimitsInterface safetyLimits) {
         final double result;
         final double safetyLimit = safetyLimits.getDefaultEventLimit(this.id);
         result = this.amountLimit >= 0 ? Math.min(this.amountLimit, safetyLimit) : safetyLimit;
         return result;
     }
 
-    synchronized void calculateMarketLimits(@NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache,
-                                            @NotNull final SafetyLimitsInterface safetyLimits, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
-        final double maxEventLimit = getMaxEventLimit(safetyLimits);
+    synchronized void calculateMarketLimits(@NotNull final RulesManager rulesManager, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final SafetyLimitsInterface safetyLimits) {
+        final double maxEventLimit = getAmountLimit(safetyLimits);
         //noinspection NonPrivateFieldAccessedInSynchronizedContext
-        Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(events, rulesHaveChanged, markets), false, false, pendingOrdersThread, orderCache, safetyLimits);
+        Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(rulesManager), false, false, pendingOrdersThread, orderCache, safetyLimits);
     }
 
     @Contract(value = "null -> false", pure = true)

@@ -101,6 +101,15 @@ public class ExistingFunds
         this.exposure = newExposure;
     }
 
+    public synchronized void setCurrencyRate(final Double rate) {
+        if (rate != null) {
+            this.listOfQueues.send(new SerializableObjectModification<>(SafetyLimitsModificationCommand.setCurrencyRate, rate));
+            this.currencyRate.set(rate);
+        } else {
+            logger.error("null rate in setCurrencyRate");
+        }
+    }
+
     public synchronized void setCurrencyRate(final Iterable<? extends CurrencyRate> currencyRates, @NotNull final AtomicBoolean mustStop, @NotNull final AtomicBoolean needSessionToken) {
         // Market subscriptions - are always in underlying exchange currency - GBP
         // Orders subscriptions - are provided in the currency of the account that the orders are placed in

@@ -29,6 +29,10 @@ public class SerializableObjectModification<T extends Enum<T>>
         }
     }
 
+    public synchronized T getCommand() {
+        return this.command;
+    }
+
     @Nullable
     public synchronized Serializable[] getArray() { // right now used for testing
         @Nullable final Serializable[] returnValue;
