@@ -5,8 +5,11 @@ import info.fmro.shared.stream.definitions.MarketChange;
 import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
 import info.fmro.shared.stream.protocol.ChangeMessage;
+import info.fmro.shared.utility.Generic;
 import org.apache.commons.lang3.SerializationUtils;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -15,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class MarketCache
         implements Serializable, StreamObjectInterface {
+    private static final Logger logger = LoggerFactory.getLogger(MarketCache.class);
     private static final long serialVersionUID = -6721530926161875702L;
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     private final Map<String, Market> markets = new ConcurrentHashMap<>(32); // only place where markets are permanently stored
@@ -32,6 +36,27 @@ public class MarketCache
 
     public synchronized MarketCache getCopy() {
         return SerializationUtils.clone(this);
+    }
+
+    public synchronized boolean copyFromStream(final MarketCache other) {
+        final boolean readSuccessful;
+        if (other == null) {
+            logger.error("null other in copyFromStream for: {}", Generic.objectToString(this));
+            readSuccessful = false;
+        } else {
+            Generic.updateObject(this, other);
+
+            readSuccessful = true;
+        }
+
+        final int nQueues = this.listOfQueues.size();
+        if (nQueues == 0) { // normal case, nothing to be done
+        } else {
+            logger.error("existing queues during MarketCache.copyFromStream: {} {}", nQueues, Generic.objectToString(this));
+            this.listOfQueues.clear();
+        }
+
+        return readSuccessful;
     }
 
     public synchronized void onMarketChange(@NotNull final ChangeMessage<? extends MarketChange> changeMessage, @NotNull final AtomicDouble currencyRate) {

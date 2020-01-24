@@ -50,7 +50,7 @@ public class BetFrequencyLimit
 //        return limitReached;
 //    }
 
-    synchronized long getManageMarketPeriod(final double marketCalculatedLimit, @NotNull final SafetyLimitsInterface safetyLimits) { // depends on how close I am to reaching the limit, and it should never allow reaching the limit
+    synchronized long getManageMarketPeriod(final double marketCalculatedLimit, @NotNull final ExistingFunds safetyLimits) { // depends on how close I am to reaching the limit, and it should never allow reaching the limit
         final long manageMarketPeriod;
         final double totalAccountLimit = safetyLimits.getTotalLimit();
         if (totalAccountLimit <= 0d || marketCalculatedLimit <= 0d) {

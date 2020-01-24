@@ -7,9 +7,12 @@ import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
 import info.fmro.shared.stream.protocol.ChangeMessage;
+import info.fmro.shared.utility.Generic;
 import org.apache.commons.lang3.SerializationUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -21,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class OrderCache
         implements Serializable, StreamObjectInterface {
+    private static final Logger logger = LoggerFactory.getLogger(OrderCache.class);
     private static final long serialVersionUID = -6023803756520072425L;
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     private final Map<String, OrderMarket> markets = new ConcurrentHashMap<>(4); // only place where orderMarkets are permanently stored
@@ -37,8 +41,29 @@ public class OrderCache
         return SerializationUtils.clone(this);
     }
 
+    public synchronized boolean copyFromStream(final OrderCache other) {
+        final boolean readSuccessful;
+        if (other == null) {
+            logger.error("null other in copyFromStream for: {}", Generic.objectToString(this));
+            readSuccessful = false;
+        } else {
+            Generic.updateObject(this, other);
+
+            readSuccessful = true;
+        }
+
+        final int nQueues = this.listOfQueues.size();
+        if (nQueues == 0) { // normal case, nothing to be done
+        } else {
+            logger.error("existing queues during OrderCache.copyFromStream: {} {}", nQueues, Generic.objectToString(this));
+            this.listOfQueues.clear();
+        }
+
+        return readSuccessful;
+    }
+
     public synchronized void onOrderChange(@NotNull final ChangeMessage<? extends OrderMarketChange> changeMessage, @NotNull final AtomicBoolean orderCacheHasReset, @NotNull final AtomicBoolean newOrderMarketCreated,
-                                           @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate) {
+                                           final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate) {
         if (changeMessage.isStartOfNewSubscription()) {
             this.markets.clear();
             orderCacheHasReset.set(true);
@@ -57,7 +82,7 @@ public class OrderCache
     }
 
     @NotNull
-    private synchronized OrderMarket onOrderMarketChange(@NotNull final OrderMarketChange orderMarketChange, @NotNull final AtomicBoolean newOrderMarketCreated, @NotNull final OrdersThreadInterface pendingOrdersThread,
+    private synchronized OrderMarket onOrderMarketChange(@NotNull final OrderMarketChange orderMarketChange, @NotNull final AtomicBoolean newOrderMarketCreated, final OrdersThreadInterface pendingOrdersThread,
                                                          @NotNull final AtomicDouble currencyRate) {
         final String marketId = orderMarketChange.getId();
         final OrderMarket orderMarket = this.markets.computeIfAbsent(marketId, k -> new OrderMarket(marketId, newOrderMarketCreated));

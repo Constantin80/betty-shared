@@ -1,6 +1,6 @@
 package info.fmro.shared.enums;
 
-public enum SafetyLimitsModificationCommand {
+public enum ExistingFundsModificationCommand {
     setCurrencyRate,
     setReserve,
     setAvailableFunds,

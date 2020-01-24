@@ -48,7 +48,10 @@ public class OrderMarketRunner
     }
 
     synchronized void onOrderRunnerChange(final OrderRunnerChange orderRunnerChange, final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate) {
-        pendingOrdersThread.reportStreamChange(this, orderRunnerChange); // needs to happen at the start of the method, before I modify this object
+        if (pendingOrdersThread != null) {
+            pendingOrdersThread.reportStreamChange(this, orderRunnerChange); // needs to happen at the start of the method, before I modify this object
+        } else { // I must be in the Client, normal behaviour, nothing to be done
+        }
 
         final boolean isImage = Boolean.TRUE.equals(orderRunnerChange.getFullImage());
 

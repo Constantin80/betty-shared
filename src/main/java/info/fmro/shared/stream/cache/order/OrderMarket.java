@@ -26,7 +26,7 @@ public class OrderMarket
         newOrderMarketCreated.set(true);
     }
 
-    synchronized void onOrderMarketChange(@NotNull final OrderMarketChange orderMarketChange, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate) {
+    synchronized void onOrderMarketChange(@NotNull final OrderMarketChange orderMarketChange, final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate) {
         // update runners
         if (orderMarketChange.getOrc() != null) {
             for (final OrderRunnerChange orderRunnerChange : orderMarketChange.getOrc()) {

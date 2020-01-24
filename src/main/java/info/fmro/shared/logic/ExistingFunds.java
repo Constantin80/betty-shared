@@ -2,13 +2,17 @@ package info.fmro.shared.logic;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.entities.CurrencyRate;
-import info.fmro.shared.enums.SafetyLimitsModificationCommand;
+import info.fmro.shared.enums.ExistingFundsModificationCommand;
 import info.fmro.shared.stream.objects.ListOfQueues;
+import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
+import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
+import info.fmro.shared.utility.SynchronizedMap;
 import org.apache.commons.lang3.SerializationUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,8 +25,11 @@ public class ExistingFunds
         implements Serializable, StreamObjectInterface {
     private static final Logger logger = LoggerFactory.getLogger(ExistingFunds.class);
     private static final long serialVersionUID = 4629311467792245314L;
+    private static final double eventLimitFraction = .1d; // max bet per regular event
+    private static final double marketLimitFraction = .05d; // max bet per regular market
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     public final AtomicDouble currencyRate = new AtomicDouble(1d); // GBP/EUR, 1.1187000274658203 right now, on 13-08-2018; default 1d
+    private double totalFunds; // total funds on the account, including the exposure (= availableFunds - exposure); exposure is a negative number
     private double reserve = 5_000d; // default value; will always be truncated to int; can only increase
     private double availableFunds; // total amount available on the account; it includes the reserve
     private double exposure; // total exposure on the account; it's a negative number
@@ -35,6 +42,21 @@ public class ExistingFunds
 
     public synchronized ExistingFunds getCopy() {
         return SerializationUtils.clone(this);
+    }
+
+    public synchronized void copyFromStream(final ExistingFunds existingFunds) {
+        if (existingFunds == null) {
+            logger.error("null existingFunds in copyFromStream for: {}", Generic.objectToString(this));
+        } else {
+            Generic.updateObject(this, existingFunds);
+        }
+
+        final int nQueues = this.listOfQueues.size();
+        if (nQueues == 0) { // normal case, nothing to be done
+        } else {
+            logger.error("existing queues during ExistingFunds.copyFromStream: {} {}", nQueues, Generic.objectToString(this));
+            this.listOfQueues.clear();
+        }
     }
 
     public synchronized double getReserve() {
@@ -74,7 +96,7 @@ public class ExistingFunds
         final double truncatedValue = Math.floor(newReserve);
         if (truncatedValue > this.reserve) {
             logger.info("modifying reserve value {} to {}", this.reserve, truncatedValue);
-            this.listOfQueues.send(new SerializableObjectModification<>(SafetyLimitsModificationCommand.setReserve, truncatedValue));
+            this.listOfQueues.send(new SerializableObjectModification<>(ExistingFundsModificationCommand.setReserve, truncatedValue));
             this.reserve = truncatedValue;
             modified = true;
         } else {
@@ -83,12 +105,12 @@ public class ExistingFunds
         return modified;
     }
 
-    public synchronized double getAvailableFunds() {
+    protected synchronized double getAvailableFunds() {
         return this.availableFunds;
     }
 
     public synchronized void setAvailableFunds(final double newAvailableFunds) {
-        this.listOfQueues.send(new SerializableObjectModification<>(SafetyLimitsModificationCommand.setAvailableFunds, newAvailableFunds));
+        this.listOfQueues.send(new SerializableObjectModification<>(ExistingFundsModificationCommand.setAvailableFunds, newAvailableFunds));
         this.availableFunds = newAvailableFunds;
     }
 
@@ -97,13 +119,13 @@ public class ExistingFunds
     }
 
     public synchronized void setExposure(final double newExposure) {
-        this.listOfQueues.send(new SerializableObjectModification<>(SafetyLimitsModificationCommand.setExposure, newExposure));
+        this.listOfQueues.send(new SerializableObjectModification<>(ExistingFundsModificationCommand.setExposure, newExposure));
         this.exposure = newExposure;
     }
 
     public synchronized void setCurrencyRate(final Double rate) {
         if (rate != null) {
-            this.listOfQueues.send(new SerializableObjectModification<>(SafetyLimitsModificationCommand.setCurrencyRate, rate));
+            this.listOfQueues.send(new SerializableObjectModification<>(ExistingFundsModificationCommand.setCurrencyRate, rate));
             this.currencyRate.set(rate);
         } else {
             logger.error("null rate in setCurrencyRate");
@@ -119,7 +141,7 @@ public class ExistingFunds
                 if (Objects.equals(currencyCode, "EUR")) {
                     final Double rate = newCurrencyRate.getRate();
                     if (rate != null) {
-                        this.listOfQueues.send(new SerializableObjectModification<>(SafetyLimitsModificationCommand.setCurrencyRate, rate));
+                        this.listOfQueues.send(new SerializableObjectModification<>(ExistingFundsModificationCommand.setCurrencyRate, rate));
                         this.currencyRate.set(rate);
                     } else {
                         logger.error("null rate for: {}", Generic.objectToString(currencyRates));
@@ -134,5 +156,57 @@ public class ExistingFunds
                 logger.error("currencyRates null");
             }
         }
+    }
+
+    synchronized double getTotalLimit() {
+        return this.totalFunds - this.getReserve() - 0.01d; // leave 1 cent, to avoid errors
+    }
+
+    synchronized double getDefaultEventLimit(final String eventId) {
+        final double returnValue;
+        if (eventId == null) {
+            returnValue = 0d;
+            logger.error("null eventId in SafetyLimits during getDefaultEventLimit: {}", Generic.objectToString(this));
+        } else {
+            // eventId not used for now, and default limit is same for all non safe events (plus I no longer use safe events)
+            returnValue = Math.min(getTotalLimit(), this.totalFunds * ExistingFunds.eventLimitFraction);
+        }
+        return returnValue;
+    }
+
+//    public synchronized double getDefaultMarketLimit(final String marketId, final String parentEventId) {
+//        return getDefaultMarketLimit(marketId, null, parentEventId);
+//    }
+
+    synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+        return getDefaultMarketLimit(marketId, marketCataloguesMap, null);
+    }
+
+    private synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap, final String parentEventId) {
+        final double returnValue;
+        if (marketId == null) {
+            returnValue = 0d;
+            logger.error("null marketId in SafetyLimits during getDefaultMarketLimit: {}", Generic.objectToString(this));
+        } else {
+            @Nullable final String eventId;
+            if (parentEventId != null) {
+                eventId = parentEventId;
+            } else if (marketCataloguesMap != null) {
+                eventId = Formulas.getEventIdOfMarketId(marketId, marketCataloguesMap);
+            } else {
+                logger.error("marketCataloguesMap and parentEventId are null in getDefaultMarketLimit: {}", marketId);
+                eventId = null;
+            }
+            returnValue = Math.min(getDefaultEventLimit(eventId), this.totalFunds * ExistingFunds.marketLimitFraction); // getDefaultEventLimit already contains getAvailableLimit
+        }
+        return returnValue;
+    }
+
+    protected synchronized double getTotalFunds() {
+        return this.totalFunds;
+    }
+
+    protected synchronized void setTotalFunds(double newValue) {
+        this.totalFunds = newValue;
     }
 }

@@ -44,6 +44,10 @@ public class ListOfQueues
         }
     }
 
+    public synchronized void clear() {
+        this.list.clear();
+    }
+
     public synchronized int size() {
         return this.list.size();
     }

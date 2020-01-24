@@ -899,9 +899,9 @@ public class ManagedMarket
 //        updateIdealBackExposureSum();
     }
 
-    public synchronized double getMaxMarketLimit(@NotNull final SafetyLimitsInterface safetyLimits) {
+    public synchronized double getMaxMarketLimit(@NotNull final ExistingFunds safetyLimits, @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         final double result;
-        final double safetyLimit = safetyLimits.getDefaultMarketLimit(this.id);
+        final double safetyLimit = safetyLimits.getDefaultMarketLimit(this.id, marketCataloguesMap);
         result = this.amountLimit >= 0 ? Math.min(this.amountLimit, safetyLimit) : safetyLimit;
         return result;
     }
@@ -921,13 +921,13 @@ public class ManagedMarket
         }
     }
 
-    public synchronized boolean setCalculatedLimit(final double newLimit, final boolean limitCanBeIncreased, @NotNull final SafetyLimitsInterface safetyLimits) {
+    public synchronized boolean setCalculatedLimit(final double newLimit, final boolean limitCanBeIncreased, @NotNull final ExistingFunds safetyLimits, @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         final boolean modified;
-        modified = (limitCanBeIncreased || newLimit < this.calculatedLimit) && setCalculatedLimit(newLimit, safetyLimits);
+        modified = (limitCanBeIncreased || newLimit < this.calculatedLimit) && setCalculatedLimit(newLimit, safetyLimits, marketCataloguesMap);
         return modified;
     }
 
-    private synchronized boolean setCalculatedLimit(final double newLimit, @NotNull final SafetyLimitsInterface safetyLimits) {
+    private synchronized boolean setCalculatedLimit(final double newLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         final boolean gettingModified;
 
         // both are zero
@@ -942,7 +942,7 @@ public class ManagedMarket
 
         if (gettingModified) {
             this.calculatedLimit = newLimit;
-            final double maxLimit = this.getMaxMarketLimit(safetyLimits);
+            final double maxLimit = this.getMaxMarketLimit(safetyLimits, marketCataloguesMap);
             if (this.calculatedLimit > maxLimit) {
                 this.calculatedLimit = maxLimit;
             }
@@ -1193,7 +1193,7 @@ public class ManagedMarket
     // the solution I found was to set the manageMarketPeriod in the BetFrequencyLimit class, depending on how close to the hourly limit I am
     @SuppressWarnings("OverlyNestedMethod")
     public synchronized void manage(@NotNull final MarketCache marketCache, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate,
-                                    @NotNull final BetFrequencyLimit speedLimit, @NotNull final SafetyLimitsInterface safetyLimits, @NotNull final RulesManager rulesManager) {
+                                    @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final RulesManager rulesManager) {
         final long currentTime = System.currentTimeMillis();
         final long timeSinceLastManageMarketStamp = currentTime - this.manageMarketStamp;
         if (timeSinceLastManageMarketStamp >= speedLimit.getManageMarketPeriod(this.calculatedLimit, safetyLimits)) {
