@@ -21,10 +21,9 @@ public class ManagedEvent
     private final String id;
     private double amountLimit = -1d;
     public final SynchronizedSet<String> marketIds = new SynchronizedSet<>(); // managedMarket ids associated with this event
-    @SuppressWarnings("PackageVisibleField")
-    transient ManagedMarketsMap marketsMap; // managedMarkets associated with this event
+    public transient ManagedMarketsMap marketsMap; // managedMarkets associated with this event
 
-    ManagedEvent(final String id) {
+    ManagedEvent(@NotNull final String id) {
         this.id = id;
         this.marketsMap = new ManagedMarketsMap(this.id);
     }
@@ -81,9 +80,13 @@ public class ManagedEvent
 //        return markets.contains(managedMarket);
 //    }
 
-//    public synchronized boolean containsMarketId(String marketId) {
+    //    public synchronized boolean containsMarketId(String marketId) {
 //        return marketIds.contains(marketId);
 //    }
+
+    public synchronized String getId() {
+        return this.id;
+    }
 
     private synchronized double getAmountLimit(@NotNull final ExistingFunds safetyLimits) {
         final double result;

@@ -29,10 +29,10 @@ public class ExistingFunds
     private static final double marketLimitFraction = .05d; // max bet per regular market
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     public final AtomicDouble currencyRate = new AtomicDouble(1d); // GBP/EUR, 1.1187000274658203 right now, on 13-08-2018; default 1d
-    private double totalFunds; // total funds on the account, including the exposure (= availableFunds - exposure); exposure is a negative number
+    private double totalFunds = -1d; // total funds on the account, including the exposure (= availableFunds - exposure); exposure is a negative number
     private double reserve = 5_000d; // default value; will always be truncated to int; can only increase
-    private double availableFunds; // total amount available on the account; it includes the reserve
-    private double exposure; // total exposure on the account; it's a negative number
+    private double availableFunds = -1d; // total amount available on the account; it includes the reserve
+    private double exposure = -1d; // total exposure on the account; it's a negative number
 
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
@@ -105,7 +105,7 @@ public class ExistingFunds
         return modified;
     }
 
-    protected synchronized double getAvailableFunds() {
+    public synchronized double getAvailableFunds() {
         return this.availableFunds;
     }
 
@@ -159,7 +159,7 @@ public class ExistingFunds
     }
 
     synchronized double getTotalLimit() {
-        return this.totalFunds - this.getReserve() - 0.01d; // leave 1 cent, to avoid errors
+        return this.getTotalFunds() - this.getReserve() - 0.01d; // leave 1 cent, to avoid errors
     }
 
     synchronized double getDefaultEventLimit(final String eventId) {
@@ -169,7 +169,7 @@ public class ExistingFunds
             logger.error("null eventId in SafetyLimits during getDefaultEventLimit: {}", Generic.objectToString(this));
         } else {
             // eventId not used for now, and default limit is same for all non safe events (plus I no longer use safe events)
-            returnValue = Math.min(getTotalLimit(), this.totalFunds * ExistingFunds.eventLimitFraction);
+            returnValue = Math.min(getTotalLimit(), this.getTotalFunds() * ExistingFunds.eventLimitFraction);
         }
         return returnValue;
     }
@@ -197,16 +197,16 @@ public class ExistingFunds
                 logger.error("marketCataloguesMap and parentEventId are null in getDefaultMarketLimit: {}", marketId);
                 eventId = null;
             }
-            returnValue = Math.min(getDefaultEventLimit(eventId), this.totalFunds * ExistingFunds.marketLimitFraction); // getDefaultEventLimit already contains getAvailableLimit
+            returnValue = Math.min(getDefaultEventLimit(eventId), this.getTotalFunds() * ExistingFunds.marketLimitFraction); // getDefaultEventLimit already contains getAvailableLimit
         }
         return returnValue;
     }
 
-    protected synchronized double getTotalFunds() {
+    public synchronized double getTotalFunds() {
         return this.totalFunds;
     }
 
-    protected synchronized void setTotalFunds(double newValue) {
+    protected synchronized void setTotalFunds(final double newValue) {
         this.totalFunds = newValue;
     }
 }

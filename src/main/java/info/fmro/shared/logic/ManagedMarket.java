@@ -96,6 +96,14 @@ public class ManagedMarket
         if (this.parentEventId == null) {
             this.parentEventId = Formulas.getEventIdOfMarketId(this.id, marketCataloguesMap);
             if (this.parentEventId == null) {
+                if (this.market != null) {
+                    this.parentEventId = this.market.getEventId();
+                } else { // no Market present either, nothing to be done
+                }
+            } else { // found it, nothing to be done on this branch
+            }
+
+            if (this.parentEventId == null) {
                 logger.error("parentEventId not found for managedMarket: {}", Generic.objectToString(this));
             } else {
                 rulesHaveChanged.set(true);
@@ -422,6 +430,11 @@ public class ManagedMarket
 //
 //        return previousValue;
 //    }
+
+    public synchronized Market getMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
+        attachMarket(marketCache, rulesManager);
+        return this.market;
+    }
 
     private synchronized void attachMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
         // this is run periodically, as it's contained in the manage method, that is run periodically

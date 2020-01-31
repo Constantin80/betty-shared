@@ -1,6 +1,8 @@
-apply plugin: 'java'
-apply plugin: 'maven-publish'
-apply plugin: 'idea'
+plugins {
+    id 'idea'
+    id 'java'
+    id 'org.openjfx.javafxplugin' version '0.0.8'
+}
 
 group = 'info.fmro'
 version = '0.1'
@@ -8,11 +10,15 @@ description = "shared"
 sourceCompatibility = 13
 targetCompatibility = 13
 
+javafx {
+    version = "13"
+    modules = ['javafx.controls']
+}
+
 allprojects {
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'
     }
-
     tasks.withType(Test) {
         systemProperty "file.encoding", "UTF-8"
     }
@@ -27,8 +33,9 @@ repositories {
 }
 
 dependencies {
-    implementation group: 'org.reflections', name: 'reflections', version: '0.9.11'
+    implementation group: 'org.reflections', name: 'reflections', version: '0.9.12'
     implementation group: 'junit-addons', name: 'junit-addons', version: '1.4'
+    implementation group: 'com.google.guava', name: 'guava', version: '28.2-jre'
     implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
     implementation group: 'org.slf4j', name: 'slf4j-ext', version: '1.7.30'
     implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
@@ -40,6 +47,6 @@ dependencies {
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.10.2'
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.10.2'
     testImplementation group: 'org.assertj', name: 'assertj-core', version: '3.14.0'
-    testImplementation('org.junit.jupiter:junit-jupiter-api:5.5.2')
-    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.5.2"
+    testImplementation('org.junit.jupiter:junit-jupiter-api:5.6.0')
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.6.0"
 }

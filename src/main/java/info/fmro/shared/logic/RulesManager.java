@@ -52,9 +52,6 @@ public class RulesManager
 
     private Integer testMarker; // this variable should be the last declared and not be primitive, to attempt to have it serialized last
 
-    // todo test with 1 runner, no cross runner matching; amountLimit on back and lay, limit on market & event; time limit; min odds for back and max odds for lay, with bets depending on prices existing on that runner
-    // todo code beautification and simple tests, to prepare for the far more complicated integration tests
-
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
         in.defaultReadObject();
@@ -231,7 +228,8 @@ public class RulesManager
         return managedEvent;
     }
 
-    private synchronized ManagedEvent addManagedEvent(final String eventId) {
+    @NotNull
+    protected synchronized ManagedEvent addManagedEvent(final String eventId) {
         final ManagedEvent managedEvent;
         if (this.events.containsKey(eventId)) {
             managedEvent = this.events.get(eventId, this.rulesHaveChanged);
@@ -265,7 +263,7 @@ public class RulesManager
     public synchronized ManagedEvent setEventAmountLimit(final String eventId, final Double newAmount, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
                                                          final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         // newAmount == null resets the amount to default -1d value
-        final ManagedEvent managedEvent = this.events.get(eventId);
+        final ManagedEvent managedEvent = this.events.get(eventId, this.rulesHaveChanged);
         if (managedEvent != null) {
             managedEvent.setAmountLimit(newAmount == null ? -1d : newAmount, this, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap);
         } else {
@@ -274,7 +272,7 @@ public class RulesManager
         return managedEvent;
     }
 
-    private synchronized ManagedMarket addManagedMarket(final String marketId) {
+    protected synchronized ManagedMarket addManagedMarket(final String marketId) {
         final ManagedMarket managedMarket;
         if (this.markets.containsKey(marketId)) {
             managedMarket = this.markets.get(marketId);

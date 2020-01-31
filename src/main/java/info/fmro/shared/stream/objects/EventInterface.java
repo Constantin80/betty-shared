@@ -5,4 +5,6 @@ import java.io.Serializable;
 public interface EventInterface
         extends Serializable {
     String getId();
+
+    String getName();
 }

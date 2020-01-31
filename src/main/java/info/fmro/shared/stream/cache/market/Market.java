@@ -10,6 +10,7 @@ import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.utility.Formulas;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.Serializable;
 import java.util.HashSet;
@@ -67,6 +68,17 @@ public class Market
 
     public synchronized HashSet<RunnerId> getRunnerIds() {
         return new HashSet<>(this.marketRunners.keySet());
+    }
+
+    @Nullable
+    public synchronized String getEventId() {
+        @Nullable final String result;
+        if (this.marketDefinition == null) {
+            result = null;
+        } else {
+            result = this.marketDefinition.getEventId();
+        }
+        return result;
     }
 
     @Contract(pure = true)

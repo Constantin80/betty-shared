@@ -28,13 +28,13 @@ public class ManagedEventsMap
     }
 
     @Nullable
-    @Override
     public synchronized ManagedEvent get(final String key) {
         logger.error("don't use get(String) method, use get(String, AtomicBoolean) !");
 
         return null;
     }
 
+    @NotNull
     public synchronized ManagedEvent get(final String key, @NotNull final AtomicBoolean rulesHaveChanged) {
         ManagedEvent managedEvent = super.get(key);
         if (managedEvent == null) {
