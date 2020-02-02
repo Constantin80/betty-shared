@@ -49,6 +49,12 @@ public class ExistingFunds
             logger.error("null existingFunds in copyFromStream for: {}", Generic.objectToString(this));
         } else {
             Generic.updateObject(this, existingFunds);
+
+//            this.setAvailableFunds(existingFunds.getAvailableFunds());
+//            this.setExposure(existingFunds.getExposure());
+//            this.setTotalFunds(existingFunds.getTotalFunds());
+//            this.currencyRate.set(existingFunds.currencyRate.get());
+//            this.setReserve(existingFunds.getReserve());
         }
 
         final int nQueues = this.listOfQueues.size();

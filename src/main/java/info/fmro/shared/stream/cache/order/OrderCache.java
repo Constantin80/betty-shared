@@ -47,7 +47,11 @@ public class OrderCache
             logger.error("null other in copyFromStream for: {}", Generic.objectToString(this));
             readSuccessful = false;
         } else {
-            Generic.updateObject(this, other);
+//            Generic.updateObject(this, other);
+
+            this.markets.clear();
+            this.markets.putAll(other.markets);
+            this.orderMarketRemovedOnClose = other.orderMarketRemovedOnClose;
 
             readSuccessful = true;
         }

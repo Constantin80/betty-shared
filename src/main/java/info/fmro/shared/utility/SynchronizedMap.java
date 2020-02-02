@@ -53,23 +53,31 @@ public class SynchronizedMap<K, V>
         this.mapValues = this.map.values();
     }
 
-    public synchronized void copyFrom(final SynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
+    public synchronized boolean copyFrom(final SynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
+        final boolean readSuccessful;
         if (!this.map.isEmpty()) {
-            logger.error("not empty map in SynchronizedMap copyFrom: {}", Generic.objectToString(this));
+            logger.error("not empty map in SynchronizedMap copyFrom: {}", Generic.objectToString(this)); // this error might not be fatal, read can still be successful
         }
         if (other == null) {
             logger.error("null other in copyFrom for: {}", Generic.objectToString(this));
+            readSuccessful = false;
         } else if (other.map == null) {
             logger.error("null other.map in copyFrom for: {}", Generic.objectToString(other));
+            readSuccessful = false;
         } else {
-            Generic.updateObject(this, other);
+//            Generic.updateObject(this, other);
 
-//            this.timeStamp = other.timeStamp;
-//            this.timeStampRemoved = other.timeStampRemoved;
-//            this.timeClean = other.timeClean;
-//            this.map.clear();
-//            this.map.putAll(other.map);
+            this.timeStamp = other.timeStamp;
+            this.timeStampRemoved = other.timeStampRemoved;
+            this.timeClean = other.timeClean;
+            this.map.clear();
+            this.map.putAll(other.map);
+            // constructor or readObject has been called when the object was created, so the transient collections are already instantiated
+
+            readSuccessful = true;
         }
+
+        return readSuccessful;
     }
 
     private void readObject(@NotNull final ObjectInputStream objectInputStream)

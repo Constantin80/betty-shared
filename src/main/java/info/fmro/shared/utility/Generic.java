@@ -177,7 +177,8 @@ public final class Generic {
             final ObjectReader reader = mapper.readerForUpdating(mainObject);
             reader.readValue(byteArray);
         } catch (@SuppressWarnings("OverlyBroadCatchBlock") IOException e) {
-            logger.error("IOException in updateObject for: {} {}", objectToString(mainObject), objectToString(updateSource), e);
+            final Class<?> clazz = mainObject == null ? updateSource == null ? null : updateSource.getClass() : mainObject.getClass();
+            logger.error("IOException in updateObject for: {} {} {}", clazz, objectToString(mainObject), objectToString(updateSource), e);
         }
     }
 

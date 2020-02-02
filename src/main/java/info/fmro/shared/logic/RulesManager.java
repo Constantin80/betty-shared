@@ -91,12 +91,15 @@ public class RulesManager
                 logger.error("null other in copyFrom for: {} {}", isReadingFromStream, Generic.objectToString(this));
                 readSuccessful = false;
             } else {
-                Generic.updateObject(this, other);
+//                Generic.updateObject(this, other);
 
-//                this.events.copyFrom(other.events);
-//                this.markets.clear();
-//                this.markets.putAll(other.markets.copy());
-//                // likely forgot addManagedRunnerCommands
+                this.events.copyFrom(other.events);
+                this.markets.clear();
+                this.markets.putAll(other.markets.copy());
+
+                this.marketsToCheck.clear();
+                this.marketsToCheck.addAll(other.marketsToCheck);
+                this.addManagedRunnerCommands.addAll(other.addManagedRunnerCommands.copy());
 
                 this.setTestMarker(other.testMarker);
 

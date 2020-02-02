@@ -44,7 +44,12 @@ public class MarketCache
             logger.error("null other in copyFromStream for: {}", Generic.objectToString(this));
             readSuccessful = false;
         } else {
-            Generic.updateObject(this, other);
+//            Generic.updateObject(this, other);
+
+            this.markets.clear();
+            this.markets.putAll(other.markets);
+            this.isMarketRemovedOnClose = other.isMarketRemovedOnClose;
+            this.conflatedCount = other.conflatedCount;
 
             readSuccessful = true;
         }

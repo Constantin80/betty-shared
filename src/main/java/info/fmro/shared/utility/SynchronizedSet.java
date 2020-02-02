@@ -42,23 +42,30 @@ public class SynchronizedSet<E>
         this.set = new HashSet<>(collection);
     }
 
-    public synchronized void copyFrom(final SynchronizedSet<? extends E> other) { // doesn't copy static final or transient; does update the set
+    public synchronized boolean copyFrom(final SynchronizedSet<? extends E> other) { // doesn't copy static final or transient; does update the set
+        final boolean readSuccessful;
         if (!this.set.isEmpty()) {
-            logger.error("not empty set in SynchronizedSet copyFrom: {}", Generic.objectToString(this));
+            logger.error("not empty set in SynchronizedSet copyFrom: {}", Generic.objectToString(this)); // this error might not be fatal, read can still be successful
         }
         if (other == null) {
             logger.error("null other in copyFrom for: {}", Generic.objectToString(this));
+            readSuccessful = false;
         } else if (other.set == null) {
             logger.error("null other.set in copyFrom for: {}", Generic.objectToString(other));
+            readSuccessful = false;
         } else {
-            Generic.updateObject(this, other);
+//            Generic.updateObject(this, other);
 
-//            this.timeStamp = other.timeStamp;
-//            this.timeStampRemoved = other.timeStampRemoved;
-//            this.timeClean = other.timeClean;
-//            this.set.clear();
-//            this.set.addAll(other.set);
+            this.timeStamp = other.timeStamp;
+            this.timeStampRemoved = other.timeStampRemoved;
+            this.timeClean = other.timeClean;
+            this.set.clear();
+            this.set.addAll(other.set);
+
+            readSuccessful = true;
         }
+
+        return readSuccessful;
     }
 
     public synchronized HashSet<E> copy() {

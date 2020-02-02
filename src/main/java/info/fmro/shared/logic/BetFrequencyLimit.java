@@ -19,7 +19,7 @@ public class BetFrequencyLimit
     private long lastOrderStamp;
     private int nOrdersSinceReset;
 
-    synchronized void copyFrom(final BetFrequencyLimit other) {
+    public synchronized void copyFrom(final BetFrequencyLimit other) {
         if (other == null) {
             logger.error("null other in copyFrom for: {}", Generic.objectToString(this));
         } else {

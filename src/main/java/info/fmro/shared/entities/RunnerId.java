@@ -2,9 +2,12 @@ package info.fmro.shared.entities;
 
 import org.jetbrains.annotations.Contract;
 
+import java.io.Serializable;
 import java.util.Objects;
 
-public class RunnerId {
+public class RunnerId
+        implements Serializable {
+    private static final long serialVersionUID = -8081544562430144958L;
     @SuppressWarnings("unused")
     private String marketId; // The id of the market bet on
     @SuppressWarnings("unused")

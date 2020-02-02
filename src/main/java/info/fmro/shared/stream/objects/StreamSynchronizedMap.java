@@ -42,8 +42,8 @@ public class StreamSynchronizedMap<K extends Serializable, V extends Serializabl
         this.listOfQueues = new ListOfQueues();
     }
 
-    public synchronized void copyFrom(final StreamSynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
-        super.copyFrom(other);
+    public synchronized boolean copyFrom(final StreamSynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
+        final boolean readSuccessful = super.copyFrom(other);
 
         final int nQueues = this.listOfQueues.size();
         if (nQueues == 0) { // normal case, nothing to be done
@@ -51,21 +51,20 @@ public class StreamSynchronizedMap<K extends Serializable, V extends Serializabl
             logger.error("existing queues during StreamSynchronizedMap.copyFrom: {} {}", nQueues, Generic.objectToString(this));
             this.listOfQueues.send(this.getCopy());
         }
+
+        return readSuccessful;
     }
 
-    public synchronized void copyFromStream(final StreamSynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
-        if (other == null) {
-            logger.error("null other in copyFrom for: {}", Generic.objectToString(this));
-        } else {
-            Generic.updateObject(this, other);
-        }
+    public synchronized boolean copyFromStream(final StreamSynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
+        this.clear(); // to avoid error message if map not empty, because in this case it can actually have elements
+        return this.copyFrom(other);
 
-        final int nQueues = this.listOfQueues.size();
-        if (nQueues == 0) { // normal case, nothing to be done
-        } else {
-            logger.error("existing queues during StreamSynchronizedMap.copyFromStream: {} {}", nQueues, Generic.objectToString(this));
-            this.listOfQueues.clear();
-        }
+//        final int nQueues = this.listOfQueues.size();
+//        if (nQueues == 0) { // normal case, nothing to be done
+//        } else {
+//            logger.error("existing queues during StreamSynchronizedMap.copyFromStream: {} {}", nQueues, Generic.objectToString(this));
+//            this.listOfQueues.clear();
+//        }
     }
 
     public synchronized StreamSynchronizedMap<K, V> getCopy() {
