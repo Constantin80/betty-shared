@@ -33,6 +33,7 @@ public class SynchronizedReaderTest {
 
             assertEquals(expResult, result);
         } finally {
+            //noinspection ConstantConditions
             Generic.closeObjects(outputStreamWriter, fileOutputStream, instance);
             if (testFile != null) {
                 testFile.delete();
@@ -61,6 +62,7 @@ public class SynchronizedReaderTest {
 
             assertEquals(expResult, result);
         } finally {
+            //noinspection ConstantConditions
             Generic.closeObjects(outputStreamWriter, fileOutputStream, instance);
             if (testFile != null) {
                 testFile.delete();
@@ -88,6 +90,7 @@ public class SynchronizedReaderTest {
                 instance.close();
                 instance.readLine();
             } finally {
+                //noinspection ConstantConditions
                 Generic.closeObjects(outputStreamWriter, fileOutputStream, instance);
                 if (testFile != null) {
                     testFile.delete();

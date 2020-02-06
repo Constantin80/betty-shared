@@ -61,6 +61,7 @@ class LevelPriceSize
         return this.size;
     }
 
+    @SuppressWarnings("unused")
     public synchronized double getSizeEUR(@NotNull final AtomicDouble currencyRate) {
         return getSize() * currencyRate.get();
     }

@@ -37,7 +37,7 @@ public class LimitOrder
         decimalFormat.setRoundingMode(roundingMode);
     }
 
-    public synchronized double getLiability(final Side side, final boolean isEachWayMarket) { // assumes the worst case
+    synchronized double getLiability(final Side side, final boolean isEachWayMarket) { // assumes the worst case
         final double liability;
         final Double sizeObject = this.getSize();
         double primitiveSize = sizeObject == null ? 0d : sizeObject;
@@ -52,16 +52,17 @@ public class LimitOrder
             primitivePrice = this.price;
         }
 
-        if (side == null) {
-            logger.error("side null in LimitOrder.getLiability: {}", Generic.objectToString(this));
-            liability = Math.max(primitiveSize, primitiveSize * (primitivePrice - 1d)); // assume the worst
-        } else if (side == Side.BACK) {
+        if (side == Side.BACK) {
             liability = primitiveSize;
         } else if (side == Side.LAY) {
             liability = Formulas.layExposure(primitivePrice, primitiveSize);
-        } else { // unsupported Side
+        } else {
             liability = Math.max(primitiveSize, primitiveSize * (primitivePrice - 1d)); // assume the worst
-            logger.error("unsupported side {} in LimitOrder.getLiability for: {}", side, Generic.objectToString(this));
+            if (side == null) {
+                logger.error("side null in LimitOrder.getLiability: {}", Generic.objectToString(this));
+            } else { // unsupported Side
+                logger.error("unsupported side {} in LimitOrder.getLiability for: {}", side, Generic.objectToString(this));
+            }
         }
 
         return liability;

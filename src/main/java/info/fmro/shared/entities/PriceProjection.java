@@ -1,6 +1,5 @@
 package info.fmro.shared.entities;
 
-import info.fmro.shared.entities.ExBestOffersOverrides;
 import info.fmro.shared.enums.PriceData;
 import org.jetbrains.annotations.Nullable;
 

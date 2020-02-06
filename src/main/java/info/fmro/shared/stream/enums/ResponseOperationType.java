@@ -1,6 +1,5 @@
 package info.fmro.shared.stream.enums;
 
-@SuppressWarnings("WeakerAccess")
 public enum ResponseOperationType {
     // The ConnectionMessage sent on your connection.
     connection,

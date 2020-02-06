@@ -39,6 +39,7 @@ public final class PriceSizeLadder
         return new PriceSizeLadder(Comparator.naturalOrder());
     }
 
+    @NotNull
     public synchronized PriceSizeLadder copy() {
         final PriceSizeLadder result;
         Comparator<? super Double> comparator = this.priceToSize.comparator();
@@ -53,6 +54,7 @@ public final class PriceSizeLadder
         return result;
     }
 
+    @NotNull
     public synchronized TreeMap<Double, Double> getSimpleTreeMap(@NotNull final AtomicDouble currencyRate) {
         final TreeMap<Double, Double> result = new TreeMap<>(this.priceToSize.comparator());
 

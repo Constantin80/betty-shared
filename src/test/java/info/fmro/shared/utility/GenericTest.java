@@ -43,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@SuppressWarnings("ConstantConditions")
 class GenericTest {
     static final String BOGUS = "bogus";
 
@@ -659,7 +660,6 @@ class GenericTest {
     }
 
     // Test of concatByte method, of class Generic.
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void concatByte() {
         // endIndexA & endIndexB are excluded
@@ -760,7 +760,7 @@ class GenericTest {
     // Test of getHexString method, of class Generic.
     @Test
     void getHexString() {
-        @SuppressWarnings("ImplicitNumericConversion") final byte[] byteArray = {12, 22, 111, 2, 0, -12};
+        final byte[] byteArray = {12, 22, 111, 2, 0, -12};
         final String expResult = "0c166f0200f4";
         final String result = Generic.getHexString(byteArray);
 
@@ -977,7 +977,6 @@ class GenericTest {
     }
 
     // Test of getSocksType method, of class Generic.
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void getSocksType() {
         String proxyType = "soCks4";
@@ -1237,7 +1236,7 @@ class GenericTest {
     @Test
     void addCommas_4args() {
         final String s = "012345678901234567890-1234567890";
-        @SuppressWarnings("ImplicitNumericConversion") final byte groupSize = 5;
+        final byte groupSize = 5;
         final String commaDelimiter = ":";
         final String periodDelimiter = "-";
         final String expResult = "0:12345:67890:12345:67890-1234567890";
@@ -1260,7 +1259,6 @@ class GenericTest {
     }
 
     // Test of byteArrayIndexOf method, of class Generic.
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void byteArrayIndexOf_byteArr_byteArr() {
         byte[] data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5};
@@ -1277,7 +1275,6 @@ class GenericTest {
     }
 
     // Test of byteArrayIndexOf method, of class Generic.
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void byteArrayIndexOf_3args() {
         byte[] data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5};
@@ -1303,7 +1300,6 @@ class GenericTest {
     }
 
     // Test of byteArrayComputeFailure method, of class Generic.
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void byteArrayComputeFailure() {
         byte[] pattern = {3, 4, 5, 6, 7};
@@ -1489,7 +1485,6 @@ class GenericTest {
     }
 
     // Test of decompressByteArray method, of class Generic.
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void decompressByteArray()
             throws IOException {

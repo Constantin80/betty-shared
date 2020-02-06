@@ -10,6 +10,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 
+@SuppressWarnings("WeakerAccess")
 public class AlreadyPrintedMap
 //        extends SynchronizedMap<String, Long>
         implements Serializable {

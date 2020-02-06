@@ -17,7 +17,7 @@ public class RecordedMaxValue {
     public RecordedMaxValue(final long expiryTime, final int maxMapSize) {
         this.expiryTime = expiryTime;
         // minimum value, else my algorithm won't work
-        this.maxMapSize = maxMapSize >= 2 ? maxMapSize : 2;
+        this.maxMapSize = Math.max(maxMapSize, 2);
     }
 
     public synchronized int getValue() {

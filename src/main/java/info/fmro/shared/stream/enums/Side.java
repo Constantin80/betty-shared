@@ -10,6 +10,7 @@ public enum Side { // BACK, LAY;
 
     private static final Logger logger = LoggerFactory.getLogger(Side.class);
 
+    @Nullable
     public synchronized info.fmro.shared.enums.Side toStandardSide() {
         @Nullable final info.fmro.shared.enums.Side returnValue;
         if (this == B) {

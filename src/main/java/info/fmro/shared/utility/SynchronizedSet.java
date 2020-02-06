@@ -86,6 +86,7 @@ public class SynchronizedSet<E>
         return copy;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public synchronized E getEqualElement(final E elementToFind) {
         @Nullable E returnValue = null;
         if (this.set == null) {

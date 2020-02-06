@@ -1,5 +1,6 @@
 package info.fmro.shared.logic;
 
+import com.google.common.math.DoubleMath;
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.objects.Exposure;
@@ -437,9 +438,11 @@ public class ManagedRunner
         return this.maxLayOdds;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     synchronized boolean setProportionOfMarketLimitPerRunner(final double newValue, @NotNull final RulesManager rulesManager) {
         final boolean modified;
         if (newValue >= 0d) {
+            //noinspection FloatingPointEquality
             if (newValue == this.proportionOfMarketLimitPerRunner) {
                 modified = false;
             } else {
@@ -486,11 +489,10 @@ public class ManagedRunner
             this.idealBackExposure = 0d;
             newExposureAssigned = 0d; // in case of this strange error, I'll also return 0d, as I don't want to further try to setIdealBackExposure
         }
-        if (this.idealBackExposure == previousValue) { // no modification, nothing to be done
+        if (DoubleMath.fuzzyEquals(this.idealBackExposure, previousValue, .0001d)) { // no significant modification, nothing to be done
         } else {
             rulesManager.addMarketToCheck(this.marketId);
         }
-
         return newExposureAssigned;
     }
 

@@ -4,6 +4,7 @@ import org.jetbrains.annotations.Contract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("unused")
 public class StampedDouble { // access to the value is stamped
     private static final Logger logger = LoggerFactory.getLogger(StampedDouble.class);
     private final double value;

@@ -61,7 +61,7 @@ public class ManagedMarket
 
     @SuppressWarnings("InstanceVariableMayNotBeInitializedByReadObject")
     private transient ManagedEvent parentEvent;
-    @SuppressWarnings("InstanceVariableMayNotBeInitializedByReadObject")
+    @SuppressWarnings({"InstanceVariableMayNotBeInitializedByReadObject", "FieldAccessedSynchronizedAndUnsynchronized"})
     private transient Market market;
     @Nullable
     @SuppressWarnings("InstanceVariableMayNotBeInitializedByReadObject")
@@ -82,7 +82,7 @@ public class ManagedMarket
     }
 
     @NotNull
-    private ArrayList<ManagedRunner> createRunnersOrderedList(@NotNull final MarketCache marketCache) {
+    private synchronized ArrayList<ManagedRunner> createRunnersOrderedList(@NotNull final MarketCache marketCache) {
         final ArrayList<ManagedRunner> runnersOrderedList = new ArrayList<>(this.runners.values());
         runnersOrderedList.sort(Comparator.comparing(k -> k.getLastTradedPrice(marketCache), new ComparatorMarketPrices()));
         return runnersOrderedList;
@@ -515,7 +515,7 @@ public class ManagedMarket
         return result;
     }
 
-    private synchronized boolean checkTwoWayMarketLimitsValid(@NotNull final ArrayList<ManagedRunner> runnersOrderedList) {
+    private synchronized boolean checkTwoWayMarketLimitsValid(final @NotNull ArrayList<? extends ManagedRunner> runnersOrderedList) {
         // maxBackLimit on one runner needs to be equal to maxLayLimit on the other, and vice-versa; same with odds being usable or unusable; max odds on back roughly inversely proportional to lay on the other runner, and vice-versa
         final boolean isValid;
         if (runnersOrderedList.size() == 2) {
@@ -662,7 +662,7 @@ public class ManagedMarket
         return modifications;
     }
 
-    private synchronized int removeExposure(@NotNull final ArrayList<ManagedRunner> runnersOrderedList, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread) {
+    private synchronized int removeExposure(final @NotNull ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread) {
         // assumes market and runners exposure has been updated
         int modifications = 0;
         if (Double.isNaN(this.marketTotalExposure)) {
@@ -706,7 +706,7 @@ public class ManagedMarket
     }
 
     @SuppressWarnings({"OverlyLongMethod", "OverlyNestedMethod"})
-    private synchronized int useTheNewLimit(@NotNull final ArrayList<ManagedRunner> runnersOrderedList, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final RulesManager rulesManager) {
+    private synchronized int useTheNewLimit(final @NotNull ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final RulesManager rulesManager) {
         int modifications = 0;
         if (Double.isNaN(this.marketTotalExposure)) {
             logger.error("marketTotalExposure not initialized in useTheNewLimit for: {}", Generic.objectToString(this));
@@ -837,7 +837,7 @@ public class ManagedMarket
         return modifications;
     }
 
-    private synchronized double calculateAvailableIdealBackExposureSum(@NotNull final ArrayList<ManagedRunner> runnersOrderedList) { // I will only add the positive amounts
+    private synchronized double calculateAvailableIdealBackExposureSum(final @NotNull Iterable<? extends ManagedRunner> runnersOrderedList) { // I will only add the positive amounts
         double availableIdealBackExposureSum = 0d;
         for (final ManagedRunner managedRunner : runnersOrderedList) {
             final double availableIdealBackExposure = managedRunner.getIdealBackExposure() - managedRunner.getBackTotalExposure();
@@ -849,7 +849,7 @@ public class ManagedMarket
         return availableIdealBackExposureSum;
     }
 
-    private synchronized double calculateExcessiveBackExposureOverIdealSum(@NotNull final ArrayList<ManagedRunner> runnersOrderedList) { // I will only add the positive amounts
+    private synchronized double calculateExcessiveBackExposureOverIdealSum(final @NotNull Iterable<? extends ManagedRunner> runnersOrderedList) { // I will only add the positive amounts
         double excessiveBackExposureOverIdealSum = 0d;
         for (final ManagedRunner managedRunner : runnersOrderedList) {
             final double excessiveBackExposureOverIdeal = managedRunner.getBackTotalExposure() - managedRunner.getIdealBackExposure();
@@ -861,7 +861,7 @@ public class ManagedMarket
         return excessiveBackExposureOverIdealSum;
     }
 
-    private synchronized void calculateProportionOfMarketLimitPerRunnerList(@NotNull final ArrayList<ManagedRunner> runnersOrderedList, @NotNull final RulesManager rulesManager) { // calculated proportions depend on the toBeUsedBackOdds
+    private synchronized void calculateProportionOfMarketLimitPerRunnerList(final @NotNull Collection<? extends ManagedRunner> runnersOrderedList, @NotNull final RulesManager rulesManager) { // calculated proportions depend on the toBeUsedBackOdds
         final double sumOfStandardAmounts = runnersOrderedList.stream().filter(x -> info.fmro.shared.utility.Formulas.oddsAreUsable(x.getToBeUsedBackOdds())).mapToDouble(x -> 1d / (x.getToBeUsedBackOdds() - 1d)).sum();
         for (final ManagedRunner managedRunner : runnersOrderedList) { // sumOfStandardAmounts should always be != 0d if at least one oddsAreUsable
             final double proportion = info.fmro.shared.utility.Formulas.oddsAreUsable(managedRunner.getToBeUsedBackOdds()) ? 1d / (managedRunner.getToBeUsedBackOdds() - 1d) / sumOfStandardAmounts : 0d;
@@ -869,7 +869,7 @@ public class ManagedMarket
         }
     }
 
-    private synchronized void calculateIdealBackExposureList(@NotNull final ArrayList<ManagedRunner> runnersOrderedList, @NotNull final RulesManager rulesManager) {
+    private synchronized void calculateIdealBackExposureList(final @NotNull ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final RulesManager rulesManager) {
         calculateProportionOfMarketLimitPerRunnerList(runnersOrderedList, rulesManager);
         // reset idealBackExposure
         for (final ManagedRunner managedRunner : runnersOrderedList) {
@@ -912,7 +912,7 @@ public class ManagedMarket
 //        updateIdealBackExposureSum();
     }
 
-    public synchronized double getMaxMarketLimit(@NotNull final ExistingFunds safetyLimits, @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    public synchronized double getMaxMarketLimit(@NotNull final ExistingFunds safetyLimits, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         final double result;
         final double safetyLimit = safetyLimits.getDefaultMarketLimit(this.id, marketCataloguesMap);
         result = this.amountLimit >= 0 ? Math.min(this.amountLimit, safetyLimit) : safetyLimit;
@@ -934,13 +934,14 @@ public class ManagedMarket
         }
     }
 
-    public synchronized boolean setCalculatedLimit(final double newLimit, final boolean limitCanBeIncreased, @NotNull final ExistingFunds safetyLimits, @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    public synchronized boolean setCalculatedLimit(final double newLimit, final boolean limitCanBeIncreased, @NotNull final ExistingFunds safetyLimits,
+                                                   final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         final boolean modified;
         modified = (limitCanBeIncreased || newLimit < this.calculatedLimit) && setCalculatedLimit(newLimit, safetyLimits, marketCataloguesMap);
         return modified;
     }
 
-    private synchronized boolean setCalculatedLimit(final double newLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    private synchronized boolean setCalculatedLimit(final double newLimit, @NotNull final ExistingFunds safetyLimits, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         final boolean gettingModified;
 
         // both are zero

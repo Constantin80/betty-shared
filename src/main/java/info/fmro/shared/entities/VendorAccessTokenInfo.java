@@ -1,6 +1,5 @@
 package info.fmro.shared.entities;
 
-import info.fmro.shared.entities.ApplicationSubscription;
 import info.fmro.shared.enums.TokenType;
 
 @SuppressWarnings("unused")

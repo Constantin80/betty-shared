@@ -24,10 +24,12 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
         super(initialSize);
     }
 
+    @SuppressWarnings("unused")
     private SynchronizedSafeSet(final int initialSize, final float loadFactor) {
         super(initialSize, loadFactor);
     }
 
+    @SuppressWarnings("unused")
     private SynchronizedSafeSet(final Collection<? extends E> collection) {
         super(collection);
     }

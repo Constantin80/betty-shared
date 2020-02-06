@@ -33,7 +33,7 @@ class ModifyParameterArrayAction<T>
     public Object invoke(final Invocation invocation) {
         if (this.value.getClass().equals(Byte.class)) {
             // System.out.println("byte");
-            ((byte[]) invocation.getParameter(this.parameterIndex))[this.arrayIndex] = Byte.valueOf(this.value.toString());
+            ((byte[]) invocation.getParameter(this.parameterIndex))[this.arrayIndex] = Byte.parseByte(this.value.toString());
         } else if (this.value.getClass().equals(byte[].class)) {
             // System.out.println("byte array");
             System.arraycopy(this.value, 0, invocation.getParameter(this.parameterIndex), this.arrayIndex, ((byte[]) this.value).length);

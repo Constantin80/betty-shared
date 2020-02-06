@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 
-@SuppressWarnings("UtilityClass")
+@SuppressWarnings({"UtilityClass", "WeakerAccess"})
 public final class Formulas {
     private static final Logger logger = LoggerFactory.getLogger(Formulas.class);
     //    public static final List<Double> pricesList = List.of(1.01, 1.02,1.03,1.04,1.05,1.06,1.07,1.08,1.09,1.1,1.11,1.12,1.13,1.14 ...);

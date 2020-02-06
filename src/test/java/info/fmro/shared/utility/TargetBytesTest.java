@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TargetBytesTest {
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void getIP()
             throws UnknownHostException {
@@ -18,7 +17,6 @@ public class TargetBytesTest {
         assertArrayEquals(expResult, result);
     }
 
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void getPort()
             throws UnknownHostException {

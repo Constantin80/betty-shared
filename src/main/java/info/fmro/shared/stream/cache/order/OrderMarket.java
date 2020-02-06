@@ -45,7 +45,7 @@ public class OrderMarket
         orderMarketRunner.onOrderRunnerChange(orderRunnerChange, pendingOrdersThread, currencyRate);
     }
 
-    @SuppressWarnings("SuspiciousGetterSetter")
+    @SuppressWarnings({"SuspiciousGetterSetter", "WeakerAccess"})
     public synchronized boolean isClosed() {
         return this.isClosed;
     }

@@ -45,7 +45,7 @@ public class ManagedEvent
 
     @SuppressWarnings("UnusedReturnValue")
     synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final RulesManager rulesManager, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                        final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                        final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         final boolean modified;
         if (Double.isNaN(newAmountLimit)) {
             modified = false;
@@ -96,7 +96,7 @@ public class ManagedEvent
     }
 
     synchronized void calculateMarketLimits(@NotNull final RulesManager rulesManager, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                            @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                            final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         final double maxEventLimit = getAmountLimit(safetyLimits);
         //noinspection NonPrivateFieldAccessedInSynchronizedContext
         Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(rulesManager), false, false, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap);

@@ -4,7 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "ClassOnlyUsedInOneModule"})
 public class CustomUncaughtExceptionHandler
         implements Thread.UncaughtExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(CustomUncaughtExceptionHandler.class);

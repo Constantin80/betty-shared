@@ -20,7 +20,6 @@ public class ModifyParameterArrayActionTest {
         assertEquals(expResult, description.toString());
     }
 
-    @SuppressWarnings("ImplicitNumericConversion")
     @Test
     void invoke() {
         final byte[] byteArray = {4, 1, 5};

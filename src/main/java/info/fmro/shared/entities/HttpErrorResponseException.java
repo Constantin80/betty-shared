@@ -1,7 +1,5 @@
 package info.fmro.shared.entities;
 
-import info.fmro.shared.entities.APINGException;
-
 @SuppressWarnings({"NonExceptionNameEndsWithException", "SpellCheckingInspection"})
 public class HttpErrorResponseException {
     private String exceptionname;

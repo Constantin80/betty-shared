@@ -16,6 +16,7 @@ public final class ChangeMessageFactory {
     private ChangeMessageFactory() {
     }
 
+    @NotNull
     public static ChangeMessage<MarketChange> ToChangeMessage(final int clientId, @NotNull final MarketChangeMessage message) {
         final ChangeMessage<MarketChange> change = new ChangeMessage<>(clientId);
         change.setId(message.getId());
@@ -62,6 +63,7 @@ public final class ChangeMessageFactory {
         return change;
     }
 
+    @NotNull
     public static ChangeMessage<OrderMarketChange> ToChangeMessage(final int clientId, @NotNull final OrderChangeMessage message) {
         final ChangeMessage<OrderMarketChange> change = new ChangeMessage<>(clientId);
         change.setId(message.getId());

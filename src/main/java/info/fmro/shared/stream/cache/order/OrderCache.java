@@ -28,7 +28,6 @@ public class OrderCache
     private static final long serialVersionUID = -6023803756520072425L;
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     private final Map<String, OrderMarket> markets = new ConcurrentHashMap<>(4); // only place where orderMarkets are permanently stored
-    @SuppressWarnings("FieldMayBeFinal")
     private boolean orderMarketRemovedOnClose = true; // default
 
     private void readObject(@NotNull final java.io.ObjectInputStream in)
@@ -41,6 +40,7 @@ public class OrderCache
         return SerializationUtils.clone(this);
     }
 
+    @SuppressWarnings("NonPrivateFieldAccessedInSynchronizedContext")
     public synchronized boolean copyFromStream(final OrderCache other) {
         final boolean readSuccessful;
         if (other == null) {

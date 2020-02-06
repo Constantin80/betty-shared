@@ -30,7 +30,7 @@ public final class Utils {
 
     public static void calculateMarketLimits(final double maxTotalLimit, @NotNull final Iterable<? extends ManagedMarket> marketsSet, final boolean shouldCalculateExposure, final boolean marketLimitsCanBeIncreased,
                                              @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                             @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                             final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         double totalMatchedExposure = 0d, totalExposure = 0d, sumOfMaxMarketLimits = 0d;
         final Collection<ManagedMarket> marketsWithErrorCalculatingExposure = new HashSet<>(1), marketsWithExposureHigherThanTheirMaxLimit = new HashSet<>(1);
         for (final ManagedMarket managedMarket : marketsSet) {
@@ -147,6 +147,7 @@ public final class Utils {
         return resultList;
     }
 
+    @NotNull
     private static List<Double> getExposureToBePlacedForTwoWayMarket(@NotNull final List<Double> existingTempExposures, @NotNull final List<Double> existingNonMatchedExposures, @NotNull final List<Double> nonMatchedExposureLimitList,
                                                                      @NotNull final List<Side> sideList, @NotNull final List<Double> toBeUsedOdds, final double excessMatchedExposure) {
         // nonMatchedExposure should include the tempExposure
@@ -197,6 +198,7 @@ public final class Utils {
         return resultList;
     }
 
+    @NotNull
     private static List<Double> getExposureToBePlacedForTwoWayMarket(@NotNull final List<Double> nonMatchedExposureLimitList, @NotNull final List<Side> sideList, @NotNull final List<Double> toBeUsedOdds, final double excessMatchedExposure) {
         // I apply the limits
         final List<Double> resultList;
@@ -228,6 +230,7 @@ public final class Utils {
         return resultList;
     }
 
+    @NotNull
     private static List<Double> getExposureToBePlacedForTwoWayMarket(@NotNull final List<Side> sideList, @NotNull final List<Double> toBeUsedOdds, final double excessMatchedExposure) {
         // I'm getting the raw excessMatchedExposure, without considering existing exposure and limits
         // the factors are the price of toBeUsedOdds, and which of the toBeUsedOdds is more profitable; those two should be enough for now; also lay bets should be given slight priority over back bets, as other gamblers like to back rather than lay
@@ -299,6 +302,7 @@ public final class Utils {
         return resultList;
     }
 
+    @NotNull
     private static List<Double> getAmountsToBePlacedForTwoWayMarket(@NotNull final List<Double> existingUnmatchedExposures, @NotNull final List<Double> existingNonMatchedExposures, @NotNull final List<Double> availableLimitList,
                                                                     @NotNull final List<Side> sideList, @NotNull final List<Double> toBeUsedOdds, final double availableLimit) {
         // I apply the limits
@@ -330,6 +334,7 @@ public final class Utils {
         return resultList;
     }
 
+    @NotNull
     private static List<Double> getAmountsToBePlacedForTwoWayMarket(@NotNull final List<Double> existingUnmatchedExposures, @NotNull final List<Double> existingNonMatchedExposures, @NotNull final List<Side> sideList,
                                                                     @NotNull final List<Double> toBeUsedOdds, final double availableLimit) {
         // I'm getting the raw availableLimit, without considering existing exposure and limits
@@ -387,5 +392,4 @@ public final class Utils {
         }
         return resultList;
     }
-
 }

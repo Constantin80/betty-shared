@@ -117,6 +117,7 @@ public class TemporaryOrder
         return isTooOld(currentTime);
     }
 
+    @SuppressWarnings("WeakerAccess")
     public synchronized boolean isTooOld(final long currentTime) {
         return currentTime >= this.creationTime + TemporaryOrder.defaultTooOldPeriod;
     }

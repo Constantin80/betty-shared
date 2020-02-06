@@ -97,6 +97,7 @@ public class SynchronizedWriterTest {
 
             FileAssert.assertBinaryEquals(testFile, file);
         } finally {
+            //noinspection ConstantConditions
             Generic.closeObjects(instance, outputStreamWriter, fileOutputStream);
             if (file != null) {
                 file.delete();
@@ -130,6 +131,7 @@ public class SynchronizedWriterTest {
 
             FileAssert.assertBinaryEquals(testFile, file);
         } finally {
+            //noinspection ConstantConditions
             Generic.closeObjects(instance, outputStreamWriter, fileOutputStream);
             if (file != null) {
                 file.delete();

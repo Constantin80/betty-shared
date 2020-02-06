@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@SuppressWarnings("NonPrivateFieldAccessedInSynchronizedContext")
 public class ExistingFunds
         implements Serializable, StreamObjectInterface {
     private static final Logger logger = LoggerFactory.getLogger(ExistingFunds.class);
@@ -28,6 +29,7 @@ public class ExistingFunds
     private static final double eventLimitFraction = .1d; // max bet per regular event
     private static final double marketLimitFraction = .05d; // max bet per regular market
     public transient ListOfQueues listOfQueues = new ListOfQueues();
+    @SuppressWarnings("FieldHasSetterButNoGetter")
     public final AtomicDouble currencyRate = new AtomicDouble(1d); // GBP/EUR, 1.1187000274658203 right now, on 13-08-2018; default 1d
     private double totalFunds = -1d; // total funds on the account, including the exposure (= availableFunds - exposure); exposure is a negative number
     private double reserve = 5_000d; // default value; will always be truncated to int; can only increase
@@ -184,11 +186,11 @@ public class ExistingFunds
 //        return getDefaultMarketLimit(marketId, null, parentEventId);
 //    }
 
-    synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         return getDefaultMarketLimit(marketId, marketCataloguesMap, null);
     }
 
-    private synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap, final String parentEventId) {
+    private synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap, final String parentEventId) {
         final double returnValue;
         if (marketId == null) {
             returnValue = 0d;

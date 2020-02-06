@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+@SuppressWarnings("ClassWithTooManyMethods")
 public class ManagedMarketsMap
         extends SynchronizedMap<String, ManagedMarket>
         implements Serializable {
@@ -20,7 +21,7 @@ public class ManagedMarketsMap
     private final String eventId;
     private transient boolean isInitialized;
 
-    public ManagedMarketsMap(final String eventId) {
+    ManagedMarketsMap(final String eventId) {
         super();
         this.eventId = eventId; // the exact object reference
     }
@@ -96,6 +97,7 @@ public class ManagedMarketsMap
         return null;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public synchronized Collection<ManagedMarket> valuesCopy(@NotNull final RulesManager rulesManager) {
         initializeMap(rulesManager);
         return super.valuesCopy();

@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
-@SuppressWarnings("ClassWithTooManyMethods")
+@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
 public class TimeStamps
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(TimeStamps.class);

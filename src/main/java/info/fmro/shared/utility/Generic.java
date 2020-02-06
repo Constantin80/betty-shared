@@ -165,6 +165,7 @@ public final class Generic {
     public static final long DAY_LENGTH_MILLISECONDS = 24L * 60L * 60L * 1_000L, HOUR_LENGTH_MILLISECONDS = 60L * 60L * 1_000L, MINUTE_LENGTH_MILLISECONDS = 60L * 1_000L, MEGABYTE = 1_024L << 10; // 1_024L * 1_024L
     public static final TimeZone UTC_TIMEZONE = TimeZone.getTimeZone("UTC"), BUCHAREST_TIMEZONE = TimeZone.getTimeZone("Europe/Bucharest");
     public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
+    public static final char[] ZERO_LENGTH_CHARS_ARRAY = new char[0];
 
     private Generic() {
     }
@@ -180,11 +181,13 @@ public final class Generic {
             final ObjectReader reader = mapper.readerForUpdating(mainObject);
             reader.readValue(byteArray);
         } catch (@SuppressWarnings("OverlyBroadCatchBlock") IOException e) {
+            //noinspection NestedConditionalExpression
             final Class<?> clazz = mainObject == null ? updateSource == null ? null : updateSource.getClass() : mainObject.getClass();
             logger.error("IOException in updateObject for: {} {} {}", clazz, objectToString(mainObject), objectToString(updateSource), e);
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     @Nullable
     public static KeyManager[] getKeyManagers(final String keyStoreFileName, final String keyStorePassword, final String keyStoreType) {
         if (keyStoreFileName == null || keyStorePassword == null || keyStoreType == null) { // the method will continue anyway
@@ -192,17 +195,17 @@ public final class Generic {
         } else { // nothing to be done on this branch, this is a simple null check
         }
 
-        final File keyFile = new File(keyStoreFileName);
         FileInputStream keyStoreFileInputStream = null;
         KeyManagerFactory keyManagerFactory = null;
         try {
+            final File keyFile = new File(keyStoreFileName);
             keyStoreFileInputStream = new FileInputStream(keyFile);
 
             final KeyStore keyStore = KeyStore.getInstance(keyStoreType);
-            keyStore.load(keyStoreFileInputStream, keyStorePassword == null ? new char[0] : keyStorePassword.toCharArray());
+            keyStore.load(keyStoreFileInputStream, keyStorePassword == null ? ZERO_LENGTH_CHARS_ARRAY : keyStorePassword.toCharArray());
             keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            keyManagerFactory.init(keyStore, keyStorePassword == null ? new char[0] : keyStorePassword.toCharArray());
-        } catch (@SuppressWarnings("OverlyBroadCatchBlock") KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException exception) {
+            keyManagerFactory.init(keyStore, keyStorePassword == null ? ZERO_LENGTH_CHARS_ARRAY : keyStorePassword.toCharArray());
+        } catch (@SuppressWarnings({"OverlyBroadCatchBlock", "ProhibitedExceptionCaught"}) KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException | NullPointerException exception) {
             logger.error("STRANGE ERROR inside getKeyManagers", exception);
         } finally {
             closeObject(keyStoreFileInputStream);
@@ -621,6 +624,7 @@ public final class Generic {
         } catch (FileNotFoundException fileNotFoundException) {
             list = null;
             logger.error("fileNotFoundException in replaceStandardStreams: {} {}", outFileName, errFileName, fileNotFoundException);
+            //noinspection ConstantConditions
             closeObjects(outFileOutputStream, errFileOutputStream, outPrintStream, errPrintStream);
         }
         logger.info("have replaced standard streams: out={} err={} logsFolder={}", outFileName, errFileName, logsFolderName);
@@ -921,6 +925,7 @@ public final class Generic {
         } catch (Throwable throwable) {
             logger.error("STRANGE ERROR inside printStackTraces: {}", fileName, throwable);
         } finally {
+            //noinspection ConstantConditions
             closeObjects(stackPrintStream, stackFileOutputStream);
         }
     }
@@ -954,6 +959,7 @@ public final class Generic {
             // } catch (Throwable throwable) {
             //     logger.error("STRANGE ERROR inside printStackTraces: {}", fileName, throwable);
         } finally {
+            //noinspection ConstantConditions
             closeObjects(stackPrintStream, stackFileOutputStream);
         }
     }
@@ -967,6 +973,7 @@ public final class Generic {
         }
     }
 
+    @NotNull
     public static boolean[] closeObjects(@NotNull final Object... objects) {
         final boolean[] closeSuccess = new boolean[objects.length];
         final int arrayLength = objects.length;
@@ -1160,7 +1167,7 @@ public final class Generic {
 
             for (int i = 0; i < tempInt; i++) {
                 if (tempCharArray[i] != '\r' && tempCharArray[i] != '\n') {
-                    //noinspection NumericCastThatLosesPrecision
+                    //noinspection NumericCastThatLosesPrecision,ImplicitNumericConversion
                     tempCharArray[i] += (char) encryptKey;
                 }
             }
@@ -1196,6 +1203,7 @@ public final class Generic {
             } catch (@SuppressWarnings("OverlyBroadCatchBlock") IOException iOException) {
                 logger.error("STRANGE ERROR inside encryptFile: {} {}", new Object[]{fileName, fileLine}, iOException);
             } finally {
+                //noinspection ConstantConditions
                 closeObjects(synchronizedReader, synchronizedWriter);
             }
 
@@ -1253,6 +1261,7 @@ public final class Generic {
             } catch (@SuppressWarnings("OverlyBroadCatchBlock") IOException | ClassNotFoundException exception) {
                 logger.error("STRANGE ERROR inside readObjectFromFile: {}", fileName, exception);
             } finally {
+                //noinspection ConstantConditions
                 closeObjects(objectInputStream, bufferedInputStream, fileInputStream);
             }
         } else {
@@ -1300,6 +1309,7 @@ public final class Generic {
             // } catch (Throwable throwable) {
             //     logger.error("STRANGE ERROR inside writeObjectToFile: {}", fileName, throwable);
         } finally {
+            //noinspection ConstantConditions
             closeObjects(objectOutputStream, bufferedOutputStream, fileOutputStream);
         }
     }
@@ -1608,7 +1618,7 @@ public final class Generic {
         return userAgent;
     }
 
-    @SuppressWarnings({"CallToSuspiciousStringMethod", "ImplicitNumericConversion"})
+    @SuppressWarnings("CallToSuspiciousStringMethod")
     public static byte getSocksType(@NotNull final String proxyType) {
         final byte socksType;
 
@@ -1789,6 +1799,7 @@ public final class Generic {
     //     return new String (resultString);
     // }
     //
+    @NotNull
     public static String addSpaces(final Object object, final int finalSize, final boolean inFront) {
         String returnString;
 
@@ -1883,7 +1894,7 @@ public final class Generic {
     }
 
     public static boolean isPureAscii(final CharSequence asciiString) {
-        return Charset.forName(US_ASCII_CHARSET).newEncoder().canEncode(asciiString);
+        return StandardCharsets.US_ASCII.newEncoder().canEncode(asciiString);
     }
 
     @Contract(pure = true)
@@ -1916,6 +1927,7 @@ public final class Generic {
         return returnValue;
     }
 
+    @NotNull
     @Contract(pure = true)
     public static int[] byteArrayComputeFailure(@NotNull final byte[] pattern) {
         // Computes the failure function using a boot-strapping process, where the pattern is matched against itself.
@@ -1969,6 +1981,7 @@ public final class Generic {
         return areEqual;
     }
 
+    @NotNull
     public static <K, V extends Comparable<V>> LinkedHashMap<K, V> sortByValue(@NotNull final Map<K, V> map, final boolean ascendingOrder) {
         final List<Entry<K, V>> list = new ArrayList<>(map.entrySet());
 
@@ -2027,10 +2040,12 @@ public final class Generic {
             destination = destinationStream.getChannel();
             destination.transferFrom(source, 0, source.size());
         } finally {
+            //noinspection ConstantConditions
             closeObjects(source, sourceStream, destination, destinationStream);
         }
     }
 
+    @NotNull
     @SuppressWarnings("unchecked")
     public static <T> T[] concatArrays(@NotNull final T[] firstArray, @NotNull final T[]... restArrays) {
         // because this works with generic type, it won't work with primitive types
@@ -2086,6 +2101,7 @@ public final class Generic {
 
             returnValue = knownFormat ? byteArrayOutputStream.toByteArray() : byteArray;
         } finally {
+            //noinspection ConstantConditions
             closeObjects(gzipOutputStream, deflaterOutputStream, byteArrayOutputStream);
         }
         //noinspection ConstantConditions
@@ -2158,6 +2174,7 @@ public final class Generic {
             closeObject(byteArrayInputStream);
 
             if (!closeObject(bufferedInputStream)) {
+                //noinspection ConstantConditions
                 closeObjects(gZIPInputStream, inflaterInputStream);
             }
             closeObject(byteArrayOutputStream);
@@ -2166,16 +2183,18 @@ public final class Generic {
         return returnValue;
     }
 
+    @NotNull
     public static LinkedList<String> getSubstrings(final String inputString, final String firstDelimiter, final String secondDelimiter) {
         return getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, false, -1);
     }
 
+    @NotNull
     public static LinkedList<String> getSubstrings(final String inputString, final String firstDelimiter, final String secondDelimiter, final boolean getInterSubstrings) {
         return getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, getInterSubstrings, -1);
     }
 
-    public static LinkedList<String> getSubstrings(final String harvestInputString, final String searchInputString, final String firstDelimiter, final String secondDelimiter, final boolean getInterSubstrings,
-                                                   final int nSubstrings) {
+    @NotNull
+    public static LinkedList<String> getSubstrings(final String harvestInputString, final String searchInputString, final String firstDelimiter, final String secondDelimiter, final boolean getInterSubstrings, final int nSubstrings) {
         // harvestInputString is the string the substrings will be harvested from
         // searchInputString is the string the searches will be made on
         //     - this would usually be the same as harvestInputString, but there can be exceptions, for example when we want the letterCase to differ
@@ -2216,6 +2235,7 @@ public final class Generic {
         return returnSet;
     }
 
+    @NotNull
     public static LinkedList<String> getSubstringsIgnoreCase(final String inputString, @NotNull final String firstDelimiter, @NotNull final String secondDelimiter) {
         return getSubstrings(inputString, inputString.toLowerCase(Locale.ENGLISH), firstDelimiter.toLowerCase(Locale.ENGLISH), secondDelimiter.toLowerCase(Locale.ENGLISH), false, -1);
     }
@@ -2844,7 +2864,7 @@ public final class Generic {
 
                 // Get hold of the default trust manager
                 X509TrustManager defaultTm = null;
-                for (TrustManager tm : tmf.getTrustManagers()) {
+                for (final TrustManager tm : tmf.getTrustManagers()) {
                     if (tm instanceof X509TrustManager) {
                         defaultTm = (X509TrustManager) tm;
                         break;
@@ -2858,7 +2878,7 @@ public final class Generic {
                 final TrustManagerFactory secondTmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 secondTmf.init(myTrustStore);
 
-                for (TrustManager tm : secondTmf.getTrustManagers()) {
+                for (final TrustManager tm : secondTmf.getTrustManagers()) {
                     if (tm instanceof X509TrustManager) {
                         myTm = (X509TrustManager) tm;
                         break;
@@ -2868,35 +2888,39 @@ public final class Generic {
                 // Wrap it in your own class; I need final variables for that
                 final X509TrustManager finalDefaultTm = defaultTm;
                 final X509TrustManager finalMyTm = myTm;
+                //noinspection OverlyComplexAnonymousInnerClass
                 customTm = new X509TrustManager() {
+                    @SuppressWarnings("ConstantConditions")
                     @Override
                     public X509Certificate[] getAcceptedIssuers() {
                         return arrayMerge(finalMyTm.getAcceptedIssuers(), finalDefaultTm.getAcceptedIssuers());
                     }
 
+                    @SuppressWarnings("ConstantConditions")
                     @Override
-                    public void checkServerTrusted(final X509Certificate[] chain, final String authType)
+                    public void checkServerTrusted(final X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType)
                             throws CertificateException {
                         try {
-                            finalMyTm.checkServerTrusted(chain, authType);
+                            finalMyTm.checkServerTrusted(x509Certificates, authType);
                         } catch (CertificateException e) {
                             // This will throw another CertificateException if this fails too.
-                            finalDefaultTm.checkServerTrusted(chain, authType);
+                            finalDefaultTm.checkServerTrusted(x509Certificates, authType);
                         }
                     }
 
+                    @SuppressWarnings("ConstantConditions")
                     @Override
-                    public void checkClientTrusted(final X509Certificate[] chain, final String authType)
+                    public void checkClientTrusted(final X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType)
                             throws CertificateException {
                         try {
-                            finalMyTm.checkClientTrusted(chain, authType);
+                            finalMyTm.checkClientTrusted(x509Certificates, authType);
                         } catch (CertificateException e) {
                             // This will throw another CertificateException if this fails too.
-                            finalDefaultTm.checkClientTrusted(chain, authType);
+                            finalDefaultTm.checkClientTrusted(x509Certificates, authType);
                         }
                     }
-                };
-            } catch (Exception e) {
+                }; // end of anonymous inner class
+            } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception e) {
                 logger.error("exception in getCustomTrustManager for: {} {}", keyStoreFileName, keyStorePassword, e);
             }
             result = customTm == null ? null : new TrustManager[]{customTm};

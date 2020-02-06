@@ -22,7 +22,6 @@ public class MarketCache
     private static final long serialVersionUID = -6721530926161875702L;
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     private final Map<String, Market> markets = new ConcurrentHashMap<>(32); // only place where markets are permanently stored
-    @SuppressWarnings("FieldMayBeFinal")
     private boolean isMarketRemovedOnClose = true; // default
 
     //conflation indicates slow consumption
@@ -38,6 +37,7 @@ public class MarketCache
         return SerializationUtils.clone(this);
     }
 
+    @SuppressWarnings("NonPrivateFieldAccessedInSynchronizedContext")
     public synchronized boolean copyFromStream(final MarketCache other) {
         final boolean readSuccessful;
         if (other == null) {

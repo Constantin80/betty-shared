@@ -72,13 +72,7 @@ public class Market
 
     @Nullable
     public synchronized String getEventId() {
-        @Nullable final String result;
-        if (this.marketDefinition == null) {
-            result = null;
-        } else {
-            result = this.marketDefinition.getEventId();
-        }
-        return result;
+        return this.marketDefinition == null ? null : this.marketDefinition.getEventId();
     }
 
     @Contract(pure = true)
@@ -94,6 +88,7 @@ public class Market
         return this.marketId;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public synchronized boolean isClosed() {
         //whether the market is closed
         return (this.marketDefinition != null && this.marketDefinition.getStatus() == MarketStatus.CLOSED);

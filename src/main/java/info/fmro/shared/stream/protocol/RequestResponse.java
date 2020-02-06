@@ -64,6 +64,7 @@ public class RequestResponse {
         return isTaskFinished() && this.statusMessage.getStatusCode() == StatusCode.SUCCESS;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public synchronized boolean isTaskFinished() {
         return this.statusMessage != null;
     }

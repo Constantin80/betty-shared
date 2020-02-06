@@ -22,13 +22,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-@SuppressWarnings({"WeakerAccess", "ClassWithTooManyMethods", "OverlyComplexClass"})
+@SuppressWarnings({"WeakerAccess", "ClassWithTooManyMethods", "OverlyComplexClass", "NonPrivateFieldAccessedInSynchronizedContext"})
 public class RulesManager
         implements Serializable, StreamObjectInterface {
     private static final Logger logger = LoggerFactory.getLogger(RulesManager.class);
@@ -38,7 +39,7 @@ public class RulesManager
     public final ManagedEventsMap events = new ManagedEventsMap(); // managedEvents are permanently stored only here
     public final SynchronizedMap<String, ManagedMarket> markets = new SynchronizedMap<>(); // managedMarkets are permanently stored only here
     //    public final SynchronizedSafeSet<RulesManagerStringObject> marketsToCheck = new SynchronizedSafeSet<>();
-    public final ConcurrentLinkedQueue<String> marketsToCheck = new ConcurrentLinkedQueue<>(); // don't forget to activate the marketsToCheckExist marker when a new marketsToCheck is added
+    public final Collection<String> marketsToCheck = new ConcurrentLinkedQueue<>(); // don't forget to activate the marketsToCheckExist marker when a new marketsToCheck is added
     public final SynchronizedSet<String> addManagedRunnerCommands = new SynchronizedSet<>();
     public transient AtomicBoolean newAddManagedRunnerCommand = new AtomicBoolean();
     public transient AtomicBoolean newOrderMarketCreated = new AtomicBoolean();
@@ -264,14 +265,14 @@ public class RulesManager
     }
 
     public synchronized ManagedEvent setEventAmountLimit(final String eventId, final Double newAmount, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                                         final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                                         final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         // newAmount == null resets the amount to default -1d value
-        final ManagedEvent managedEvent = this.events.get(eventId, this.rulesHaveChanged);
-        if (managedEvent != null) {
-            managedEvent.setAmountLimit(newAmount == null ? -1d : newAmount, this, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap);
-        } else {
-            logger.error("trying to setEventAmountLimit on an event that doesn't exist: {} {}", eventId, newAmount); // this also covers the case where the element is null, but this should never happen
-        }
+        @NotNull final ManagedEvent managedEvent = this.events.get(eventId, this.rulesHaveChanged);
+//        if (managedEvent != null) {
+        managedEvent.setAmountLimit(newAmount == null ? -1d : newAmount, this, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap);
+//        } else {
+//            logger.error("trying to setEventAmountLimit on an event that doesn't exist: {} {}", eventId, newAmount); // this also covers the case where the element is null, but this should never happen
+//        }
         return managedEvent;
     }
 
@@ -345,7 +346,7 @@ public class RulesManager
     }
 
     private synchronized void addManagedRunner(final String marketId, final long selectionId, final Double handicap, final double minBackOdds, final double maxLayOdds, final double backAmountLimit, final double layAmountLimit,
-                                               final double marketAmountLimit, final double eventAmountLimit, @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap,
+                                               final double marketAmountLimit, final double eventAmountLimit, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap,
                                                @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits) {
         final ManagedMarket managedMarket = this.addManagedMarket(marketId);
         if (managedMarket != null) {
@@ -426,7 +427,7 @@ public class RulesManager
     }
 
     public synchronized void executeCommand(@NotNull final String commandString, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                            @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                            @SuppressWarnings("BoundedWildcard") @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         if (commandString.startsWith("event ")) {
             final String eventString = commandString.substring("event ".length()).trim();
             if (eventString.contains(" ")) {
@@ -475,6 +476,10 @@ public class RulesManager
 //        return currentTime - stampTime;
 //    }
 
+    private synchronized long getTimeLastFullCheck() {
+        return this.timeLastFullCheck;
+    }
+
     public synchronized void stampTimeLastFullCheck() {
         setTimeLastFullCheck(System.currentTimeMillis());
     }
@@ -485,7 +490,7 @@ public class RulesManager
 
     private synchronized long timeSinceFullRun() {
         final long currentTime = System.currentTimeMillis();
-        return currentTime - this.timeLastFullCheck;
+        return currentTime - this.getTimeLastFullCheck();
     }
 
     public synchronized long timeTillNextFullRun() {
@@ -499,7 +504,7 @@ public class RulesManager
     }
 
     public synchronized void calculateMarketLimits(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                                   @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                                   final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
         this.marketsMapModified.set(false);
         final double totalLimit = safetyLimits.getTotalLimit();
         Utils.calculateMarketLimits(totalLimit, this.markets.valuesCopy(), true, true, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap);
@@ -570,7 +575,7 @@ public class RulesManager
         }
     }
 
-    public synchronized void addManagedRunnerCommands(@NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache,
+    public synchronized void addManagedRunnerCommands(final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache,
                                                       @NotNull final ExistingFunds safetyLimits) {
         this.newAddManagedRunnerCommand.set(false);
         final HashSet<String> setCopy = this.addManagedRunnerCommands.clear();
@@ -581,7 +586,7 @@ public class RulesManager
     }
 
     @SuppressWarnings("OverlyNestedMethod")
-    private synchronized void parseAddManagedRunnerCommand(final String addManagedRunnerCommand, @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap,
+    private synchronized void parseAddManagedRunnerCommand(final String addManagedRunnerCommand, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap,
                                                            @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits) {
         // String:marketId long:selectionId Double:handicap(default:null)
         // double optionals:minBackOdds maxLayOdds backAmountLimit layAmountLimit marketAmountLimit eventAmountLimit

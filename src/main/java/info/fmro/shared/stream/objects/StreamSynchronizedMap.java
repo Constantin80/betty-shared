@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 
+@SuppressWarnings("NonPrivateFieldAccessedInSynchronizedContext")
 public class StreamSynchronizedMap<K extends Serializable, V extends Serializable>
         extends SynchronizedMap<K, V>
         implements StreamObjectInterface, Serializable {
@@ -119,7 +120,7 @@ public class StreamSynchronizedMap<K extends Serializable, V extends Serializabl
 
     @Override
     public synchronized V remove(final K key) {
-        if (super.containsKey(key)) {
+        if (containsKey(key)) {
             this.listOfQueues.send(new SerializableObjectModification<>(SynchronizedMapModificationCommand.remove, key));
         } else { // no key removed, nothing to be done
         }

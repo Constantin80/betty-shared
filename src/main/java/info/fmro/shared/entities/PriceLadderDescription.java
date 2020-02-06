@@ -4,6 +4,7 @@ import info.fmro.shared.enums.PriceLadderType;
 
 import java.io.Serializable;
 
+@SuppressWarnings("unused")
 class PriceLadderDescription
         implements Serializable {
     private static final long serialVersionUID = -6000098777316431103L;
