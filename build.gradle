@@ -14,7 +14,9 @@ javafx {
     version = "13"
     modules = ['javafx.controls']
 }
-
+compileJava {
+    options.compilerArgs += ["-Xlint"]
+}
 allprojects {
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'

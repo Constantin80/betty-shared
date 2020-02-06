@@ -44,24 +44,24 @@ public class ExistingFunds
         return SerializationUtils.clone(this);
     }
 
-    public synchronized void copyFromStream(final ExistingFunds existingFunds) {
+    public synchronized void copyFrom(final ExistingFunds existingFunds) {
         if (existingFunds == null) {
-            logger.error("null existingFunds in copyFromStream for: {}", Generic.objectToString(this));
+            logger.error("null existingFunds in copyFrom for: {}", Generic.objectToString(this));
         } else {
-            Generic.updateObject(this, existingFunds);
+//            Generic.updateObject(this, existingFunds); // doesn't work for AtomicDouble
 
-//            this.setAvailableFunds(existingFunds.getAvailableFunds());
-//            this.setExposure(existingFunds.getExposure());
-//            this.setTotalFunds(existingFunds.getTotalFunds());
-//            this.currencyRate.set(existingFunds.currencyRate.get());
-//            this.setReserve(existingFunds.getReserve());
+            this.setAvailableFunds(existingFunds.getAvailableFunds());
+            this.setExposure(existingFunds.getExposure());
+            this.setTotalFunds(existingFunds.getTotalFunds());
+            this.currencyRate.set(existingFunds.currencyRate.get());
+            this.setReserve(existingFunds.getReserve());
         }
 
         final int nQueues = this.listOfQueues.size();
         if (nQueues == 0) { // normal case, nothing to be done
         } else {
-            logger.error("existing queues during ExistingFunds.copyFromStream: {} {}", nQueues, Generic.objectToString(this));
-            this.listOfQueues.clear();
+            logger.error("existing queues during ExistingFunds.copyFrom: {} {}", nQueues, Generic.objectToString(this));
+            this.listOfQueues.send(this.getCopy());
         }
     }
 
@@ -212,7 +212,7 @@ public class ExistingFunds
         return this.totalFunds;
     }
 
-    protected synchronized void setTotalFunds(final double newValue) {
+    public synchronized void setTotalFunds(final double newValue) {
         this.totalFunds = newValue;
     }
 }

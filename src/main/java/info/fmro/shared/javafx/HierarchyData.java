@@ -8,6 +8,7 @@ import javafx.collections.ObservableList;
  *
  * @author Christian Schudt
  */
+@SuppressWarnings("rawtypes")
 public interface HierarchyData<T extends HierarchyData> {
     /**
      * The children collection, which represents the recursive nature of the hierarchy.

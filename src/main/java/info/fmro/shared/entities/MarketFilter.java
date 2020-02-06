@@ -1,6 +1,5 @@
 package info.fmro.shared.entities;
 
-import info.fmro.shared.entities.TimeRange;
 import info.fmro.shared.enums.MarketBettingType;
 import info.fmro.shared.enums.OrderStatus;
 import org.jetbrains.annotations.Nullable;

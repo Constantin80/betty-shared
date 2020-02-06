@@ -18,6 +18,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -33,6 +34,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -55,6 +57,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -183,7 +186,12 @@ public final class Generic {
     }
 
     @Nullable
-    public static KeyManager[] getKeyManagers(final String keyStoreFileName, @NotNull final String keyStorePassword, final String keyStoreType) {
+    public static KeyManager[] getKeyManagers(final String keyStoreFileName, final String keyStorePassword, final String keyStoreType) {
+        if (keyStoreFileName == null || keyStorePassword == null || keyStoreType == null) { // the method will continue anyway
+            logger.error("null argument in getKeyManagers for: {} {} {}", keyStoreFileName, keyStorePassword, keyStoreType);
+        } else { // nothing to be done on this branch, this is a simple null check
+        }
+
         final File keyFile = new File(keyStoreFileName);
         FileInputStream keyStoreFileInputStream = null;
         KeyManagerFactory keyManagerFactory = null;
@@ -191,9 +199,9 @@ public final class Generic {
             keyStoreFileInputStream = new FileInputStream(keyFile);
 
             final KeyStore keyStore = KeyStore.getInstance(keyStoreType);
-            keyStore.load(keyStoreFileInputStream, keyStorePassword.toCharArray());
+            keyStore.load(keyStoreFileInputStream, keyStorePassword == null ? new char[0] : keyStorePassword.toCharArray());
             keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
+            keyManagerFactory.init(keyStore, keyStorePassword == null ? new char[0] : keyStorePassword.toCharArray());
         } catch (@SuppressWarnings("OverlyBroadCatchBlock") KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException exception) {
             logger.error("STRANGE ERROR inside getKeyManagers", exception);
         } finally {
@@ -2773,9 +2781,134 @@ public final class Generic {
         return returnStringBuilder == null ? null : returnStringBuilder.toString().trim();
     }
 
-    public static void disableHTTPSValidation() {
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public static <T> T[] arrayMerge(final T[]... arrays) {
+        @Nullable final T[] mergedArray;
+        if (arrays == null) {
+            logger.error("null arrays in arrayMerge");
+            mergedArray = null;
+        } else {
+            // Determine required size of new array
+            int count = 0;
+            Class<T> clazz = null;
+            for (final T[] array : arrays) {
+                if (array == null) { // might be normal, nothing to do
+                } else {
+                    final int length = array.length;
+                    count += length;
+                    for (int i = 0; clazz == null && i < length; i++) {
+                        if (array[i] == null) { // nothing to do with this element
+                        } else {
+                            clazz = (Class<T>) array[i].getClass();
+                        }
+                    }
+                }
+            }
+
+            // create new array of required class
+            if (clazz == null) {
+                logger.error("null clazz in arrayMerge for: {}", objectToString(arrays));
+                mergedArray = null;
+            } else {
+                mergedArray = (T[]) Array.newInstance(clazz, count);
+
+                // Merge each array into new array
+                int start = 0;
+                for (final T[] array : arrays) {
+                    if (array == null) { // useless array
+                    } else {
+                        final int length = array.length;
+                        System.arraycopy(array, 0, mergedArray, start, length);
+                        start += length;
+                    }
+                }
+            }
+        }
+        return mergedArray;
+    }
+
+    @Nullable
+    public static TrustManager[] getCustomTrustManager(final String keyStoreFileName, final String keyStorePassword) {
+        @Nullable final TrustManager[] result;
+        if (keyStoreFileName == null) {
+            logger.error("null fileName in getCustomTrustManager");
+            result = null;
+        } else {
+            X509TrustManager customTm = null;
+            X509TrustManager myTm = null;
+            try {
+                final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                // Using null here initialises the TMF with the default trust store.
+                tmf.init((KeyStore) null);
+
+                // Get hold of the default trust manager
+                X509TrustManager defaultTm = null;
+                for (TrustManager tm : tmf.getTrustManagers()) {
+                    if (tm instanceof X509TrustManager) {
+                        defaultTm = (X509TrustManager) tm;
+                        break;
+                    }
+                }
+
+                final FileInputStream myKeys = new FileInputStream(keyStoreFileName);
+                final KeyStore myTrustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+                myTrustStore.load(myKeys, keyStorePassword == null ? null : keyStorePassword.toCharArray());
+                myKeys.close();
+                final TrustManagerFactory secondTmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                secondTmf.init(myTrustStore);
+
+                for (TrustManager tm : secondTmf.getTrustManagers()) {
+                    if (tm instanceof X509TrustManager) {
+                        myTm = (X509TrustManager) tm;
+                        break;
+                    }
+                }
+
+                // Wrap it in your own class; I need final variables for that
+                final X509TrustManager finalDefaultTm = defaultTm;
+                final X509TrustManager finalMyTm = myTm;
+                customTm = new X509TrustManager() {
+                    @Override
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return arrayMerge(finalMyTm.getAcceptedIssuers(), finalDefaultTm.getAcceptedIssuers());
+                    }
+
+                    @Override
+                    public void checkServerTrusted(final X509Certificate[] chain, final String authType)
+                            throws CertificateException {
+                        try {
+                            finalMyTm.checkServerTrusted(chain, authType);
+                        } catch (CertificateException e) {
+                            // This will throw another CertificateException if this fails too.
+                            finalDefaultTm.checkServerTrusted(chain, authType);
+                        }
+                    }
+
+                    @Override
+                    public void checkClientTrusted(final X509Certificate[] chain, final String authType)
+                            throws CertificateException {
+                        try {
+                            finalMyTm.checkClientTrusted(chain, authType);
+                        } catch (CertificateException e) {
+                            // This will throw another CertificateException if this fails too.
+                            finalDefaultTm.checkClientTrusted(chain, authType);
+                        }
+                    }
+                };
+            } catch (Exception e) {
+                logger.error("exception in getCustomTrustManager for: {} {}", keyStoreFileName, keyStorePassword, e);
+            }
+            result = customTm == null ? null : new TrustManager[]{customTm};
+        }
+
+        return result;
+    }
+
+    @NotNull
+    public static TrustManager[] getTrustAllCertsManager() {
         // Create a trust manager that does not validate certificate chains
-        final TrustManager[] trustAllCertsManager = {
+        return new TrustManager[]{
                 new X509TrustManager() {
                     @Nullable
                     @Override
@@ -2792,6 +2925,11 @@ public final class Generic {
                     }
                 }
         };
+    }
+
+    public static void disableHTTPSValidation() {
+        // Create a trust manager that does not validate certificate chains
+        final TrustManager[] trustAllCertsManager = getTrustAllCertsManager();
 
         // Install the all-trusting trust manager
         try {
@@ -2949,8 +3087,10 @@ public final class Generic {
                 }
             } while (segments > 0);
             hasReachedEndOfSleep = segments <= 0;
-        } else { // negative or zero variables
-            logger.error("negative or zero variables in threadSleepSegmented for: {} {} {}", totalSleepMillis, segmentMillis, objectToString(objects));
+        } else if (totalSleepMillis <= 0L) { // this is actually acceptable, it just won't sleep at all
+            hasReachedEndOfSleep = true;
+        } else { // negative or zero segmentMillis
+            logger.error("negative or zero segmentMillis in threadSleepSegmented for: {} {} {}", totalSleepMillis, segmentMillis, objectToString(objects));
             hasReachedEndOfSleep = false;
         }
 
