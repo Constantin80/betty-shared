@@ -22,8 +22,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.HashSet;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,7 +39,7 @@ public class RulesManager
     public final ManagedEventsMap events = new ManagedEventsMap(); // managedEvents are permanently stored only here
     public final SynchronizedMap<String, ManagedMarket> markets = new SynchronizedMap<>(); // managedMarkets are permanently stored only here
     //    public final SynchronizedSafeSet<RulesManagerStringObject> marketsToCheck = new SynchronizedSafeSet<>();
-    public final Collection<String> marketsToCheck = new ConcurrentLinkedQueue<>(); // don't forget to activate the marketsToCheckExist marker when a new marketsToCheck is added
+    public final Queue<String> marketsToCheck = new ConcurrentLinkedQueue<>(); // don't forget to activate the marketsToCheckExist marker when a new marketsToCheck is added
     public final SynchronizedSet<String> addManagedRunnerCommands = new SynchronizedSet<>();
     public transient AtomicBoolean newAddManagedRunnerCommand = new AtomicBoolean();
     public transient AtomicBoolean newOrderMarketCreated = new AtomicBoolean();

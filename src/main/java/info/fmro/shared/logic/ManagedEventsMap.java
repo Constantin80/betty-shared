@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@SuppressWarnings("WeakerAccess")
 public class ManagedEventsMap
         extends SynchronizedMap<String, ManagedEvent>
         implements Serializable {

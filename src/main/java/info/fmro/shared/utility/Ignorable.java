@@ -8,7 +8,7 @@ import java.io.Serializable;
 public class Ignorable
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(Ignorable.class);
-    public static final long RECENT_PERIOD = 2_000L;
+    public static final long RECENT_PERIOD = 4_000L;
     private static final long serialVersionUID = 1721002836563166854L;
     private long ignoredExpiration;
     private boolean ignored;
