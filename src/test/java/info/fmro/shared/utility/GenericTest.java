@@ -1,5 +1,8 @@
 package info.fmro.shared.utility;
 
+import info.fmro.shared.logic.ManagedRunner;
+import info.fmro.shared.objects.Exposure;
+import info.fmro.shared.stream.objects.RunnerId;
 import junitx.framework.FileAssert;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
@@ -93,6 +96,16 @@ class GenericTest {
         public int hashCode() {
             return Objects.hash(this.name, this.number);
         }
+    }
+
+    @Test
+    void objectInstanceOf() {
+        final Object managedRunner = new ManagedRunner("id", new RunnerId(1234L, 9876.123d));
+        final Object exposureObjectClass = Exposure.class;
+        final Class<?> exposureClass = (Class<?>) exposureObjectClass;
+        assertTrue(exposureClass.isAssignableFrom(managedRunner.getClass()), "1");
+        assertTrue(exposureClass.isInstance(managedRunner), "2");
+        assertTrue(Generic.objectInstanceOf(exposureClass, managedRunner), "3");
     }
 
     @Test

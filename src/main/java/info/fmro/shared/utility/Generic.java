@@ -170,6 +170,19 @@ public final class Generic {
     private Generic() {
     }
 
+    public static boolean objectInstanceOf(final Class<?> clazz, final Object object) {
+        final boolean isClassOrSubclass;
+
+        if (clazz == null || object == null) {
+            logger.error("null parameter in objectInstanceOf: {} {}", clazz, object);
+            isClassOrSubclass = false;
+        } else {
+//            isClassOrSubclass = clazz.isAssignableFrom(object.getClass());
+            isClassOrSubclass = clazz.isInstance(object);
+        }
+        return isClassOrSubclass;
+    }
+
     public static <T> void updateObject(final T mainObject, final T updateSource) {
         final ObjectMapper mapper = new ObjectMapper();
         mapper.setVisibility(PropertyAccessor.ALL, Visibility.NONE); // remove visibility of everything, including getters/setters

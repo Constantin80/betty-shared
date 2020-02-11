@@ -48,7 +48,7 @@ public class ManagedRunner
     @Nullable
     private transient OrderMarketRunner orderMarketRunner;
 
-    ManagedRunner(final String marketId, final RunnerId runnerId) {
+    public ManagedRunner(final String marketId, final RunnerId runnerId) {
         super();
         this.marketId = marketId;
         this.runnerId = runnerId;

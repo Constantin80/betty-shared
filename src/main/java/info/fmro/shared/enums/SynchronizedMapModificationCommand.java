@@ -14,5 +14,6 @@ public enum SynchronizedMapModificationCommand {
     removeValue,
     removeValueAll,
     removeAllValues,
-    retainAllValues
+    retainAllValues,
+    refresh
 }
