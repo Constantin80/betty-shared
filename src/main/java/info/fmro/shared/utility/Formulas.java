@@ -1,5 +1,7 @@
 package info.fmro.shared.utility;
 
+import info.fmro.shared.entities.EventType;
+import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.stream.cache.market.Market;
 import info.fmro.shared.stream.cache.market.MarketCache;
 import info.fmro.shared.stream.cache.order.OrderCache;
@@ -14,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -393,5 +396,34 @@ public final class Formulas {
     public static EventInterface getStoredEventOfMarketCatalogue(final MarketCatalogueInterface marketCatalogue, final @NotNull SynchronizedMap<? super String, ? extends EventInterface> eventsMap) {
         final String eventId = getEventIdOfMarketCatalogue(marketCatalogue);
         return eventsMap.get(eventId);
+    }
+
+    public static boolean isMarketType(final MarketCatalogue marketCatalogue, final Collection<String> typesList) {
+        final boolean result;
+
+        if (marketCatalogue != null && typesList != null) {
+            final EventType eventType = marketCatalogue.getEventType();
+            if (eventType != null) {
+                final String eventTypeId = eventType.getId();
+                if (eventTypeId != null) {
+                    result = typesList.contains(eventTypeId);
+                } else {
+                    logger.error("null eventType in isMarketType listArg for: {} {}", Generic.objectToString(typesList), Generic.objectToString(marketCatalogue));
+                    result = false;
+                }
+            } else {
+                logger.error("null eventTypeId in isMarketType listArg for: {} {}", Generic.objectToString(typesList), Generic.objectToString(marketCatalogue));
+                result = false;
+            }
+        } else {
+            logger.error("null arguments in isMarketType listArg for: {} {}", Generic.objectToString(typesList), Generic.objectToString(marketCatalogue));
+            result = false;
+        }
+
+        return result;
+    }
+
+    public static boolean isMarketType(final MarketCatalogue marketCatalogue, final String... types) {
+        return isMarketType(marketCatalogue, types == null ? null : Arrays.asList(types));
     }
 }

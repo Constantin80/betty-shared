@@ -151,14 +151,14 @@ public class Ignorable
         return result;
     }
 
-    public synchronized int setIgnored(final long period) {
+    protected synchronized int setIgnored(final long period) {
         final long currentTime = System.currentTimeMillis();
         logger.error("method Ignorable.setIgnored(period) should be overridden, not called directly: {}", this.getClass());
 
         return setIgnored(period, currentTime);
     }
 
-    public synchronized int setIgnored(final long period, final long startTime) {
+    protected synchronized int setIgnored(final long period, final long startTime) {
         final int modified;
 
         if (period > Generic.DAY_LENGTH_MILLISECONDS * 10_000L) {

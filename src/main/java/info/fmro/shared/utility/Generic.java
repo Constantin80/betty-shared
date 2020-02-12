@@ -35,6 +35,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -997,6 +998,54 @@ public final class Generic {
         return closeSuccess;
     }
 
+    @Nullable
+    public static Method getMethod(final Class<?> objectClass, final String methodName, final Class<?>... parameterTypes) {
+        @Nullable final Method result;
+        if (objectClass == null || methodName == null) {
+            logger.error("null parameters in getMethod: {} {} {}", objectClass, methodName, objectToString(parameterTypes));
+            result = null;
+        } else {
+            Method method = null;
+            try {
+                method = objectClass.getDeclaredMethod(methodName, parameterTypes);
+            } catch (NoSuchMethodException noSuchMethodException) {
+                try {
+                    method = objectClass.getMethod(methodName, parameterTypes);
+                } catch (NoSuchMethodException | SecurityException e) {
+                    logger.error("Exception in getMethod inner: {} {} {}", objectClass, methodName, objectToString(parameterTypes), e);
+                }
+            } catch (SecurityException e) {
+                logger.error("securityException in getMethod: {} {} {}", objectClass, methodName, objectToString(parameterTypes), e);
+            }
+            result = method;
+        }
+        return result;
+    }
+
+    @Nullable
+    public static <T> Constructor<T> getConstructor(final Class<T> objectClass, final Class<?>... parameterTypes) {
+        @Nullable final Constructor<T> result;
+        if (objectClass == null) {
+            logger.error("null class in getConstructor: {} {}", objectClass, objectToString(parameterTypes));
+            result = null;
+        } else {
+            Constructor<T> constructor = null;
+            try {
+                constructor = objectClass.getDeclaredConstructor(parameterTypes);
+            } catch (NoSuchMethodException noSuchMethodException) {
+                try {
+                    constructor = objectClass.getConstructor(parameterTypes);
+                } catch (NoSuchMethodException | SecurityException e) {
+                    logger.error("exception in getConstructor inner: {} {}", objectClass, objectToString(parameterTypes), e);
+                }
+            } catch (SecurityException e) {
+                logger.error("securityException in getConstructor: {} {}", objectClass, objectToString(parameterTypes), e);
+            }
+            result = constructor;
+        }
+        return result;
+    }
+
     @SuppressWarnings("NestedTryStatement")
     public static boolean setSoLinger(final Object object) {
         boolean setSoLingerSuccess;
@@ -1014,8 +1063,7 @@ public final class Generic {
                 } catch (NoSuchMethodException noSuchMethodException) {
                     try {
                         objectSetSoLingerMethod = objectClass.getMethod(LINGER, boolean.class, int.class);
-                    } catch (NoSuchMethodException innerNoSuchMethodException) {
-                        // no setSoLinger method exists, no output required
+                    } catch (NoSuchMethodException innerNoSuchMethodException) { // no setSoLinger method exists, no output required
                     } catch (SecurityException securityException) {
                         logger.error("Exception in setSoLinger inner: {} {}", objectClass, objectToString(object), securityException);
                     } // catch (Throwable throwable) {

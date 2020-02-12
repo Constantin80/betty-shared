@@ -16,7 +16,9 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.Socket;
 import java.net.SocketException;
 import java.time.Duration;
@@ -41,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTimeout;
@@ -96,6 +99,31 @@ class GenericTest {
         public int hashCode() {
             return Objects.hash(this.name, this.number);
         }
+    }
+
+    @Test
+    void getConstructor()
+            throws Exception {
+        final Constructor<LocalTestObject> constructor = Generic.getConstructor(LocalTestObject.class, String.class, int.class);
+        final LocalTestObject obj = constructor.newInstance("John", 11);
+        final String name = obj.getName();
+        assertEquals("John", name, "name");
+        final Constructor<LocalTestObject> goodConstructor = Generic.getConstructor(LocalTestObject.class);
+        assertNotNull(goodConstructor, "not null");
+        final Constructor<LocalTestObject> badConstructor = Generic.getConstructor(LocalTestObject.class, double.class);
+        assertNull(badConstructor, " null");
+    }
+
+    @Test
+    void getMethod()
+            throws Exception {
+        final Method method = Generic.getMethod(LocalTestObject.class, "getName");
+        final LocalTestObject obj = new LocalTestObject("John", 11);
+        final String name = (String) method.invoke(obj);
+        assertEquals("John", name, "name");
+
+        final Method badMethod = Generic.getMethod(LocalTestObject.class, "getname");
+        assertNull(badMethod, "null");
     }
 
     @Test
