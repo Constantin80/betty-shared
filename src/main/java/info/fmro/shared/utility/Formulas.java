@@ -1,5 +1,6 @@
 package info.fmro.shared.utility;
 
+import info.fmro.shared.entities.Event;
 import info.fmro.shared.entities.EventType;
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.stream.cache.market.Market;
@@ -7,8 +8,6 @@ import info.fmro.shared.stream.cache.market.MarketCache;
 import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.cache.order.OrderMarket;
 import info.fmro.shared.stream.enums.Side;
-import info.fmro.shared.stream.objects.EventInterface;
-import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -354,11 +353,11 @@ public final class Formulas {
         return orderCache.getOrderMarket(marketId);
     }
 
-    public static String getEventIdOfMarketCatalogue(final MarketCatalogueInterface marketCatalogue) {
+    public static String getEventIdOfMarketCatalogue(final MarketCatalogue marketCatalogue) {
         @Nullable final String result;
 
         if (marketCatalogue != null) {
-            final EventInterface eventStump = marketCatalogue.getEventStump();
+            final Event eventStump = marketCatalogue.getEventStump();
             if (eventStump == null) {
                 Formulas.logger.error("null event in marketCatalogue during getEventOfMarket: {}", Generic.objectToString(marketCatalogue));
                 result = null;
@@ -373,10 +372,10 @@ public final class Formulas {
         return result;
     }
 
-    public static String getEventIdOfMarketId(final String marketId, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    public static String getEventIdOfMarketId(final String marketId, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         @Nullable final String result;
 
-        final MarketCatalogueInterface marketCatalogue = marketCataloguesMap.get(marketId);
+        final MarketCatalogue marketCatalogue = marketCataloguesMap.get(marketId);
         if (marketCatalogue != null) {
             result = getEventIdOfMarketCatalogue(marketCatalogue);
         } else {
@@ -387,13 +386,13 @@ public final class Formulas {
         return result;
     }
 
-    public static EventInterface getStoredEventOfMarketId(final String marketId, final @NotNull SynchronizedMap<? super String, ? extends EventInterface> eventsMap,
-                                                          final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    public static Event getStoredEventOfMarketId(final String marketId, final @NotNull SynchronizedMap<? super String, ? extends Event> eventsMap,
+                                                 final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final String eventId = getEventIdOfMarketId(marketId, marketCataloguesMap);
         return eventsMap.get(eventId);
     }
 
-    public static EventInterface getStoredEventOfMarketCatalogue(final MarketCatalogueInterface marketCatalogue, final @NotNull SynchronizedMap<? super String, ? extends EventInterface> eventsMap) {
+    public static Event getStoredEventOfMarketCatalogue(final MarketCatalogue marketCatalogue, final @NotNull SynchronizedMap<? super String, ? extends Event> eventsMap) {
         final String eventId = getEventIdOfMarketCatalogue(marketCatalogue);
         return eventsMap.get(eventId);
     }

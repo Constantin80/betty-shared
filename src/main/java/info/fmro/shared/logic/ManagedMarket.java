@@ -1,6 +1,7 @@
 package info.fmro.shared.logic;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.MarketBettingType;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.stream.cache.Utils;
@@ -12,7 +13,6 @@ import info.fmro.shared.stream.cache.order.OrderMarketRunner;
 import info.fmro.shared.stream.definitions.MarketDefinition;
 import info.fmro.shared.stream.definitions.Order;
 import info.fmro.shared.stream.enums.Side;
-import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
@@ -92,7 +92,7 @@ public class ManagedMarket
         return this.id;
     }
 
-    public synchronized String getParentEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap, @NotNull final AtomicBoolean rulesHaveChanged) {
+    public synchronized String getParentEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean rulesHaveChanged) {
         if (this.parentEventId == null) {
             this.parentEventId = Formulas.getEventIdOfMarketId(this.id, marketCataloguesMap);
             if (this.parentEventId == null) {
@@ -114,7 +114,7 @@ public class ManagedMarket
         return this.parentEventId;
     }
 
-    public synchronized ManagedEvent getParentEvent(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap, @NotNull final RulesManager rulesManager) {
+    public synchronized ManagedEvent getParentEvent(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final RulesManager rulesManager) {
         if (this.parentEvent == null) {
             this.parentEvent = rulesManager.events.get(this.getParentEventId(marketCataloguesMap, rulesManager.rulesHaveChanged), rulesManager.rulesHaveChanged); // this creates the ManagedEvent if it doesn't exist
 //            this.parentEvent.addManagedMarket(this);
@@ -912,7 +912,7 @@ public class ManagedMarket
 //        updateIdealBackExposureSum();
     }
 
-    public synchronized double getMaxMarketLimit(@NotNull final ExistingFunds safetyLimits, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    public synchronized double getMaxMarketLimit(@NotNull final ExistingFunds safetyLimits, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final double result;
         final double safetyLimit = safetyLimits.getDefaultMarketLimit(this.id, marketCataloguesMap);
         result = this.amountLimit >= 0 ? Math.min(this.amountLimit, safetyLimit) : safetyLimit;
@@ -935,13 +935,13 @@ public class ManagedMarket
     }
 
     public synchronized boolean setCalculatedLimit(final double newLimit, final boolean limitCanBeIncreased, @NotNull final ExistingFunds safetyLimits,
-                                                   final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                                   final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final boolean modified;
         modified = (limitCanBeIncreased || newLimit < this.calculatedLimit) && setCalculatedLimit(newLimit, safetyLimits, marketCataloguesMap);
         return modified;
     }
 
-    private synchronized boolean setCalculatedLimit(final double newLimit, @NotNull final ExistingFunds safetyLimits, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    private synchronized boolean setCalculatedLimit(final double newLimit, @NotNull final ExistingFunds safetyLimits, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final boolean gettingModified;
 
         // both are zero

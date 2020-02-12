@@ -1,7 +1,6 @@
 package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.CommandType;
-import info.fmro.shared.stream.objects.EventInterface;
 import info.fmro.shared.stream.objects.ScraperEventInterface;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import info.fmro.shared.utility.BlackList;
@@ -34,7 +33,7 @@ import java.util.concurrent.Executor;
 @SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
 public class Event
         extends Ignorable
-        implements Serializable, Comparable<Event>, EventInterface {
+        implements Serializable, Comparable<Event> {
     private static final Logger logger = LoggerFactory.getLogger(Event.class);
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
     private static final long serialVersionUID = -6755870038911915452L;

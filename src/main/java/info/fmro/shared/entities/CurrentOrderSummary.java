@@ -4,7 +4,6 @@ import info.fmro.shared.enums.OrderStatus;
 import info.fmro.shared.enums.OrderType;
 import info.fmro.shared.enums.PersistenceType;
 import info.fmro.shared.enums.Side;
-import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
 import info.fmro.shared.utility.SynchronizedMap;
@@ -90,7 +89,7 @@ public final class CurrentOrderSummary
         return amount;
     }
 
-    public synchronized String getEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    public synchronized String getEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         if (this.eventId == null) {
             createEventId(marketCataloguesMap);
         }
@@ -101,7 +100,7 @@ public final class CurrentOrderSummary
         this.eventId = eventId;
     }
 
-    private synchronized void createEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    private synchronized void createEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         this.setEventId(Formulas.getEventIdOfMarketId(this.marketId, marketCataloguesMap));
         if (this.eventId == null) {
             logger.info("null eventId after creation in CurrentOrderSummary: {}", Generic.objectToString(this));

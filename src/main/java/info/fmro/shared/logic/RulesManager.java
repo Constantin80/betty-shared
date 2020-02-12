@@ -1,12 +1,12 @@
 package info.fmro.shared.logic;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.stream.cache.Utils;
 import info.fmro.shared.stream.cache.market.MarketCache;
 import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.objects.ListOfQueues;
-import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
@@ -140,7 +140,7 @@ public class RulesManager
         return readSuccessful;
     }
 
-//    private synchronized void associateMarketsWithEvents(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+//    private synchronized void associateMarketsWithEvents(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
 //        for (final ManagedMarket managedMarket : this.markets.valuesCopy()) {
 //            managedMarket.getParentEvent( marketCataloguesMap); // this does the reciprocal association as well, by adding the markets in the managedEvent objects
 //        }
@@ -265,7 +265,7 @@ public class RulesManager
     }
 
     public synchronized ManagedEvent setEventAmountLimit(final String eventId, final Double newAmount, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                                         final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                                         final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         // newAmount == null resets the amount to default -1d value
         @NotNull final ManagedEvent managedEvent = this.events.get(eventId, this.rulesHaveChanged);
 //        if (managedEvent != null) {
@@ -346,7 +346,7 @@ public class RulesManager
     }
 
     private synchronized void addManagedRunner(final String marketId, final long selectionId, final Double handicap, final double minBackOdds, final double maxLayOdds, final double backAmountLimit, final double layAmountLimit,
-                                               final double marketAmountLimit, final double eventAmountLimit, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap,
+                                               final double marketAmountLimit, final double eventAmountLimit, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
                                                @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits) {
         final ManagedMarket managedMarket = this.addManagedMarket(marketId);
         if (managedMarket != null) {
@@ -427,7 +427,7 @@ public class RulesManager
     }
 
     public synchronized void executeCommand(@NotNull final String commandString, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                            @SuppressWarnings("BoundedWildcard") @NotNull final SynchronizedMap<String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                            @SuppressWarnings("BoundedWildcard") @NotNull final SynchronizedMap<String, ? extends MarketCatalogue> marketCataloguesMap) {
         if (commandString.startsWith("event ")) {
             final String eventString = commandString.substring("event ".length()).trim();
             if (eventString.contains(" ")) {
@@ -504,7 +504,7 @@ public class RulesManager
     }
 
     public synchronized void calculateMarketLimits(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                                   final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                                   final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         this.marketsMapModified.set(false);
         final double totalLimit = safetyLimits.getTotalLimit();
         Utils.calculateMarketLimits(totalLimit, this.markets.valuesCopy(), true, true, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap);
@@ -575,7 +575,7 @@ public class RulesManager
         }
     }
 
-    public synchronized void addManagedRunnerCommands(final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache,
+    public synchronized void addManagedRunnerCommands(final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache,
                                                       @NotNull final ExistingFunds safetyLimits) {
         this.newAddManagedRunnerCommand.set(false);
         final HashSet<String> setCopy = this.addManagedRunnerCommands.clear();
@@ -586,7 +586,7 @@ public class RulesManager
     }
 
     @SuppressWarnings("OverlyNestedMethod")
-    private synchronized void parseAddManagedRunnerCommand(final String addManagedRunnerCommand, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap,
+    private synchronized void parseAddManagedRunnerCommand(final String addManagedRunnerCommand, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
                                                            @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits) {
         // String:marketId long:selectionId Double:handicap(default:null)
         // double optionals:minBackOdds maxLayOdds backAmountLimit layAmountLimit marketAmountLimit eventAmountLimit

@@ -2,9 +2,9 @@ package info.fmro.shared.logic;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.entities.CurrencyRate;
+import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.ExistingFundsModificationCommand;
 import info.fmro.shared.stream.objects.ListOfQueues;
-import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
 import info.fmro.shared.utility.Formulas;
@@ -186,11 +186,11 @@ public class ExistingFunds
 //        return getDefaultMarketLimit(marketId, null, parentEventId);
 //    }
 
-    synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+    synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         return getDefaultMarketLimit(marketId, marketCataloguesMap, null);
     }
 
-    private synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap, final String parentEventId) {
+    private synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final String parentEventId) {
         final double returnValue;
         if (marketId == null) {
             returnValue = 0d;

@@ -1,9 +1,9 @@
 package info.fmro.shared.logic;
 
+import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.stream.cache.Utils;
 import info.fmro.shared.stream.cache.order.OrderCache;
-import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
 import info.fmro.shared.utility.SynchronizedMap;
@@ -45,7 +45,7 @@ public class ManagedEvent
 
     @SuppressWarnings("UnusedReturnValue")
     synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final RulesManager rulesManager, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                        final SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                        final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final boolean modified;
         if (Double.isNaN(newAmountLimit)) {
             modified = false;
@@ -96,7 +96,7 @@ public class ManagedEvent
     }
 
     synchronized void calculateMarketLimits(@NotNull final RulesManager rulesManager, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                            final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                            final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final double maxEventLimit = getAmountLimit(safetyLimits);
         //noinspection NonPrivateFieldAccessedInSynchronizedContext
         Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(rulesManager), false, false, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap);

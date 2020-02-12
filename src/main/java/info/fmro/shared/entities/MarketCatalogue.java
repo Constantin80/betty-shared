@@ -2,7 +2,6 @@ package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.CommandType;
 import info.fmro.shared.objects.ParsedMarket;
-import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
 import info.fmro.shared.utility.Ignorable;
@@ -29,7 +28,7 @@ import java.util.concurrent.Executor;
 @SuppressWarnings("OverlyComplexClass")
 public class MarketCatalogue
         extends Ignorable
-        implements Serializable, Comparable<MarketCatalogue>, MarketCatalogueInterface {
+        implements Serializable, Comparable<MarketCatalogue> {
     private static final Logger logger = LoggerFactory.getLogger(MarketCatalogue.class);
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
     private static final long serialVersionUID = 1172556202262757207L;

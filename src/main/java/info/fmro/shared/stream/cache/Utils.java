@@ -1,12 +1,12 @@
 package info.fmro.shared.stream.cache;
 
+import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.logic.ExistingFunds;
 import info.fmro.shared.logic.ManagedMarket;
 import info.fmro.shared.logic.ManagedRunner;
 import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.cache.order.OrderMarketRunner;
 import info.fmro.shared.stream.enums.Side;
-import info.fmro.shared.stream.objects.MarketCatalogueInterface;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
@@ -30,7 +30,7 @@ public final class Utils {
 
     public static void calculateMarketLimits(final double maxTotalLimit, @NotNull final Iterable<? extends ManagedMarket> marketsSet, final boolean shouldCalculateExposure, final boolean marketLimitsCanBeIncreased,
                                              @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                             final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogueInterface> marketCataloguesMap) {
+                                             final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         double totalMatchedExposure = 0d, totalExposure = 0d, sumOfMaxMarketLimits = 0d;
         final Collection<ManagedMarket> marketsWithErrorCalculatingExposure = new HashSet<>(1), marketsWithExposureHigherThanTheirMaxLimit = new HashSet<>(1);
         for (final ManagedMarket managedMarket : marketsSet) {
