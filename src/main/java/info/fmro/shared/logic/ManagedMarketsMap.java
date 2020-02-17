@@ -1,11 +1,13 @@
 package info.fmro.shared.logic;
 
+import info.fmro.shared.utility.Generic;
 import info.fmro.shared.utility.SynchronizedMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -17,15 +19,22 @@ public class ManagedMarketsMap
         extends SynchronizedMap<String, ManagedMarket>
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ManagedMarketsMap.class);
-    private static final long serialVersionUID = -1774486587659030612L;
-    private final String eventId;
-    private transient boolean isInitialized;
+    private static final long serialVersionUID = -8982542372821302647L;
+    private boolean isInitialized;
+    @Nullable
+    private transient ManagedEvent parentEvent;
 
-    ManagedMarketsMap(final String eventId) {
+    ManagedMarketsMap(@NotNull final ManagedEvent parentEvent) {
         super();
-        this.eventId = eventId; // the exact object reference
+        this.parentEvent = parentEvent;
     }
 
+    private void readObject(@NotNull final java.io.ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        logger.error("readObject invoked for ManagedMarketsMap; this should never happen, the fields with this class should always be transient: {}", Generic.objectToString(this));
+        this.parentEvent = null;
+    }
 //    private ManagedMarketsMap(final int initialSize, final String eventId) {
 //        super(initialSize);
 //        this.eventId = eventId; // the exact object reference
@@ -39,18 +48,19 @@ public class ManagedMarketsMap
     private synchronized void initializeMap(@NotNull final RulesManager rulesManager) {
         if (this.isInitialized) { // already initialized, won't initialize again
         } else {
-            final ManagedEvent managedEvent = rulesManager.events.get(this.eventId, rulesManager.rulesHaveChanged);
-
-            for (final String marketId : managedEvent.marketIds.copy()) {
-                final ManagedMarket market = rulesManager.markets.get(marketId);
-                if (market == null) { // I'll print error message, but I'll still add the null value to the returnMap
-                    logger.error("null managedMarket found during initializeMap in rulesManager markets map for: {}", marketId);
-                } else { // normal case, nothing to be done on branch
+            if (this.parentEvent == null) {
+                logger.error("null parentEvent during initializeMap for: {}", Generic.objectToString(this));
+            } else {
+                for (final String marketId : this.parentEvent.marketIds.copy()) {
+                    final ManagedMarket market = rulesManager.markets.get(marketId);
+                    if (market == null) { // I'll print error message, but I'll still add the null value to the returnMap
+                        logger.error("null managedMarket found during initializeMap in rulesManager markets map for: {}", marketId);
+                    } else { // normal case, nothing to be done on branch
+                    }
+                    this.put(marketId, market);
                 }
-                this.put(marketId, market);
+                this.isInitialized = true;
             }
-
-            this.isInitialized = true;
         }
     }
 

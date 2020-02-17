@@ -1,6 +1,7 @@
 package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.CommandType;
+import info.fmro.shared.objects.LoggerThreadInterface;
 import info.fmro.shared.stream.objects.ScraperEventInterface;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import info.fmro.shared.utility.BlackList;
@@ -289,6 +290,7 @@ public class Event
         return modified;
     }
 
+    @SuppressWarnings("WeakerAccess")
     @Contract(pure = true)
     @Nullable
     public synchronized Date getOpenDate() {
@@ -656,7 +658,7 @@ public class Event
 //        return modified;
 //    }
 
-    public synchronized int update(final Event event, @NotNull final Method addLogEntry) {
+    public synchronized int update(final Event event, @NotNull final LoggerThreadInterface loggerThread) {
         int modified;
         if (this == event) {
             logger.error("update from same object in Event.update: {}", Generic.objectToString(this));
@@ -673,11 +675,7 @@ public class Event
                     modified = this.setTimeStamp(currentTime); // won't update the object further, as I have no guarantees on the time ordering
                 } else {
                     final long timeDifference = this.timeStamp - thatTimeStamp;
-                    try {
-                        addLogEntry.invoke("attempt to update Event from older by {}ms object", timeDifference);
-                    } catch (IllegalAccessException | InvocationTargetException e) {
-                        logger.error("exception during addLogEntry.invoke in update for: {} {}", Generic.objectToString(this), Generic.objectToString(event), e);
-                    }
+                    loggerThread.addLogEntry("attempt to update Event from older by {}ms object", timeDifference);
 
 //                    if (timeDifference < 200L) { // it happens often
 ////                        logger.info("attempt to update from older by {}ms object Event.update: {} {}", timeDifference, getId(), getName());

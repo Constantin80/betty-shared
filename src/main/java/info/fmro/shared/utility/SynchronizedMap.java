@@ -17,7 +17,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 
-@SuppressWarnings({"ClassWithTooManyMethods", "BooleanMethodIsAlwaysInverted"})
+@SuppressWarnings("ClassWithTooManyMethods")
 public class SynchronizedMap<K, V>
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedMap.class);
@@ -128,6 +128,7 @@ public class SynchronizedMap<K, V>
     }
 
     public synchronized V put(final K key, final V value, final boolean intentionalPutInsteadOfPutIfAbsent) {
+        // intentionalPutInsteadOfPutIfAbsent should be true only when I check that there's no previous value or I have no need for the previous value, like in the case of a primitive
         if (!intentionalPutInsteadOfPutIfAbsent) {
             final Class<?> valueClass = value == null ? null : value.getClass();
             if (Long.class.equals(valueClass)) { // method allowed for this class

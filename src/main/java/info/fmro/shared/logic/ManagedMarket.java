@@ -50,6 +50,7 @@ public class ManagedMarket
     private final HashMap<RunnerId, Double> runnerMatchedExposure = new HashMap<>(4), runnerTotalExposure = new HashMap<>(4);
     private final String id; // marketId
     private String parentEventId;
+    private String marketName;
     private double amountLimit = -1d; // only has effect if >= 0d
     private double calculatedLimit;
     private double marketMatchedExposure = Double.NaN;
@@ -68,10 +69,11 @@ public class ManagedMarket
     private transient OrderMarket orderMarket;
 //    private transient ArrayList<ManagedRunner> runnersOrderedList = new ArrayList<>(this.runners.values());
 
-    public ManagedMarket(final String id) {
+    public ManagedMarket(@NotNull final String id, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
         this.id = id;
 //        this.parentEventId = info.fmro.shared.utility.Formulas.getEventIdOfMarketId(this.id, marketCataloguesMap);
 //        this.runnersOrderedList.sort(Comparator.comparing(k -> k.getLastTradedPrice(marketCache), new ComparatorMarketPrices()));
+        attachMarket(marketCache, rulesManager);
     }
 
     private void readObject(@NotNull final java.io.ObjectInputStream in)
@@ -90,6 +92,38 @@ public class ManagedMarket
 
     public synchronized String getId() {
         return this.id;
+    }
+
+    public synchronized String getMarketName(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
+        if (this.marketName == null) {
+            attachMarket(marketCache, rulesManager);
+        } else { // I already have marketName, I'll just return it
+        }
+        return this.marketName;
+    }
+
+    public synchronized void setMarketName(final String marketName, @NotNull final RulesManager rulesManager) {
+        if (this.marketName == null && marketName != null) {
+            this.marketName = marketName;
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMarketName, this.id, this.marketName));
+        } else { // I'll keep the old name
+        }
+    }
+
+    private synchronized void setMarketName(final MarketDefinition marketDefinition, @NotNull final RulesManager rulesManager) {
+        if (marketDefinition == null) {
+            logger.error("null marketDefinition in setMarketName for: {}", Generic.objectToString(this));
+        } else {
+            if (this.marketName == null) {
+                this.marketName = marketDefinition.getMarketType();
+                if (this.marketName == null) {
+                    logger.error("null marketName from marketDefinition for: {} {}", Generic.objectToString(marketDefinition), Generic.objectToString(this));
+                } else {
+                    rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMarketName, this.id, this.marketName));
+                }
+            } else { // I'll keep the old name
+            }
+        }
     }
 
     public synchronized String getParentEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean rulesHaveChanged) {
@@ -116,17 +150,23 @@ public class ManagedMarket
 
     public synchronized ManagedEvent getParentEvent(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final RulesManager rulesManager) {
         if (this.parentEvent == null) {
-            this.parentEvent = rulesManager.events.get(this.getParentEventId(marketCataloguesMap, rulesManager.rulesHaveChanged), rulesManager.rulesHaveChanged); // this creates the ManagedEvent if it doesn't exist
+            final String localParentEventId = this.getParentEventId(marketCataloguesMap, rulesManager.rulesHaveChanged);
+            if (localParentEventId == null) {
+                logger.error("parentEventId && parentEvent null in getParentEvent for: {}", Generic.objectToString(this));
+            } else {
+                this.parentEvent = rulesManager.events.get(localParentEventId);
+                if (this.parentEvent == null) { // I won't create the event here, but outside the method, in the caller, due to potential synchronization problems
+                } else {
 //            this.parentEvent.addManagedMarket(this);
-
-            final String marketId = this.getId();
-            this.parentEvent.marketsMap.put(marketId, this, rulesManager);
-            if (this.parentEvent.marketIds.add(marketId)) {
-                rulesManager.rulesHaveChanged.set(true);
+                    final String marketId = this.getId();
+                    this.parentEvent.marketsMap.put(marketId, this, rulesManager);
+                    if (this.parentEvent.marketIds.add(marketId)) {
+                        rulesManager.rulesHaveChanged.set(true);
+                    }
+                }
             }
         } else { // I already have parentEvent, nothing to be done
         }
-
         return this.parentEvent;
     }
 
@@ -436,14 +476,14 @@ public class ManagedMarket
         return this.market;
     }
 
-    private synchronized void attachMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
+    public final synchronized void attachMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
         // this is run periodically, as it's contained in the manage method, that is run periodically
         if (this.market == null) {
             this.market = marketCache.getMarket(this.id);
         } else { // I already have the market, nothing to be done
         }
         if (this.market == null) {
-            logger.error("no market found in ManagedMarket for: {} {}", this.id, Generic.objectToString(this));
+            logger.error("no market found in MarketCache for: {}", this.id);
         } else {
             for (final ManagedRunner managedRunner : this.runners.values()) {
                 managedRunner.attachRunner(this.market);
@@ -456,6 +496,7 @@ public class ManagedMarket
                     logger.error("null runnerId for orderMarket: {}", Generic.objectToString(this.market));
                 }
             } // end for
+            setMarketName(this.market.getMarketDefinition(), rulesManager);
         }
     }
 

@@ -1,15 +1,19 @@
 package info.fmro.shared.logic;
 
+import info.fmro.shared.entities.Event;
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.stream.cache.Utils;
 import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
+import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import info.fmro.shared.utility.SynchronizedMap;
 import info.fmro.shared.utility.SynchronizedSet;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -17,21 +21,27 @@ import java.util.Objects;
 
 public class ManagedEvent
         implements Serializable {
+    private static final Logger logger = LoggerFactory.getLogger(ManagedEvent.class);
     private static final long serialVersionUID = 9206333179442623395L;
     private final String id;
+    private String eventName;
     private double amountLimit = -1d;
     public final SynchronizedSet<String> marketIds = new SynchronizedSet<>(); // managedMarket ids associated with this event
     public transient ManagedMarketsMap marketsMap; // managedMarkets associated with this event
+    @SuppressWarnings("InstanceVariableMayNotBeInitializedByReadObject")
+    private transient Event event;
 
-    ManagedEvent(@NotNull final String id) {
+    public ManagedEvent(@NotNull final String id, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final RulesManager rulesManager) {
         this.id = id;
-        this.marketsMap = new ManagedMarketsMap(this.id);
+        //noinspection ThisEscapedInObjectConstruction
+        this.marketsMap = new ManagedMarketsMap(this);
+        attachEvent(eventsMap, rulesManager);
     }
 
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
         in.defaultReadObject();
-        this.marketsMap = new ManagedMarketsMap(this.id);
+        this.marketsMap = new ManagedMarketsMap(this);
     }
 
 //    private synchronized HashMap<String, ManagedMarket> getMarketsMap() {
@@ -86,6 +96,36 @@ public class ManagedEvent
 
     public synchronized String getId() {
         return this.id;
+    }
+
+    public synchronized String getEventName(@NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final RulesManager rulesManager) {
+        if (this.eventName == null) {
+            attachEvent(eventsMap, rulesManager);
+        } else { // I already have eventName, I'll just return it
+        }
+        return this.eventName;
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public synchronized void setEventName(final String eventName, @NotNull final RulesManager rulesManager) {
+        if (this.eventName == null && eventName != null) {
+            this.eventName = eventName;
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setEventName, this.id, this.eventName));
+        } else { // I'll keep the old name
+        }
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public final synchronized void attachEvent(@NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final RulesManager rulesManager) {
+        if (this.event == null) {
+            this.event = eventsMap.get(this.id);
+            if (this.event == null) {
+                logger.error("no event found in eventsMap for: {}", this.id);
+            } else {
+                setEventName(this.event.getName(), rulesManager);
+            }
+        } else { // I already have the event, nothing to be done
+        }
     }
 
     private synchronized double getAmountLimit(@NotNull final ExistingFunds safetyLimits) {

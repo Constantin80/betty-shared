@@ -1,17 +1,22 @@
 package info.fmro.shared.entities;
 
+import info.fmro.shared.objects.LoggerThreadInterface;
 import info.fmro.shared.utility.Generic;
+import org.jmock.auto.Mock;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
-import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class MarketCatalogueTest {
+    @SuppressWarnings("unused")
+    @Mock
+    private LoggerThreadInterface logger;
+
     @Test
     void update()
             throws NoSuchFieldException {
@@ -26,7 +31,7 @@ class MarketCatalogueTest {
             field.set(secondObject, marketId);
             secondObject.setTimeStamp(firstObject.getTimeStamp() + 1L);
 
-            firstObject.update(secondObject, new HashSet<>(1), Objects.requireNonNull(Generic.getMethod(MarketCatalogue.class, "getMarketId")));
+            firstObject.update(secondObject, new HashSet<>(1), this.logger);
             assertThat(firstObject).as("updated object different").isEqualToIgnoringGivenFields(secondObject);
         } catch (IllegalAccessException e) {
             fail("IllegalAccessException");

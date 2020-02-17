@@ -3,11 +3,13 @@ package info.fmro.shared.utility;
 import info.fmro.shared.entities.Event;
 import info.fmro.shared.entities.EventType;
 import info.fmro.shared.entities.MarketCatalogue;
+import info.fmro.shared.entities.MarketDescription;
 import info.fmro.shared.stream.cache.market.Market;
 import info.fmro.shared.stream.cache.market.MarketCache;
 import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.cache.order.OrderMarket;
 import info.fmro.shared.stream.enums.Side;
+import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,7 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 
-@SuppressWarnings({"UtilityClass", "WeakerAccess"})
+@SuppressWarnings({"UtilityClass", "WeakerAccess", "ClassWithTooManyMethods"})
 public final class Formulas {
     private static final Logger logger = LoggerFactory.getLogger(Formulas.class);
     //    public static final List<Double> pricesList = List.of(1.01, 1.02,1.03,1.04,1.05,1.06,1.07,1.08,1.09,1.1,1.11,1.12,1.13,1.14 ...);
@@ -424,5 +426,29 @@ public final class Formulas {
 
     public static boolean isMarketType(final MarketCatalogue marketCatalogue, final String... types) {
         return isMarketType(marketCatalogue, types == null ? null : Arrays.asList(types));
+    }
+
+    @Nullable
+    public static String getEventName(final String eventId, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap) {
+        final Event event = eventsMap.get(eventId);
+        return event == null ? null : event.getName();
+    }
+
+    @Nullable
+    public static String getMarketCatalogueName(final String marketId, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+        final MarketCatalogue marketCatalogue = marketCataloguesMap.get(marketId);
+        @Nullable final String result;
+        if (marketCatalogue == null) {
+            result = null;
+        } else {
+            final String marketName = marketCatalogue.getMarketName();
+            if (marketName == null) {
+                final MarketDescription marketDescription = marketCatalogue.getDescription();
+                result = marketDescription == null ? null : marketDescription.getMarketType();
+            } else {
+                result = marketName;
+            }
+        }
+        return result;
     }
 }

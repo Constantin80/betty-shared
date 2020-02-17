@@ -92,6 +92,7 @@ public class StreamSynchronizedMap<K extends Serializable, V extends Serializabl
 
     @Override
     public synchronized V put(final K key, @NotNull final V value, final boolean intentionalPutInsteadOfPutIfAbsent) {
+        // intentionalPutInsteadOfPutIfAbsent should be true only when I check that there's no previous value or I have no need for the previous value, like in the case of a primitive
         final V result = super.put(key, value, intentionalPutInsteadOfPutIfAbsent);
         if (Objects.equals(value, result)) { // no modification made, I won't send anything
         } else {

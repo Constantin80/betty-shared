@@ -12,5 +12,7 @@ public enum RulesManagerModificationCommand {
     setBackAmountLimit,
     setLayAmountLimit,
     setMinBackOdds,
-    setMaxLayOdds
+    setMaxLayOdds,
+    setMarketName,
+    setEventName
 }

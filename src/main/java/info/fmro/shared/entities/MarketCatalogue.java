@@ -1,6 +1,7 @@
 package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.CommandType;
+import info.fmro.shared.objects.LoggerThreadInterface;
 import info.fmro.shared.objects.ParsedMarket;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
@@ -120,6 +121,7 @@ public class MarketCatalogue
         return modified;
     }
 
+    @SuppressWarnings("WeakerAccess")
     @Contract(pure = true)
     @Nullable
     public synchronized Date getMarketStartTime() {
@@ -367,7 +369,7 @@ public class MarketCatalogue
 //        return modified;
 //    }
 
-    public synchronized int update(final MarketCatalogue marketCatalogue, @NotNull final Collection<String> supportedEventTypes, @NotNull final Method addLogEntry) {
+    public synchronized int update(final MarketCatalogue marketCatalogue, @NotNull final Collection<String> supportedEventTypes, @NotNull final LoggerThreadInterface loggerThread) {
         int modified;
         if (this == marketCatalogue) {
             logger.error("update from same object in MarketCatalogue.update: {}", Generic.objectToString(this));
@@ -385,11 +387,7 @@ public class MarketCatalogue
                     this.timeStamp = currentTime; // won't update the object further, as I have no guarantees on the time ordering
                 } else {
                     final long timeDifference = this.timeStamp - thatTimeStamp;
-                    try {
-                        addLogEntry.invoke(null, "attempt to update MarketCatalogue from older by {}ms object", timeDifference);
-                    } catch (IllegalAccessException | InvocationTargetException e) {
-                        logger.error("exception during addLogEntry.invoke in update for: {} {}", Generic.objectToString(this), Generic.objectToString(marketCatalogue), e);
-                    }
+                    loggerThread.addLogEntry("attempt to update MarketCatalogue from older by {}ms object", timeDifference);
 
 //                    if (timeDifference > 1_000L) {
 //                        logger.error("attempt to update MarketCatalogue from older by {} ms object: {} {}", timeDifference, Generic.objectToString(this),

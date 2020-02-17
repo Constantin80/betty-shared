@@ -1,21 +1,32 @@
 package info.fmro.shared.entities;
 
+import info.fmro.shared.objects.LoggerThreadInterface;
 import info.fmro.shared.utility.Generic;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
+@ExtendWith(MockitoExtension.class)
 class EventTest {
+    @SuppressWarnings("unused")
+    @Mock
+    private LoggerThreadInterface logger;
+
     @Test
     void update()
             throws NoSuchFieldException {
         try {
+            assertNotNull(this.logger, "not null");
+
             final Event firstObject = new Event("someId"), secondObject = new Event("someId");
             Generic.fillRandom(firstObject);
             Generic.fillRandom(secondObject);
@@ -28,7 +39,7 @@ class EventTest {
             final long initialTimeFirstSeen = firstObject.getTimeFirstSeen();
             final long initialMatchedTimeStamp = firstObject.getMatchedTimeStamp();
 
-            firstObject.update(secondObject, Objects.requireNonNull(Generic.getMethod(Event.class, "getId")));
+            firstObject.update(secondObject, this.logger);
             assertThat(firstObject).as("updated object different").isEqualToIgnoringGivenFields(secondObject, "marketCount", "timeFirstSeen", "matchedTimeStamp", "scraperEventIds");
 
             final int marketCount = secondObject.getMarketCount();

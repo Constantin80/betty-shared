@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import javafx.scene.control.TreeItem;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -2531,7 +2532,9 @@ public final class Generic {
                     if (toStringMethod == null || !toStringMethod.canAccess(object)) {
                         returnStringBuilder = new StringBuilder(32);
 
-                        if (object instanceof Collection<?>) {
+                        if (object instanceof TreeItem<?>) {
+                            returnStringBuilder.append(object); // calls toString method, else the TreeItem object is too big and crashes the thread
+                        } else if (object instanceof Collection<?>) {
                             final Object[] arrayValue = ((Collection<?>) object).toArray(); // never null due to instanceof always being false for null
                             returnStringBuilder.append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
                         } else if (object instanceof Map<?, ?>) {
