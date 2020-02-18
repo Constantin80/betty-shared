@@ -98,6 +98,10 @@ public class ManagedEvent
         return this.id;
     }
 
+    public synchronized String simpleGetEventName() {
+        return this.eventName;
+    }
+
     public synchronized String getEventName(@NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final RulesManager rulesManager) {
         if (this.eventName == null) {
             attachEvent(eventsMap, rulesManager);

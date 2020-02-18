@@ -2,9 +2,9 @@ package info.fmro.shared.entities;
 
 import info.fmro.shared.objects.LoggerThreadInterface;
 import info.fmro.shared.utility.Generic;
+import org.jmock.auto.Mock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;

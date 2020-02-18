@@ -94,6 +94,10 @@ public class ManagedMarket
         return this.id;
     }
 
+    public synchronized String simpleGetMarketName() {
+        return this.marketName;
+    }
+
     public synchronized String getMarketName(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
         if (this.marketName == null) {
             attachMarket(marketCache, rulesManager);

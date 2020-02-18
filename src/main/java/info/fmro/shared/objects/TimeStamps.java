@@ -12,7 +12,7 @@ public class TimeStamps
     private static final Logger logger = LoggerFactory.getLogger(TimeStamps.class);
     private static final long serialVersionUID = 2521253086493558605L;
     private long lastObjectsSave, lastSettingsSave, lastCleanScraperEventsMap, lastParseEventResultList, lastMapEventsToScraperEvents, lastGetMarketBooks, lastCleanSecondaryMaps, lastFindSafeRunners, lastStreamMarkets, lastGetAccountFunds,
-            lastListCurrencyRates, lastFindInterestingMarkets, lastPrintDebug, lastPrintAverages, lastCleanTimedMaps, lastCheckAliases, lastCheckDeadlock;
+            lastListCurrencyRates, lastFindInterestingMarkets, lastPrintDebug, lastPrintAverages, lastCleanTimedMaps, lastCheckAliases, lastCheckDeadlock, lastCheckManagedMarketsOrEvents;
 
     public synchronized long getLastObjectsSave() {
         return this.lastObjectsSave;
@@ -350,6 +350,27 @@ public class TimeStamps
             this.lastCheckDeadlock = currentTime + timeStamp;
         } else {
             this.lastCheckDeadlock += timeStamp;
+        }
+    }
+
+    public synchronized long getLastCheckManagedMarketsOrEvents() {
+        return this.lastCheckManagedMarketsOrEvents;
+    }
+
+    public synchronized void setLastCheckManagedMarketsOrEvents(final long lastCheckManagedMarketsOrEvents) {
+        this.lastCheckManagedMarketsOrEvents = lastCheckManagedMarketsOrEvents;
+    }
+
+    public synchronized void lastCheckManagedMarketsOrEvents() {
+        this.lastCheckManagedMarketsOrEvents = System.currentTimeMillis();
+    }
+
+    public synchronized void lastCheckManagedMarketsOrEventsStamp(final long timeStamp) {
+        final long currentTime = System.currentTimeMillis();
+        if (currentTime - this.lastCheckManagedMarketsOrEvents >= timeStamp) {
+            this.lastCheckManagedMarketsOrEvents = currentTime + timeStamp;
+        } else {
+            this.lastCheckManagedMarketsOrEvents += timeStamp;
         }
     }
 

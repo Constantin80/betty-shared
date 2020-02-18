@@ -51,6 +51,9 @@ public class RulesManager
     public transient AtomicLong addManagedMarketsForExistingOrdersStamp = new AtomicLong();
     public transient AtomicBoolean rulesHaveChanged = new AtomicBoolean();
     public transient AtomicBoolean orderCacheHasReset = new AtomicBoolean();
+    public transient AtomicBoolean newMarketsOrEventsForOutsideCheck = new AtomicBoolean();
+    public transient SynchronizedSet<String> marketsForOutsideCheck = new SynchronizedSet<>();
+    public transient SynchronizedSet<String> eventsForOutsideCheck = new SynchronizedSet<>();
     private transient long timeLastFullCheck;
 
     private Integer testMarker; // this variable should be the last declared and not be primitive, to attempt to have it serialized last
@@ -68,6 +71,9 @@ public class RulesManager
         this.addManagedMarketsForExistingOrdersStamp = new AtomicLong();
         this.rulesHaveChanged = new AtomicBoolean();
         this.orderCacheHasReset = new AtomicBoolean();
+        this.newMarketsOrEventsForOutsideCheck = new AtomicBoolean();
+        this.marketsForOutsideCheck = new SynchronizedSet<>();
+        this.eventsForOutsideCheck = new SynchronizedSet<>();
 
         this.timeLastFullCheck = 0L;
     }
@@ -117,10 +123,13 @@ public class RulesManager
 //                    readSuccessful = this.testMarker != null && this.testMarker == Statics.TEST_MARKER; // testMarker needs to have a certain value
 //                }
 
-                if (this.markets.isEmpty()) { // map still empty, no modification was made
+                if (this.markets.isEmpty() && this.events.isEmpty()) { // maps still empty, no modification was made
                 } else {
                     this.rulesHaveChanged.set(true);
                     this.marketsMapModified.set(true);
+                    if (this.marketsForOutsideCheck.addAll(this.markets.keySetCopy()) || this.eventsForOutsideCheck.addAll(this.events.keySetCopy())) {
+                        this.newMarketsOrEventsForOutsideCheck.set(true);
+                    }
                 }
 
                 readSuccessful = true;
@@ -276,6 +285,9 @@ public class RulesManager
                 this.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.addManagedEvent, eventId, managedEvent));
                 this.events.put(eventId, managedEvent, true);
                 this.rulesHaveChanged.set(true);
+                if (this.eventsForOutsideCheck.add(eventId)) {
+                    this.newMarketsOrEventsForOutsideCheck.set(true);
+                }
             } else {
                 managedEvent = existingManagedEvent;
             }
@@ -284,6 +296,9 @@ public class RulesManager
             this.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.addManagedEvent, eventId, managedEvent));
             this.events.put(eventId, managedEvent, true);
             this.rulesHaveChanged.set(true);
+            if (this.eventsForOutsideCheck.add(eventId)) {
+                this.newMarketsOrEventsForOutsideCheck.set(true);
+            }
         }
         return managedEvent;
     }
@@ -302,6 +317,9 @@ public class RulesManager
             this.events.put(eventId, managedEvent, true);
             this.rulesHaveChanged.set(true);
             success = true;
+            if (this.eventsForOutsideCheck.add(eventId)) {
+                this.newMarketsOrEventsForOutsideCheck.set(true);
+            }
         }
         return success;
     }
@@ -335,7 +353,9 @@ public class RulesManager
 //            checkMarketsAreAssociatedWithEvents();
             this.rulesHaveChanged.set(true);
             this.marketsMapModified.set(true);
-
+            if (this.marketsForOutsideCheck.add(marketId)) {
+                this.newMarketsOrEventsForOutsideCheck.set(true);
+            }
             addMarketToCheck(marketId);
         }
         return managedMarket;
@@ -363,7 +383,9 @@ public class RulesManager
 //            checkMarketsAreAssociatedWithEvents();
                 this.rulesHaveChanged.set(true);
                 this.marketsMapModified.set(true);
-
+                if (this.marketsForOutsideCheck.add(marketId)) {
+                    this.newMarketsOrEventsForOutsideCheck.set(true);
+                }
                 addMarketToCheck(marketId);
                 success = true;
             }
