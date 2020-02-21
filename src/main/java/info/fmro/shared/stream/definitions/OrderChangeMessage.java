@@ -3,18 +3,23 @@ package info.fmro.shared.stream.definitions;
 import info.fmro.shared.stream.enums.ChangeType;
 import info.fmro.shared.stream.enums.SegmentType;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
+import info.fmro.shared.utility.Generic;
 import org.apache.commons.lang3.SerializationUtils;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 
 // objects of this class are read from the stream
 public class OrderChangeMessage
         extends ResponseMessage
         implements Serializable, StreamObjectInterface {
+    private static final Logger logger = LoggerFactory.getLogger(OrderChangeMessage.class);
     private static final long serialVersionUID = 5357844283995226019L;
     private String clk; // Token value (non-null) should be stored and passed in a MarketSubscriptionMessage to resume subscription (in case of disconnect)
     private Long conflateMs; // Conflate Milliseconds - the conflation rate (may differ from that requested if subscription is delayed)
@@ -22,7 +27,7 @@ public class OrderChangeMessage
     private Long heartbeatMs; // Heartbeat Milliseconds - the heartbeat rate (may differ from requested: bounds are 500 to 30000)
     private String initialClk; // Token value (non-null) should be stored and passed in a MarketSubscriptionMessage to resume subscription (in case of disconnect)
     @Nullable
-    private List<OrderMarketChange> oc; // MarketChanges - the modifications to markets (will be null on a heartbeat
+    private List<OrderMarketChange> oc; // MarketChanges - the modifications to markets (will be null on a heartbeat)
     @Nullable
     private Date pt; // Publish Time (in millis since epoch) that the changes were generated
     private SegmentType segmentType; // Segment Type - if the change is split into multiple segments, this denotes the beginning and end of a change, and segments in between. Will be null if data is not segmented
@@ -30,6 +35,23 @@ public class OrderChangeMessage
 
     public synchronized OrderChangeMessage getCopy() {
         return SerializationUtils.clone(this);
+    }
+
+    public synchronized HashSet<String> getChangedMarketIds() {
+        @Nullable final HashSet<String> marketIds;
+        if (this.oc == null) {
+            marketIds = null;
+        } else {
+            marketIds = new HashSet<>(Generic.getCollectionCapacity(this.oc));
+            for (final OrderMarketChange orderMarketChange : this.oc) {
+                if (orderMarketChange == null) {
+                    logger.error("null orderMarketChange in getChangedMarketIds for: {}", Generic.objectToString(this));
+                } else {
+                    marketIds.add(orderMarketChange.getId());
+                }
+            }
+        }
+        return marketIds;
     }
 
     public synchronized String getClk() {

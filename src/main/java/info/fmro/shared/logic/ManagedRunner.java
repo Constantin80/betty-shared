@@ -430,11 +430,11 @@ public class ManagedRunner
         return result;
     }
 
-    synchronized double getMinBackOdds() {
+    public synchronized double getMinBackOdds() {
         return this.minBackOdds;
     }
 
-    synchronized double getMaxLayOdds() {
+    public synchronized double getMaxLayOdds() {
         return this.maxLayOdds;
     }
 

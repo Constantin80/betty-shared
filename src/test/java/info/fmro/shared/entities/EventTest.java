@@ -12,7 +12,7 @@ import java.lang.reflect.InvocationTargetException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,7 +25,7 @@ class EventTest {
     void update()
             throws NoSuchFieldException {
         try {
-            assertNotNull(this.logger, "not null");
+            assertNull(this.logger, "null logger"); // it's null, but fortunately it's not used
 
             final Event firstObject = new Event("someId"), secondObject = new Event("someId");
             Generic.fillRandom(firstObject);

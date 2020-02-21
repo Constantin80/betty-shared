@@ -8,11 +8,15 @@ import info.fmro.shared.stream.definitions.RunnerChange;
 import info.fmro.shared.stream.definitions.RunnerDefinition;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.utility.Formulas;
+import info.fmro.shared.utility.Generic;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -20,11 +24,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class Market
         implements Serializable {
+    private static final Logger logger = LoggerFactory.getLogger(Market.class);
     private static final long serialVersionUID = -288902433432290477L;
     private final String marketId;
     private final Map<RunnerId, MarketRunner> marketRunners = new ConcurrentHashMap<>(4); // the only place where MarketRunners are permanently stored
     private MarketDefinition marketDefinition;
-    private double tv; //total value traded
+    private double tv; // total value traded
 
     public Market(final String marketId) {
         this.marketId = marketId;
@@ -96,5 +101,41 @@ public class Market
 
     public synchronized MarketDefinition getMarketDefinition() {
         return this.marketDefinition;
+    }
+
+    public synchronized int getNRunners() {
+        final int nRunners;
+        //noinspection ConstantConditions
+        if (this.marketRunners == null) {
+            logger.error("null marketRunners in getNRunners for: {}", Generic.objectToString(this));
+            nRunners = -1;
+        } else {
+            nRunners = this.marketRunners.size();
+        }
+        return nRunners;
+    }
+
+    public synchronized int getNActiveRunners() {
+        int nRunners;
+        //noinspection ConstantConditions
+        if (this.marketRunners == null) {
+            logger.error("null marketRunners in getNRunners for: {}", Generic.objectToString(this));
+            nRunners = -1;
+        } else {
+            nRunners = 0;
+            for (final MarketRunner marketRunner : this.marketRunners.values()) {
+                if (marketRunner != null && marketRunner.isActive()) {
+                    nRunners++;
+                } else { // not active, nothing to be done
+                }
+            }
+        }
+        return nRunners;
+    }
+
+    @Nullable
+    public synchronized HashMap<RunnerId, MarketRunner> getMarketRunners() {
+        //noinspection ConstantConditions
+        return this.marketRunners == null ? null : new HashMap<>(this.marketRunners);
     }
 }

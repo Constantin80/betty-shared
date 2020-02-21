@@ -1,5 +1,6 @@
 package info.fmro.shared.entities;
 
+import info.fmro.shared.stream.objects.RunnerId;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -50,6 +51,14 @@ public class RunnerCatalog
     @Nullable
     public synchronized Map<String, String> getMetadata() {
         return this.metadata == null ? null : new HashMap<>(this.metadata);
+    }
+
+    @SuppressWarnings("MethodWithMultipleReturnPoints")
+    public synchronized boolean runnerIdEquals(final RunnerId runnerId) {
+        if (runnerId == null) {
+            return false;
+        }
+        return Objects.equals(this.selectionId, runnerId.getSelectionId()) && Objects.equals(this.handicap, runnerId.getHandicap());
     }
 
     @SuppressWarnings("NonFinalFieldReferenceInEquals")

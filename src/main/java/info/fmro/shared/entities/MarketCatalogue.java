@@ -3,6 +3,7 @@ package info.fmro.shared.entities;
 import info.fmro.shared.enums.CommandType;
 import info.fmro.shared.objects.LoggerThreadInterface;
 import info.fmro.shared.objects.ParsedMarket;
+import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
 import info.fmro.shared.utility.Ignorable;
@@ -52,6 +53,28 @@ public class MarketCatalogue
     public MarketCatalogue(final String marketId) {
         super();
         this.marketId = marketId;
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public synchronized RunnerCatalog getRunnerCatalogue(final RunnerId runnerId) {
+        RunnerCatalog result = null;
+        if (this.runners == null) { // result is already null
+        } else {
+            for (final RunnerCatalog runnerCatalog : this.runners) {
+                if (runnerCatalog != null && runnerCatalog.runnerIdEquals(runnerId)) {
+                    result = runnerCatalog;
+                    break;
+                } else { // not the runner I'm looking for, nothing to be done
+                }
+            }
+        }
+        return result;
+    }
+
+    @Nullable
+    public synchronized String getRunnerName(final RunnerId runnerId) {
+        final RunnerCatalog runnerCatalog = getRunnerCatalogue(runnerId);
+        return runnerCatalog == null ? null : runnerCatalog.getRunnerName();
     }
 
     public synchronized int setIgnored(final long period, @NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructor, final boolean safeBetModuleActivated) {

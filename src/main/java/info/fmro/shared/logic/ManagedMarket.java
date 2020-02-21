@@ -90,6 +90,15 @@ public class ManagedMarket
         return runnersOrderedList;
     }
 
+    @NotNull
+    public synchronized HashMap<RunnerId, ManagedRunner> getRunners() {
+        return new HashMap<>(this.runners);
+    }
+
+    public synchronized int getNRunners() {
+        return this.runners.size();
+    }
+
     public synchronized String getId() {
         return this.id;
     }
@@ -346,6 +355,11 @@ public class ManagedMarket
         return modified;
     }
 
+    @SuppressWarnings("SuspiciousGetterSetter")
+    public synchronized double getSimpleAmountLimit() {
+        return this.amountLimit;
+    }
+
     synchronized boolean setRunnerBackAmountLimit(@NotNull final RunnerId runnerId, @NotNull final Double runnerAmountLimit, @NotNull final RulesManager rulesManager) {
         final boolean success;
         @Nullable final ManagedRunner managedRunner = this.runners.get(runnerId);
@@ -487,7 +501,7 @@ public class ManagedMarket
         } else { // I already have the market, nothing to be done
         }
         if (this.market == null) {
-            logger.error("no market found in MarketCache for: {}", this.id);
+            logger.info("no market found in MarketCache for: {}", this.id);
         } else {
             for (final ManagedRunner managedRunner : this.runners.values()) {
                 managedRunner.attachRunner(this.market);

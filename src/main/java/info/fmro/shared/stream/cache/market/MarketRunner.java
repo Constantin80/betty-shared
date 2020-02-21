@@ -19,6 +19,7 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 
+@SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
 public class MarketRunner
         implements Serializable { // amounts are in underlying currency (GBP), but the only way to get amounts from PriceSize object is with getSizeEUR method
     private static final Logger logger = LoggerFactory.getLogger(MarketRunner.class);
@@ -46,7 +47,7 @@ public class MarketRunner
     private double spn; // starting price near projected
     private double spf; // starting price far
     private double ltp; // last traded price
-    private double tv; //total value traded
+    private double tv; // total value traded
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private RunnerDefinition runnerDefinition;
 
@@ -115,6 +116,10 @@ public class MarketRunner
         return modifiedPrices.getBestPrice(calculatedLimit, currencyRate);
     }
 
+    public synchronized boolean isActive() {
+        return this.runnerDefinition != null && this.runnerDefinition.isActive();
+    }
+
     public synchronized RunnerId getRunnerId() {
         return this.runnerId;
     }
@@ -158,10 +163,12 @@ public class MarketRunner
         this.tv = tv;
     }
 
+    @NotNull
     public synchronized TreeMap<Double, Double> getAvailableToLay(@NotNull final AtomicDouble currencyRate) {
         return this.atlPrices.getSimpleTreeMap(currencyRate);
     }
 
+    @NotNull
     public synchronized TreeMap<Double, Double> getAvailableToBack(@NotNull final AtomicDouble currencyRate) {
         return this.atbPrices.getSimpleTreeMap(currencyRate);
     }

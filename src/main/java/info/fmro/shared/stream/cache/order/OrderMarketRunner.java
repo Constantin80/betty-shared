@@ -161,23 +161,36 @@ public class OrderMarketRunner
         return this.tempLayCancel;
     }
 
-    public synchronized void getExposure(final Exposure exposure, final OrdersThreadInterface pendingOrdersThread) {
-        if (exposure != null) {
-            this.getMatchedExposure(); // updates matchedBackExposure and matchedLayExposure
-            this.getUnmatchedExposureAndProfit(); // updates unmatchedBackExposure/Profit and unmatchedLayExposure/Profit
-            pendingOrdersThread.checkTemporaryOrdersExposure(this.marketId, this.runnerId, this);
+    public synchronized double getTotalBackExposure() {
+        return this.matchedBackExposure + this.unmatchedBackExposure + this.tempBackExposure;
+    }
 
+    public synchronized double getTotalLayExposure() {
+        return this.matchedLayExposure + this.unmatchedLayExposure + this.tempLayExposure;
+    }
+
+    public synchronized void getExposure(final Exposure exposure, final OrdersThreadInterface pendingOrdersThread) {
+        this.getMatchedExposure(); // updates matchedBackExposure and matchedLayExposure
+        this.getUnmatchedExposureAndProfit(); // updates unmatchedBackExposure/Profit and unmatchedLayExposure/Profit
+        if (pendingOrdersThread == null) { // I'm in the Client, I'm not using the pendingOrdersThread
+        } else {
+            pendingOrdersThread.checkTemporaryOrdersExposure(this.marketId, this.runnerId, this);
+        }
+        if (exposure != null) {
             exposure.setBackMatchedExposure(this.matchedBackExposure);
             exposure.setLayMatchedExposure(this.matchedLayExposure);
-            exposure.setBackTotalExposure(this.matchedBackExposure + this.unmatchedBackExposure + this.tempBackExposure);
-            exposure.setLayTotalExposure(this.matchedLayExposure + this.unmatchedLayExposure + this.tempLayExposure);
+            exposure.setBackTotalExposure(getTotalBackExposure());
+            exposure.setLayTotalExposure(getTotalLayExposure());
             exposure.setBackUnmatchedProfit(this.unmatchedBackProfit + this.tempBackProfit);
             exposure.setLayUnmatchedProfit(this.unmatchedLayProfit + this.tempLayProfit);
             exposure.setTempBackCancel(this.tempBackCancel);
             exposure.setTempLayCancel(this.tempLayCancel);
             exposure.timeStamp();
         } else {
-            logger.error("null exposure in getExposure for: {}", Generic.objectToString(this));
+            if (pendingOrdersThread == null) { // I'm in the client and this is normal behavior
+            } else {
+                logger.error("null exposure in getExposure for: {}", Generic.objectToString(this));
+            }
         }
     }
 
@@ -462,6 +475,7 @@ public class OrderMarketRunner
         return modifications;
     }
 
+    @NotNull
     public synchronized TreeMap<Double, Double> getUnmatchedBackAmounts() {
         final TreeMap<Double, Double> result = new TreeMap<>(Comparator.naturalOrder());
         for (final Order order : this.unmatchedOrders.values()) {
@@ -487,6 +501,7 @@ public class OrderMarketRunner
         return result;
     }
 
+    @NotNull
     public synchronized TreeMap<Double, Double> getUnmatchedLayAmounts() {
         final TreeMap<Double, Double> result = new TreeMap<>(Comparator.reverseOrder());
         for (final Order order : this.unmatchedOrders.values()) {

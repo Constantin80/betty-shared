@@ -174,7 +174,7 @@ public class ExistingFunds
         final double returnValue;
         if (eventId == null) {
             returnValue = 0d;
-            logger.error("null eventId in SafetyLimits during getDefaultEventLimit: {}", Generic.objectToString(this));
+            logger.info("null eventId in SafetyLimits during getDefaultEventLimit: {}", Generic.objectToString(this)); // it can actually happen in Client
         } else {
             // eventId not used for now, and default limit is same for all non safe events (plus I no longer use safe events)
             returnValue = Math.min(getTotalLimit(), this.getTotalFunds() * ExistingFunds.eventLimitFraction);

@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
 
+@SuppressWarnings("WeakerAccess")
 public class ManagedEvent
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ManagedEvent.class);
@@ -110,7 +111,6 @@ public class ManagedEvent
         return this.eventName;
     }
 
-    @SuppressWarnings("WeakerAccess")
     public synchronized void setEventName(final String eventName, @NotNull final RulesManager rulesManager) {
         if (this.eventName == null && eventName != null) {
             this.eventName = eventName;
@@ -119,7 +119,6 @@ public class ManagedEvent
         }
     }
 
-    @SuppressWarnings("WeakerAccess")
     public final synchronized void attachEvent(@NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final RulesManager rulesManager) {
         if (this.event == null) {
             this.event = eventsMap.get(this.id);
@@ -132,7 +131,12 @@ public class ManagedEvent
         }
     }
 
-    private synchronized double getAmountLimit(@NotNull final ExistingFunds safetyLimits) {
+    @SuppressWarnings("SuspiciousGetterSetter")
+    public synchronized double getSimpleAmountLimit() {
+        return this.amountLimit;
+    }
+
+    public synchronized double getAmountLimit(@NotNull final ExistingFunds safetyLimits) {
         final double result;
         final double safetyLimit = safetyLimits.getDefaultEventLimit(this.id);
         result = this.amountLimit >= 0 ? Math.min(this.amountLimit, safetyLimit) : safetyLimit;

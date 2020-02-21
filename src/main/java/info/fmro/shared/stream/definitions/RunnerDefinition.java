@@ -19,6 +19,10 @@ public class RunnerDefinition
     private Integer sortPriority;
     private RunnerStatus status;
 
+    public synchronized boolean isActive() {
+        return this.status == RunnerStatus.ACTIVE;
+    }
+
     public synchronized Double getAdjustmentFactor() {
         return this.adjustmentFactor;
     }

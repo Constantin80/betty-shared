@@ -238,7 +238,7 @@ public class RulesManager
         } else {
             final ManagedEvent managedEvent = this.events.get(eventId);
             if (managedEvent == null) {
-                logger.error("null managedEvent in setEventName for: {} {}", eventId, eventName);
+                logger.info("null managedEvent in setEventName for: {} {}", eventId, eventName); // this actually happens in Client, when the command to modify the name is sent before the command to create the ManagedEvent
             } else {
                 managedEvent.setEventName(eventName, this);
             }
