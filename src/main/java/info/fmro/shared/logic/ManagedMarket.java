@@ -1,5 +1,6 @@
 package info.fmro.shared.logic;
 
+import com.google.common.math.DoubleMath;
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.MarketBettingType;
@@ -50,6 +51,7 @@ public class ManagedMarket
     private final HashMap<RunnerId, Double> runnerMatchedExposure = new HashMap<>(4), runnerTotalExposure = new HashMap<>(4);
     private final String id; // marketId
     private String parentEventId;
+    @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     private String marketName;
     private double amountLimit = -1d; // only has effect if >= 0d
     private double calculatedLimit;
@@ -69,11 +71,11 @@ public class ManagedMarket
     private transient OrderMarket orderMarket;
 //    private transient ArrayList<ManagedRunner> runnersOrderedList = new ArrayList<>(this.runners.values());
 
-    public ManagedMarket(@NotNull final String id, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
+    public ManagedMarket(@NotNull final String id, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         this.id = id;
 //        this.parentEventId = info.fmro.shared.utility.Formulas.getEventIdOfMarketId(this.id, marketCataloguesMap);
 //        this.runnersOrderedList.sort(Comparator.comparing(k -> k.getLastTradedPrice(marketCache), new ComparatorMarketPrices()));
-        attachMarket(marketCache, rulesManager);
+        attachMarket(marketCache, rulesManager, marketCataloguesMap);
     }
 
     private void readObject(@NotNull final java.io.ObjectInputStream in)
@@ -107,9 +109,9 @@ public class ManagedMarket
         return this.marketName;
     }
 
-    public synchronized String getMarketName(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
+    public synchronized String getMarketName(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         if (this.marketName == null) {
-            attachMarket(marketCache, rulesManager);
+            attachMarket(marketCache, rulesManager, marketCataloguesMap);
         } else { // I already have marketName, I'll just return it
         }
         return this.marketName;
@@ -137,6 +139,10 @@ public class ManagedMarket
             } else { // I'll keep the old name
             }
         }
+    }
+
+    public synchronized String simpleGetParentEventId() {
+        return this.parentEventId;
     }
 
     public synchronized String getParentEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean rulesHaveChanged) {
@@ -172,7 +178,7 @@ public class ManagedMarket
                 } else {
 //            this.parentEvent.addManagedMarket(this);
                     final String marketId = this.getId();
-                    this.parentEvent.marketsMap.put(marketId, this, rulesManager);
+                    this.parentEvent.marketsMap.putIfAbsent(marketId, this, rulesManager);
                     if (this.parentEvent.marketIds.add(marketId)) {
                         rulesManager.rulesHaveChanged.set(true);
                     }
@@ -338,13 +344,12 @@ public class ManagedMarket
         final boolean modified;
         if (Double.isNaN(newAmountLimit)) {
             modified = false;
-        } else  //noinspection FloatingPointEquality
-            if (this.amountLimit == newAmountLimit) {
-                modified = false;
-            } else {
-                this.amountLimit = newAmountLimit;
-                modified = true;
-            }
+        } else if (DoubleMath.fuzzyEquals(this.amountLimit, newAmountLimit, Formulas.CENT_TOLERANCE)) {
+            modified = false;
+        } else {
+            this.amountLimit = newAmountLimit;
+            modified = true;
+        }
 
         if (modified) {
             rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMarketAmountLimit, this.id, this.amountLimit));
@@ -489,12 +494,12 @@ public class ManagedMarket
 //        return previousValue;
 //    }
 
-    public synchronized Market getMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
-        attachMarket(marketCache, rulesManager);
+    public synchronized Market getMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+        attachMarket(marketCache, rulesManager, marketCataloguesMap);
         return this.market;
     }
 
-    public final synchronized void attachMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
+    public final synchronized void attachMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         // this is run periodically, as it's contained in the manage method, that is run periodically
         if (this.market == null) {
             this.market = marketCache.getMarket(this.id);
@@ -516,6 +521,8 @@ public class ManagedMarket
             } // end for
             setMarketName(this.market.getMarketDefinition(), rulesManager);
         }
+//        getParentEventId(marketCataloguesMap, rulesManager.rulesHaveChanged);
+        getParentEvent(marketCataloguesMap, rulesManager); // includes getParentEventId
     }
 
     private synchronized void attachOrderMarket(@NotNull final OrderCache orderCache) { // this is run periodically, as it's contained in the manage method, that is run periodically
@@ -1052,7 +1059,9 @@ public class ManagedMarket
 
 //        final OrderMarket orderMarket = orderCache.getOrderMarket(this.id);
         if (this.orderMarket == null) { // this is a normal branch, no orders are placed on this market
-            // I won't update the exposure in this method, so nothing to be done in this branch
+            for (final ManagedRunner managedRunner : this.runners.values()) {
+                managedRunner.timeStamp();
+            }
             success = true;
         } else {
             final ArrayList<OrderMarketRunner> orderMarketRunners = this.orderMarket.getOrderMarketRunners();
@@ -1088,7 +1097,6 @@ public class ManagedMarket
     public synchronized void calculateExposure(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache) {
         if (isSupported()) {
             final boolean success = updateRunnerExposure(pendingOrdersThread, orderCache);
-
             this.marketMatchedExposure = Double.NaN;
             this.marketTotalExposure = Double.NaN;
             if (success) {
@@ -1107,7 +1115,8 @@ public class ManagedMarket
             } else { // nothing to do, default Double.NaN values will be retained
             }
         } else { // for not supported I can't calculate the exposure
-            logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {}", Generic.objectToString(this));
+//            logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {}", Generic.objectToString(this));
+            logger.info("trying to calculateExposure on unSupported managedMarket, nothing will be done: {} {}", this.id, this.marketName);
         }
     }
 
@@ -1224,7 +1233,8 @@ public class ManagedMarket
         final boolean result;
         if (this.market == null) {
             result = false;
-            logger.error("trying to run managedMarket isSupported without attached market for: {}", Generic.objectToString(this));
+//            logger.error("trying to run managedMarket isSupported without attached market for: {}", Generic.objectToString(this));
+            logger.info("trying to run managedMarket isSupported without attached market for: {} {}", this.id, this.marketName);
         } else {
             final MarketDefinition marketDefinition = this.market.getMarketDefinition();
             if (marketDefinition == null) {
@@ -1266,12 +1276,13 @@ public class ManagedMarket
     // the solution I found was to set the manageMarketPeriod in the BetFrequencyLimit class, depending on how close to the hourly limit I am
     @SuppressWarnings("OverlyNestedMethod")
     public synchronized void manage(@NotNull final MarketCache marketCache, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate,
-                                    @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final RulesManager rulesManager) {
+                                    @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final RulesManager rulesManager,
+                                    @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final long currentTime = System.currentTimeMillis();
         final long timeSinceLastManageMarketStamp = currentTime - this.manageMarketStamp;
         if (timeSinceLastManageMarketStamp >= speedLimit.getManageMarketPeriod(this.calculatedLimit, safetyLimits)) {
             manageMarketStamp(currentTime);
-            attachMarket(marketCache, rulesManager);
+            attachMarket(marketCache, rulesManager, marketCataloguesMap);
             if (this.market != null) {
                 attachOrderMarket(orderCache);
                 if (isSupported()) {

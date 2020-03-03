@@ -102,6 +102,24 @@ class GenericTest {
     }
 
     @Test
+    void getClosestNumber() {
+        int result = Generic.getClosestNumber(5);
+        assertEquals(5, result, "1");
+
+        result = Generic.getClosestNumber(5, 1);
+        assertEquals(1, result, "2");
+
+        result = Generic.getClosestNumber(5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0);
+        assertEquals(5, result, "3");
+
+        result = Generic.getClosestNumber(5, 1, 2, 3, 4, 6, 7, 8, 9, 0);
+        assertEquals(4, result, "4");
+
+        result = Generic.getClosestNumber(5, 1, 2, 3, 6, 7, 8, 9, 0);
+        assertEquals(6, result, "5");
+    }
+
+    @Test
     void getConstructor()
             throws Exception {
         final Constructor<LocalTestObject> constructor = Generic.getConstructor(LocalTestObject.class, String.class, int.class);

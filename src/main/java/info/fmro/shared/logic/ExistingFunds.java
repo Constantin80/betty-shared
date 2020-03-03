@@ -28,6 +28,7 @@ public class ExistingFunds
     private static final long serialVersionUID = 4629311467792245314L;
     private static final double eventLimitFraction = .1d; // max bet per regular event
     private static final double marketLimitFraction = .05d; // max bet per regular market
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     @SuppressWarnings("FieldHasSetterButNoGetter")
     public final AtomicDouble currencyRate = new AtomicDouble(1d); // GBP/EUR, 1.1187000274658203 right now, on 13-08-2018; default 1d
@@ -166,6 +167,8 @@ public class ExistingFunds
         }
     }
 
+    // todo calculated limit for market still bigger than for event
+    // todo lots of stuff fills out.txt
     synchronized double getTotalLimit() {
         return this.getTotalFunds() - this.getReserve() - 0.01d; // leave 1 cent, to avoid errors
     }

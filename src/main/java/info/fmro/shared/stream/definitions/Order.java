@@ -30,6 +30,7 @@ public class Order
     @Nullable
     private Date md; //  Matched Date - the date the order was matched (null if the order is not matched)
     private OrderType ot; // Order Type - the type of the order (L = LIMIT, MOC = MARKET_ON_CLOSE, LOC = LIMIT_ON_CLOSE)
+    private String lsrc; // Lapse Status Reason Code - the reason that some or all of this order has been lapsed (null if no portion of the order is lapsed
     private Double p; // Price - the original placed price of the order. Line markets operate at even-money odds of 2.0. However, price for these markets refers to the line positions available as defined by the markets min-max range and interval steps
     @Nullable
     private Date pd; // Placed Date - the date the order was placed
@@ -254,6 +255,14 @@ public class Order
 
     public synchronized void setSide(final Side side) {
         this.side = side;
+    }
+
+    public synchronized String getLsrc() {
+        return this.lsrc;
+    }
+
+    public synchronized void setLsrc(final String lsrc) {
+        this.lsrc = lsrc;
     }
 
     public synchronized Double getP() {

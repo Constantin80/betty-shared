@@ -12,9 +12,10 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
-@SuppressWarnings("ClassWithTooManyMethods")
+@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
 public class ManagedMarketsMap
         extends SynchronizedMap<String, ManagedMarket>
         implements Serializable {
@@ -27,6 +28,11 @@ public class ManagedMarketsMap
     ManagedMarketsMap(@NotNull final ManagedEvent parentEvent) {
         super();
         this.parentEvent = parentEvent;
+    }
+
+    ManagedMarketsMap(@NotNull final ManagedEvent parentEvent, @NotNull final RulesManager rulesManager) {
+        this(parentEvent);
+        initializeMap(rulesManager);
     }
 
     private void readObject(@NotNull final java.io.ObjectInputStream in)
@@ -48,18 +54,28 @@ public class ManagedMarketsMap
     private synchronized void initializeMap(@NotNull final RulesManager rulesManager) {
         if (this.isInitialized) { // already initialized, won't initialize again
         } else {
+            this.isInitialized = true; // in the beginning, to avoid cycle
             if (this.parentEvent == null) {
                 logger.error("null parentEvent during initializeMap for: {}", Generic.objectToString(this));
             } else {
+                final String eventId = this.parentEvent.getId();
+                for (@NotNull final Map.Entry<String, ManagedMarket> entry : rulesManager.markets.entrySetCopy()) {
+                    final ManagedMarket market = entry.getValue();
+                    final String marketId = entry.getKey();
+                    final String marketParentId = market == null ? null : market.simpleGetParentEventId();
+                    if (Objects.equals(eventId, marketParentId)) {
+                        this.putIfAbsent(marketId, market, rulesManager);
+                    } else { // market not belonging to this event, nothing to be done
+                    }
+                }
                 for (final String marketId : this.parentEvent.marketIds.copy()) {
                     final ManagedMarket market = rulesManager.markets.get(marketId);
                     if (market == null) { // I'll print error message, but I'll still add the null value to the returnMap
                         logger.error("null managedMarket found during initializeMap in rulesManager markets map for: {}", marketId);
                     } else { // normal case, nothing to be done on branch
                     }
-                    this.put(marketId, market);
+                    this.putIfAbsent(marketId, market, rulesManager);
                 }
-                this.isInitialized = true;
             }
         }
     }
@@ -67,8 +83,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized HashMap<String, ManagedMarket> copy() {
-        logger.error("don't use this copy method !");
-        return null;
+        @Nullable final HashMap<String, ManagedMarket> returnValue;
+        if (this.isInitialized) {
+            returnValue = super.copy();
+        } else {
+            logger.error("not isInitialized in copy method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized HashMap<String, ManagedMarket> copy(@NotNull final RulesManager rulesManager) {
@@ -79,8 +101,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized Set<Map.Entry<String, ManagedMarket>> entrySetCopy() {
-        logger.error("don't use this entrySetCopy method !");
-        return null;
+        @Nullable final Set<Map.Entry<String, ManagedMarket>> returnValue;
+        if (this.isInitialized) {
+            returnValue = super.entrySetCopy();
+        } else {
+            logger.error("not isInitialized in entrySetCopy method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized Set<Map.Entry<String, ManagedMarket>> entrySetCopy(@NotNull final RulesManager rulesManager) {
@@ -91,8 +119,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized Set<String> keySetCopy() {
-        logger.error("don't use this keySetCopy method !");
-        return null;
+        @Nullable final Set<String> returnValue;
+        if (this.isInitialized) {
+            returnValue = super.keySetCopy();
+        } else {
+            logger.error("not isInitialized in keySetCopy method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized Set<String> keySetCopy(@NotNull final RulesManager rulesManager) {
@@ -103,11 +137,16 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized Collection<ManagedMarket> valuesCopy() {
-        logger.error("don't use this valuesCopy method !");
-        return null;
+        @Nullable final Collection<ManagedMarket> returnValue;
+        if (this.isInitialized) {
+            returnValue = super.valuesCopy();
+        } else {
+            logger.error("not isInitialized in valuesCopy method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
-    @SuppressWarnings("WeakerAccess")
     public synchronized Collection<ManagedMarket> valuesCopy(@NotNull final RulesManager rulesManager) {
         initializeMap(rulesManager);
         return super.valuesCopy();
@@ -116,8 +155,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized HashMap<String, ManagedMarket> clear() {
-        logger.error("don't use this clear method !");
-        return null;
+        @Nullable final HashMap<String, ManagedMarket> returnValue;
+        if (this.isInitialized) {
+            returnValue = super.clear();
+        } else {
+            logger.error("not isInitialized in clear method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized HashMap<String, ManagedMarket> clear(@NotNull final RulesManager rulesManager) {
@@ -127,8 +172,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean containsKey(final String key) {
-        logger.error("don't use this containsKey method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.containsKey(key);
+        } else {
+            logger.error("not isInitialized in containsKey method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean containsKey(final String key, @NotNull final RulesManager rulesManager) {
@@ -138,8 +189,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean containsValue(final ManagedMarket value) {
-        logger.error("don't use this containsValue method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.containsValue(value);
+        } else {
+            logger.error("not isInitialized in containsValue method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean containsValue(final ManagedMarket value, @NotNull final RulesManager rulesManager) {
@@ -150,8 +207,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized ManagedMarket get(final String key) {
-        logger.error("don't use this get method !");
-        return null;
+        @Nullable final ManagedMarket returnValue;
+        if (this.isInitialized) {
+            returnValue = super.get(key);
+        } else {
+            logger.error("not isInitialized in get method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized ManagedMarket get(final String key, @NotNull final RulesManager rulesManager) {
@@ -161,8 +224,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean isEmpty() {
-        logger.error("don't use this isEmpty method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.isEmpty();
+        } else {
+            logger.error("not isInitialized in isEmpty method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean isEmpty(@NotNull final RulesManager rulesManager) {
@@ -173,8 +242,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized ManagedMarket put(final String key, final ManagedMarket value, final boolean intentionalPutInsteadOfPutIfAbsent) {
-        logger.error("don't use this put(3 args) method !");
-        return null;
+        @Nullable final ManagedMarket returnValue;
+        if (this.isInitialized) {
+            returnValue = super.put(key, value, intentionalPutInsteadOfPutIfAbsent);
+        } else {
+            logger.error("not isInitialized in put(3 args) method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized ManagedMarket put(final String key, final ManagedMarket value, final boolean intentionalPutInsteadOfPutIfAbsent, @NotNull final RulesManager rulesManager) {
@@ -185,8 +260,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized ManagedMarket put(final String key, final ManagedMarket value) {
-        logger.error("don't use this put(2 args) method !");
-        return null;
+        @Nullable final ManagedMarket returnValue;
+        if (this.isInitialized) {
+            returnValue = super.put(key, value);
+        } else {
+            logger.error("not isInitialized in put(2 args) method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized ManagedMarket put(final String key, final ManagedMarket value, @NotNull final RulesManager rulesManager) {
@@ -197,8 +278,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized ManagedMarket putIfAbsent(final String key, final ManagedMarket value) {
-        logger.error("don't use this putIfAbsent method !");
-        return null;
+        @Nullable final ManagedMarket returnValue;
+        if (this.isInitialized) {
+            returnValue = super.putIfAbsent(key, value);
+        } else {
+            logger.error("not isInitialized in putIfAbsent method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized ManagedMarket putIfAbsent(final String key, final ManagedMarket value, @NotNull final RulesManager rulesManager) {
@@ -208,7 +295,11 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized void putAll(final Map<? extends String, ? extends ManagedMarket> m) {
-        logger.error("don't use this putAll method !");
+        if (this.isInitialized) {
+            super.putAll(m);
+        } else {
+            logger.error("not isInitialized in putAll method !");
+        }
     }
 
     public synchronized void putAll(final Map<String, ? extends ManagedMarket> m, @NotNull final RulesManager rulesManager) {
@@ -219,8 +310,14 @@ public class ManagedMarketsMap
     @Nullable
     @Override
     public synchronized ManagedMarket remove(final String key) {
-        logger.error("don't use this remove(1 arg) method !");
-        return null;
+        @Nullable final ManagedMarket returnValue;
+        if (this.isInitialized) {
+            returnValue = super.remove(key);
+        } else {
+            logger.error("not isInitialized in remove method !");
+            returnValue = null;
+        }
+        return returnValue;
     }
 
     public synchronized ManagedMarket remove(final String key, @NotNull final RulesManager rulesManager) {
@@ -230,8 +327,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean remove(final String key, final ManagedMarket value) {
-        logger.error("don't use this remove(2 args) method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.remove(key, value);
+        } else {
+            logger.error("not isInitialized in remove(2 args) method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean remove(final String key, final ManagedMarket value, @NotNull final RulesManager rulesManager) {
@@ -241,8 +344,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized int size() {
-        logger.error("don't use this size method !");
-        return -1;
+        final int returnValue;
+        if (this.isInitialized) {
+            returnValue = super.size();
+        } else {
+            logger.error("not isInitialized in size method !");
+            returnValue = -1;
+        }
+        return returnValue;
     }
 
     public synchronized int size(@NotNull final RulesManager rulesManager) {
@@ -252,8 +361,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean containsEntry(final Map.Entry<String, ManagedMarket> entry) {
-        logger.error("don't use this containsEntry method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.containsEntry(entry);
+        } else {
+            logger.error("not isInitialized in containsEntry method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean containsEntry(final Map.Entry<String, ManagedMarket> entry, @NotNull final RulesManager rulesManager) {
@@ -263,8 +378,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean containsAllEntries(final Collection<?> c) {
-        logger.error("don't use this containsAllEntries method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.containsAllEntries(c);
+        } else {
+            logger.error("not isInitialized in containsAllEntries method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean containsAllEntries(final Collection<?> c, @NotNull final RulesManager rulesManager) {
@@ -274,8 +395,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean removeEntry(final Map.Entry<String, ManagedMarket> entry) {
-        logger.error("don't use this removeEntry method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.removeEntry(entry);
+        } else {
+            logger.error("not isInitialized in removeEntry method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean removeEntry(final Map.Entry<String, ManagedMarket> entry, @NotNull final RulesManager rulesManager) {
@@ -285,8 +412,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean removeAllEntries(final Collection<?> c) {
-        logger.error("don't use this removeAllEntries method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.removeAllEntries(c);
+        } else {
+            logger.error("not isInitialized in removeAllEntries method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean removeAllEntries(final Collection<?> c, @NotNull final RulesManager rulesManager) {
@@ -296,8 +429,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean retainAllEntries(final Collection<?> c) {
-        logger.error("don't use this retainAllEntries( method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.retainAllEntries(c);
+        } else {
+            logger.error("not isInitialized in retainAllEntries method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean retainAllEntries(final Collection<?> c, @NotNull final RulesManager rulesManager) {
@@ -307,8 +446,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean containsAllKeys(final Collection<?> c) {
-        logger.error("don't use this containsAllKeys method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.containsAllEntries(c);
+        } else {
+            logger.error("not isInitialized in containsAllEntries method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean containsAllKeys(final Collection<?> c, @NotNull final RulesManager rulesManager) {
@@ -318,8 +463,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean removeAllKeys(final Collection<?> c) {
-        logger.error("don't use this removeAllKeys method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.removeAllKeys(c);
+        } else {
+            logger.error("not isInitialized in removeAllKeys method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean removeAllKeys(final Collection<?> c, @NotNull final RulesManager rulesManager) {
@@ -329,8 +480,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean retainAllKeys(final Collection<?> c) {
-        logger.error("don't use this retainAllKeys method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.retainAllKeys(c);
+        } else {
+            logger.error("not isInitialized in retainAllKeys method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean retainAllKeys(final Collection<?> c, @NotNull final RulesManager rulesManager) {
@@ -340,8 +497,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean containsAllValues(final Collection<?> c) {
-        logger.error("don't use this containsAllValues method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.containsAllValues(c);
+        } else {
+            logger.error("not isInitialized in containsAllValues method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean containsAllValues(final Collection<?> c, @NotNull final RulesManager rulesManager) {
@@ -351,8 +514,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean removeValue(final ManagedMarket value) {
-        logger.error("don't use this removeValue method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.removeValue(value);
+        } else {
+            logger.error("not isInitialized in removeValue method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean removeValue(final ManagedMarket value, @NotNull final RulesManager rulesManager) {
@@ -362,8 +531,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean removeValueAll(final ManagedMarket value) {
-        logger.error("don't use this removeValueAll method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.removeValueAll(value);
+        } else {
+            logger.error("not isInitialized in removeValueAll method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean removeValueAll(final ManagedMarket value, @NotNull final RulesManager rulesManager) {
@@ -373,8 +548,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean removeAllValues(final Collection<?> c) {
-        logger.error("don't use this removeAllValues method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.removeAllValues(c);
+        } else {
+            logger.error("not isInitialized in removeAllValues method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean removeAllValues(final Collection<?> c, @NotNull final RulesManager rulesManager) {
@@ -384,8 +565,14 @@ public class ManagedMarketsMap
 
     @Override
     public synchronized boolean retainAllValues(final Collection<?> c) {
-        logger.error("don't use this retainAllValues method !");
-        return false;
+        final boolean returnValue;
+        if (this.isInitialized) {
+            returnValue = super.retainAllValues(c);
+        } else {
+            logger.error("not isInitialized in retainAllValues method !");
+            returnValue = false;
+        }
+        return returnValue;
     }
 
     public synchronized boolean retainAllValues(final Collection<?> c, @NotNull final RulesManager rulesManager) {

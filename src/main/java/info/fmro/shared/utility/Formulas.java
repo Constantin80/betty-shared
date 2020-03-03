@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 
-@SuppressWarnings({"UtilityClass", "WeakerAccess", "ClassWithTooManyMethods"})
+@SuppressWarnings({"UtilityClass", "WeakerAccess", "ClassWithTooManyMethods", "OverlyComplexClass"})
 public final class Formulas {
     private static final Logger logger = LoggerFactory.getLogger(Formulas.class);
     //    public static final List<Double> pricesList = List.of(1.01, 1.02,1.03,1.04,1.05,1.06,1.07,1.08,1.09,1.1,1.11,1.12,1.13,1.14 ...);
@@ -35,6 +35,7 @@ public final class Formulas {
     public static final List<Integer> pricesList; // odds prices, multiplied by 100, to have them stored as int
     @SuppressWarnings("PublicStaticCollectionField")
     public static final Map<String, String> charactersMap = Collections.synchronizedMap(new LinkedHashMap<>(128, 0.75f));
+    public static final double CENT_TOLERANCE = .009999d;
 
     @Contract(pure = true)
     private Formulas() {
@@ -183,10 +184,74 @@ public final class Formulas {
         pricesList = List.copyOf(localPricesList);
     }
 
+    public static double getNextOddsDown(final double odds) {
+        final double result;
+        final double closestOdds = getClosestOdds(odds);
+        if (odds > 1_000d) {
+            result = 1_000d;
+        } else if (odds <= 1.01d) {
+            result = 1d;
+        } else if (closestOdds < odds) {
+            result = closestOdds;
+        } else {
+            result = getNStepDifferentOdds(closestOdds, -1);
+        }
+        return result;
+    }
+
+    public static double getNextOddsUp(final double odds) {
+        final double result;
+        final double closestOdds = getClosestOdds(odds);
+        if (odds >= 1_000d) {
+            result = 1_001d;
+        } else if (odds < 1.01d) {
+            result = 1.01d;
+        } else if (closestOdds > odds) {
+            result = closestOdds;
+        } else {
+            result = getNStepDifferentOdds(closestOdds, 1);
+        }
+        return result;
+    }
+
+    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
+    public static double getClosestOdds(final double odds) {
+        @SuppressWarnings("NumericCastThatLosesPrecision") final int intOdds = (int) (odds * 100d);
+        return getClosestOdds(intOdds);
+    }
+
+    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
+    public static double getClosestOdds(final int odds) {
+        final double result;
+        final int oddsPosition = pricesList.indexOf(odds);
+        if (oddsPosition < 0) {
+            if (odds <= 100) {
+                result = 1d;
+            } else if (odds >= 100_100) {
+                result = 1_001d;
+            } else {
+                int smallerOdds = 100;
+                int largerOdds = 100_100;
+                for (final int oddsInList : pricesList) {
+                    if (odds > oddsInList) {
+                        smallerOdds = oddsInList;
+                    } else {
+                        largerOdds = oddsInList;
+                        break;
+                    }
+                }
+                result = Generic.getClosestNumber(odds, smallerOdds, largerOdds) / 100d;
+            }
+        } else {
+            result = odds / 100d;
+        }
+        return result;
+    }
+
     @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
     public static double getNStepDifferentOdds(final double baseOdds, final int nSteps) {
         //noinspection NumericCastThatLosesPrecision
-        final int intBaseOdds = (int) (baseOdds * 100d);
+        final int intBaseOdds = (int) Math.round(baseOdds * 100d);
 
         return getNStepDifferentOdds(intBaseOdds, nSteps);
     }

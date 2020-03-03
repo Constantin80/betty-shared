@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
+@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass", "RedundantSuppression"})
 public class ManagedRunner
         extends Exposure
         implements Serializable {
@@ -41,8 +41,8 @@ public class ManagedRunner
     //    private final long selectionId;
     //    private final double handicap; // The handicap associated with the runner in case of Asian handicap markets (e.g. marketTypes ASIAN_HANDICAP_DOUBLE_LINE, ASIAN_HANDICAP_SINGLE_LINE) null otherwise.
     private double backAmountLimit, layAmountLimit; // amountLimits at 0d by default, which means no betting unless modified; negative limit means no limit
-    private double minBackOdds = 1_001d, maxLayOdds = 1.0001d; // defaults are unusable, which means no betting unless modified
-    private double toBeUsedBackOdds = 1_001d, toBeUsedLayOdds = 1.0001d;
+    private double minBackOdds = 1_001d, maxLayOdds = 1d; // defaults are unusable, which means no betting unless modified
+    private double toBeUsedBackOdds = 1_001d, toBeUsedLayOdds = 1d;
     private double proportionOfMarketLimitPerRunner, idealBackExposure;
     private transient MarketRunner marketRunner;
     @Nullable
@@ -87,7 +87,8 @@ public class ManagedRunner
     synchronized void attachOrderRunner(final OrderMarket orderMarket) {
         if (this.orderMarketRunner == null) {
             if (orderMarket == null) {
-                logger.error("null orderMarket in attachOrderRunner for: {}", Generic.objectToString(this)); // I'll just print the error message; this error shouldn't happen and I don't think it's properly fixable
+//                logger.error("null orderMarket in attachOrderRunner for: {}", Generic.objectToString(this)); // I'll just print the error message; this error shouldn't happen and I don't think it's properly fixable
+                logger.info("null orderMarket in attachOrderRunner for: {} {}", this.marketId, Generic.objectToString(this.runnerId));
             } else {
                 this.orderMarketRunner = orderMarket.getOrderMarketRunner(this.runnerId);
                 if (this.orderMarketRunner == null) { // normal, it means no orders exist for this managedRunner, nothing else to be done
@@ -161,7 +162,8 @@ public class ManagedRunner
             } else { // no limit breach, nothing to do
             }
         } else {
-            logger.error("null orderMarketRunner in checkRunnerLimits: {}", Generic.objectToString(this));
+//            logger.error("null orderMarketRunner in checkRunnerLimits: {}", Generic.objectToString(this));
+            logger.info("null orderMarketRunner in checkRunnerLimits: {} {}", this.marketId, Generic.objectToString(this.runnerId));
         }
         return exposureHasBeenModified;
     }
@@ -226,7 +228,7 @@ public class ManagedRunner
                 logger.error("this branch should not be reached in removeExposure: {} {} {}", backMatchedExcessExposure, layMatchedExcessExposure, Generic.objectToString(this));
             }
         } else {
-            logger.error("null orderMarketRunner in checkRunnerLimits: {}", Generic.objectToString(this));
+            logger.error("null orderMarketRunner in removeExposure: {}", Generic.objectToString(this));
         }
         return exposureHasBeenModified;
     }
@@ -264,7 +266,8 @@ public class ManagedRunner
             exposureHasBeenModified += info.fmro.shared.utility.Formulas.oddsAreUsable(this.toBeUsedLayOdds) ?
                                        this.orderMarketRunner.cancelUnmatched(Side.L, this.toBeUsedLayOdds, pendingOrdersThread) : this.orderMarketRunner.cancelUnmatched(Side.L, pendingOrdersThread);
         } else {
-            logger.error("null orderMarketRunner in calculateOdds: {}", Generic.objectToString(this));
+//            logger.error("null orderMarketRunner in calculateOdds: {}", Generic.objectToString(this));
+            logger.info("null orderMarketRunner in calculateOdds: {} {}", this.marketId, Generic.objectToString(this.runnerId));
         }
 
         if (this.marketRunner != null && this.orderMarketRunner != null) {
@@ -430,10 +433,12 @@ public class ManagedRunner
         return result;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public synchronized double getMinBackOdds() {
         return this.minBackOdds;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public synchronized double getMaxLayOdds() {
         return this.maxLayOdds;
     }
@@ -442,8 +447,7 @@ public class ManagedRunner
     synchronized boolean setProportionOfMarketLimitPerRunner(final double newValue, @NotNull final RulesManager rulesManager) {
         final boolean modified;
         if (newValue >= 0d) {
-            //noinspection FloatingPointEquality
-            if (newValue == this.proportionOfMarketLimitPerRunner) {
+            if (DoubleMath.fuzzyEquals(newValue, this.proportionOfMarketLimitPerRunner, .000001)) {
                 modified = false;
             } else {
                 this.proportionOfMarketLimitPerRunner = newValue;
@@ -489,7 +493,7 @@ public class ManagedRunner
             this.idealBackExposure = 0d;
             newExposureAssigned = 0d; // in case of this strange error, I'll also return 0d, as I don't want to further try to setIdealBackExposure
         }
-        if (DoubleMath.fuzzyEquals(this.idealBackExposure, previousValue, .0001d)) { // no significant modification, nothing to be done
+        if (DoubleMath.fuzzyEquals(this.idealBackExposure, previousValue, Formulas.CENT_TOLERANCE)) { // no significant modification, nothing to be done
         } else {
             rulesManager.addMarketToCheck(this.marketId);
         }

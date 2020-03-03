@@ -27,7 +27,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
-@SuppressWarnings("OverlyComplexClass")
+@SuppressWarnings({"OverlyComplexClass", "WeakerAccess"})
 public class MarketCatalogue
         extends Ignorable
         implements Serializable, Comparable<MarketCatalogue> {
@@ -144,7 +144,6 @@ public class MarketCatalogue
         return modified;
     }
 
-    @SuppressWarnings("WeakerAccess")
     @Contract(pure = true)
     @Nullable
     public synchronized Date getMarketStartTime() {

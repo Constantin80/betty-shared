@@ -4,6 +4,8 @@ import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.logic.ExistingFunds;
 import info.fmro.shared.logic.ManagedMarket;
 import info.fmro.shared.logic.ManagedRunner;
+import info.fmro.shared.logic.RulesManager;
+import info.fmro.shared.stream.cache.market.MarketCache;
 import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.cache.order.OrderMarketRunner;
 import info.fmro.shared.stream.enums.Side;
@@ -30,16 +32,16 @@ public final class Utils {
 
     public static void calculateMarketLimits(final double maxTotalLimit, @NotNull final Iterable<? extends ManagedMarket> marketsSet, final boolean shouldCalculateExposure, final boolean marketLimitsCanBeIncreased,
                                              @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                             final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+                                             final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
         double totalMatchedExposure = 0d, totalExposure = 0d, sumOfMaxMarketLimits = 0d;
         final Collection<ManagedMarket> marketsWithErrorCalculatingExposure = new HashSet<>(1), marketsWithExposureHigherThanTheirMaxLimit = new HashSet<>(1);
         for (final ManagedMarket managedMarket : marketsSet) {
             if (shouldCalculateExposure) {
+                managedMarket.attachMarket(marketCache, rulesManager, marketCataloguesMap);
                 managedMarket.calculateExposure(pendingOrdersThread, orderCache);
             } else { // no need to calculate exposure, it was just calculated previously
             }
             final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits, marketCataloguesMap);
-
             sumOfMaxMarketLimits += maxMarketLimit;
             if (managedMarket.defaultExposureValuesExist()) {
                 totalMatchedExposure += maxMarketLimit;

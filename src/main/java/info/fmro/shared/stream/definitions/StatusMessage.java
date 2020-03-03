@@ -15,6 +15,7 @@ public class StatusMessage
     private ErrorCode errorCode; // The type of error in case of a failure
     private String errorMessage; // Additional message in case of a failure
     private StatusCode statusCode; // The status of the last request
+    private Integer connectionsAvailable; // The number of connections available for this account at this moment in time. Present on responses to Authentication messages only.
 
     public synchronized Boolean getConnectionClosed() {
         return this.connectionClosed;
@@ -54,5 +55,13 @@ public class StatusMessage
 
     public synchronized void setStatusCode(final StatusCode statusCode) {
         this.statusCode = statusCode;
+    }
+
+    public synchronized Integer getConnectionsAvailable() {
+        return this.connectionsAvailable;
+    }
+
+    public synchronized void setConnectionsAvailable(final Integer connectionsAvailable) {
+        this.connectionsAvailable = connectionsAvailable;
     }
 }

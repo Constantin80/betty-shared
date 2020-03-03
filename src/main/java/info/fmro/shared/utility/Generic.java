@@ -172,6 +172,34 @@ public final class Generic {
     private Generic() {
     }
 
+    public static int getClosestNumber(final int mainValue, final int... closeNumbers) {
+        int chosenNumber = mainValue;
+        if (closeNumbers == null) {
+            logger.error("null closeNumbers in getClosestNumber for: {}", mainValue);
+        } else {
+            int minDifference = Integer.MAX_VALUE;
+            for (final int number : closeNumbers) {
+                final int difference = Math.abs(number - mainValue);
+                if (difference < minDifference) {
+                    minDifference = difference;
+                    chosenNumber = number;
+                } else { // number not close enough, nothing to be done
+                }
+            }
+        }
+        return chosenNumber;
+    }
+
+    public static double keepDoubleWithinRange(final double value) {
+        final double min = -1d;
+        final double max = 9_999_999d;
+        return keepDoubleWithinRange(value, min, max);
+    }
+
+    public static double keepDoubleWithinRange(final double value, final double min, final double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     public static boolean objectInstanceOf(final Class<?> clazz, final Object object) {
         final boolean isClassOrSubclass;
 
