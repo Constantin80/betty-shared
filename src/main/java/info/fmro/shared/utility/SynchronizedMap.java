@@ -17,7 +17,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 
-@SuppressWarnings("ClassWithTooManyMethods")
+@SuppressWarnings({"ClassWithTooManyMethods", "BooleanMethodIsAlwaysInverted"})
 public class SynchronizedMap<K, V>
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedMap.class);

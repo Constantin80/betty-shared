@@ -2,6 +2,7 @@ package info.fmro.shared.logic;
 
 import com.google.common.math.DoubleMath;
 import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.enums.ProgramName;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.objects.Exposure;
 import info.fmro.shared.stream.cache.market.Market;
@@ -57,15 +58,21 @@ public class ManagedRunner
     private synchronized void attachRunner(@NotNull final MarketCache marketCache) {
         if (this.marketRunner == null) {
             final Market market = Formulas.getMarket(this.marketId, marketCache);
-            attachRunner(market);
+            if (market == null) { // can happen when the market is added
+            } else {
+                attachRunner(market);
+            }
         } else { // I already have the marketRunner, nothing to be done
         }
     }
 
     synchronized void attachRunner(final Market market) {
         if (this.marketRunner == null) {
-            if (market == null) {
-                logger.error("null market in attachRunner for: {}", Generic.objectToString(this)); // I'll just print the error message; this error shouldn't happen and I don't think it's properly fixable
+            if (market == null) { // this actually happens in the client
+                if (ProgramName.CLIENT == Generic.programName.get()) { // this actually happens in client
+                } else {
+                    logger.error("null market in attachRunner for: {} {}", this.marketId, Generic.objectToString(this.runnerId)); // I'll just print the error message; this error shouldn't happen and I don't think it's properly fixable
+                }
             } else {
                 this.marketRunner = market.getMarketRunner(this.runnerId);
                 if (this.marketRunner == null) {
@@ -86,9 +93,10 @@ public class ManagedRunner
 
     synchronized void attachOrderRunner(final OrderMarket orderMarket) {
         if (this.orderMarketRunner == null) {
-            if (orderMarket == null) {
+            if (orderMarket == null) { // this is actually normal, no orders exist on the market
 //                logger.error("null orderMarket in attachOrderRunner for: {}", Generic.objectToString(this)); // I'll just print the error message; this error shouldn't happen and I don't think it's properly fixable
-                logger.info("null orderMarket in attachOrderRunner for: {} {}", this.marketId, Generic.objectToString(this.runnerId));
+//                logger.info("null orderMarket in attachOrderRunner for: {} {}", this.marketId, Generic.objectToString(this.runnerId));
+//                Generic.alreadyPrintedMap.logOnce(Generic.DAY_LENGTH_MILLISECONDS, logger, LogLevel.INFO, "null orderMarket in attachOrderRunner for: {} {}", this.marketId, Generic.objectToString(this.runnerId));
             } else {
                 this.orderMarketRunner = orderMarket.getOrderMarketRunner(this.runnerId);
                 if (this.orderMarketRunner == null) { // normal, it means no orders exist for this managedRunner, nothing else to be done
@@ -138,33 +146,41 @@ public class ManagedRunner
     synchronized int checkRunnerLimits(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache) { // check the back/lay exposure limits for the runner, to make sure there's no error
         int exposureHasBeenModified = 0;
         getOrderMarketRunner(orderCache); // updates the orderMarketRunner
-        if (this.orderMarketRunner != null) {
-            final double backTotalExposure = this.getBackTotalExposure(), layTotalExposure = this.getLayTotalExposure();
-            if (this.backAmountLimit + .1d < backTotalExposure || this.layAmountLimit + .1d < layTotalExposure) {
-                logger.error("exposure limit has been breached back:{} {} lay:{} {} for runner: {}", this.backAmountLimit, backTotalExposure, this.layAmountLimit, layTotalExposure, Generic.objectToString(this));
-                final double backExcessExposure = Math.max(0d, backTotalExposure - this.backAmountLimit), layExcessExposure = Math.max(0d, layTotalExposure - this.layAmountLimit);
-                final double backMatchedExposure = this.getBackMatchedExposure(), layMatchedExposure = this.getLayMatchedExposure();
-                final double backExcessMatchedExposure = Math.max(0d, backMatchedExposure - this.backAmountLimit), layExcessMatchedExposure = Math.max(0d, layMatchedExposure - this.layAmountLimit);
+//        if (this.orderMarketRunner != null) {
+        final double backTotalExposure = this.getBackTotalExposure(), layTotalExposure = this.getLayTotalExposure();
+        final double localBackAmountLimit = this.getBackAmountLimit(), localLayAmountLimit = this.getLayAmountLimit();
+        if (localBackAmountLimit + .1d < backTotalExposure || localLayAmountLimit + .1d < layTotalExposure) {
+            logger.error("exposure limit has been breached back:{} {} lay:{} {} for runner: {}", localBackAmountLimit, backTotalExposure, localLayAmountLimit, layTotalExposure, Generic.objectToString(this));
+            final double backExcessExposure = Math.max(0d, backTotalExposure - localBackAmountLimit), layExcessExposure = Math.max(0d, layTotalExposure - localLayAmountLimit);
+            final double backMatchedExposure = this.getBackMatchedExposure(), layMatchedExposure = this.getLayMatchedExposure();
+            final double backExcessMatchedExposure = Math.max(0d, backMatchedExposure - localBackAmountLimit), layExcessMatchedExposure = Math.max(0d, layMatchedExposure - localLayAmountLimit);
+            if (this.orderMarketRunner != null) {
                 exposureHasBeenModified += this.orderMarketRunner.cancelUnmatchedAmounts(backExcessExposure, layExcessExposure, pendingOrdersThread);
-
-                if (backExcessMatchedExposure >= .1d || layExcessMatchedExposure >= .1d) {
-                    logger.error("matched exposure has breached the limit back:{} {} lay:{} {} for runner: {}", this.backAmountLimit, backMatchedExposure, this.layAmountLimit, layMatchedExposure, Generic.objectToString(this));
-                    exposureHasBeenModified += this.orderMarketRunner.balanceMatchedAmounts(this.getBackAmountLimit(), this.getLayAmountLimit(), this.getToBeUsedBackOdds(), this.getToBeUsedLayOdds(), backExcessMatchedExposure, layExcessMatchedExposure,
-                                                                                            pendingOrdersThread);
-                } else { // matched amounts don't break the limits, nothing to be done
-                }
-
-                if (exposureHasBeenModified > 0) {
-                    this.processOrders(pendingOrdersThread, orderCache);
-                } else {
-                    logger.error("exposureHasBeenModified {} not positive in checkRunnerLimits, while exposure limit is breached", exposureHasBeenModified);
-                }
-            } else { // no limit breach, nothing to do
+            } else { // orderMarketRunner is null if no orders exist on the runner yet
             }
-        } else {
-//            logger.error("null orderMarketRunner in checkRunnerLimits: {}", Generic.objectToString(this));
-            logger.info("null orderMarketRunner in checkRunnerLimits: {} {}", this.marketId, Generic.objectToString(this.runnerId));
+
+            if (backExcessMatchedExposure >= .1d || layExcessMatchedExposure >= .1d) {
+                logger.error("matched exposure has breached the limit back:{} {} lay:{} {} for runner: {}", localBackAmountLimit, backMatchedExposure, localLayAmountLimit, layMatchedExposure, Generic.objectToString(this));
+                if (this.orderMarketRunner != null) {
+                    exposureHasBeenModified += this.orderMarketRunner.balanceMatchedAmounts(localBackAmountLimit, localLayAmountLimit, this.getToBeUsedBackOdds(), this.getToBeUsedLayOdds(), backExcessMatchedExposure, layExcessMatchedExposure,
+                                                                                            pendingOrdersThread);
+                } else { // orderMarketRunner is null if no orders exist on the runner yet
+                }
+            } else { // matched amounts don't break the limits, nothing to be done
+            }
+
+            if (exposureHasBeenModified > 0) {
+                this.processOrders(pendingOrdersThread, orderCache);
+            } else {
+                logger.error("exposureHasBeenModified {} not positive in checkRunnerLimits, while exposure limit is breached", exposureHasBeenModified);
+            }
+        } else { // no limit breach, nothing to do
         }
+//        } else { // this is normal, orderMarketRunner will be null if there are no orders placed
+//            logger.error("null orderMarketRunner in checkRunnerLimits: {}", Generic.objectToString(this));
+//            logger.info("null orderMarketRunner in checkRunnerLimits: {} {}", this.marketId, Generic.objectToString(this.runnerId));
+//            Generic.alreadyPrintedMap.logOnce(Generic.DAY_LENGTH_MILLISECONDS, logger, LogLevel.INFO, "null orderMarketRunner in checkRunnerLimits: {} {}", this.marketId, Generic.objectToString(this.runnerId));
+//        }
         return exposureHasBeenModified;
     }
 
@@ -228,7 +244,7 @@ public class ManagedRunner
                 logger.error("this branch should not be reached in removeExposure: {} {} {}", backMatchedExcessExposure, layMatchedExcessExposure, Generic.objectToString(this));
             }
         } else {
-            logger.error("null orderMarketRunner in removeExposure: {}", Generic.objectToString(this));
+            logger.info("null orderMarketRunner in removeExposure: {} {}", this.marketId, Generic.objectToString(this.runnerId));
         }
         return exposureHasBeenModified;
     }
@@ -265,9 +281,10 @@ public class ManagedRunner
             // send order to cancel all lay bets at worse odds than to be used ones / send order to cancel all lay bets
             exposureHasBeenModified += info.fmro.shared.utility.Formulas.oddsAreUsable(this.toBeUsedLayOdds) ?
                                        this.orderMarketRunner.cancelUnmatched(Side.L, this.toBeUsedLayOdds, pendingOrdersThread) : this.orderMarketRunner.cancelUnmatched(Side.L, pendingOrdersThread);
-        } else {
+        } else { // this is actually normal if there are no orders on runner
 //            logger.error("null orderMarketRunner in calculateOdds: {}", Generic.objectToString(this));
-            logger.info("null orderMarketRunner in calculateOdds: {} {}", this.marketId, Generic.objectToString(this.runnerId));
+//            logger.info("null orderMarketRunner in calculateOdds: {} {}", this.marketId, Generic.objectToString(this.runnerId));
+//            Generic.alreadyPrintedMap.logOnce(Generic.DAY_LENGTH_MILLISECONDS, logger, LogLevel.INFO, "null orderMarketRunner in calculateOdds: {} {}", this.marketId, Generic.objectToString(this.runnerId));
         }
 
         if (this.marketRunner != null && this.orderMarketRunner != null) {
@@ -400,35 +417,35 @@ public class ManagedRunner
     }
 
     public synchronized double getBackAmountLimit() {
-        return this.backAmountLimit;
+        return Formulas.oddsAreUsable(this.minBackOdds) ? this.backAmountLimit : 0d;
     }
 
     @Contract(pure = true)
     private synchronized double getBackAmountLimit(final double marketCalculatedLimit) {
-        final double result;
+        final double result, localBackAmountLimit = this.getBackAmountLimit();
         if (marketCalculatedLimit < 0) {
-            result = this.backAmountLimit;
-        } else if (this.backAmountLimit < 0) {
+            result = localBackAmountLimit;
+        } else if (localBackAmountLimit < 0) {
             result = marketCalculatedLimit;
         } else {
-            result = Math.min(marketCalculatedLimit, this.backAmountLimit);
+            result = Math.min(marketCalculatedLimit, localBackAmountLimit);
         }
         return result;
     }
 
     public synchronized double getLayAmountLimit() {
-        return this.layAmountLimit;
+        return Formulas.oddsAreUsable(this.maxLayOdds) ? this.layAmountLimit : 0d;
     }
 
     @Contract(pure = true)
     private synchronized double getLayAmountLimit(final double marketCalculatedLimit) {
-        final double result;
+        final double result, localLayAmountLimit = this.getLayAmountLimit();
         if (marketCalculatedLimit < 0) {
-            result = this.layAmountLimit;
-        } else if (this.layAmountLimit < 0) {
+            result = localLayAmountLimit;
+        } else if (localLayAmountLimit < 0) {
             result = marketCalculatedLimit;
         } else {
-            result = Math.min(marketCalculatedLimit, this.layAmountLimit);
+            result = Math.min(marketCalculatedLimit, localLayAmountLimit);
         }
         return result;
     }
@@ -477,9 +494,10 @@ public class ManagedRunner
         final double newExposureAssigned, previousValue = this.idealBackExposure;
         if (newIdealBackExposure >= 0d) {
             if (Formulas.oddsAreUsable(this.minBackOdds)) {
-                if (newIdealBackExposure >= this.backAmountLimit) {
-                    newExposureAssigned = this.backAmountLimit - this.idealBackExposure;
-                    this.idealBackExposure = this.backAmountLimit;
+                final double localBackAmountLimit = this.getBackAmountLimit();
+                if (newIdealBackExposure >= localBackAmountLimit) {
+                    newExposureAssigned = localBackAmountLimit - this.idealBackExposure;
+                    this.idealBackExposure = localBackAmountLimit;
                 } else {
                     newExposureAssigned = newIdealBackExposure - this.idealBackExposure;
                     this.idealBackExposure = newIdealBackExposure;

@@ -10,9 +10,9 @@ import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.cache.order.OrderMarketRunner;
 import info.fmro.shared.stream.enums.Side;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
+import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
-import info.fmro.shared.utility.SynchronizedMap;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -32,16 +32,17 @@ public final class Utils {
 
     public static void calculateMarketLimits(final double maxTotalLimit, @NotNull final Iterable<? extends ManagedMarket> marketsSet, final boolean shouldCalculateExposure, final boolean marketLimitsCanBeIncreased,
                                              @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                             final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager) {
-        double totalMatchedExposure = 0d, totalExposure = 0d, sumOfMaxMarketLimits = 0d;
+                                             final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager,
+                                             final long programStartTime) {
+        @SuppressWarnings("unused") double totalMatchedExposure = 0d, totalExposure = 0d, sumOfMaxMarketLimits = 0d;
         final Collection<ManagedMarket> marketsWithErrorCalculatingExposure = new HashSet<>(1), marketsWithExposureHigherThanTheirMaxLimit = new HashSet<>(1);
         for (final ManagedMarket managedMarket : marketsSet) {
-            if (shouldCalculateExposure) {
-                managedMarket.attachMarket(marketCache, rulesManager, marketCataloguesMap);
-                managedMarket.calculateExposure(pendingOrdersThread, orderCache);
+            if (shouldCalculateExposure && marketCache.contains(managedMarket)) {
+                managedMarket.attachMarket(marketCache, rulesManager, marketCataloguesMap, programStartTime);
+                managedMarket.calculateExposure(pendingOrdersThread, orderCache, programStartTime, rulesManager);
             } else { // no need to calculate exposure, it was just calculated previously
             }
-            final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits, marketCataloguesMap);
+            final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
             sumOfMaxMarketLimits += maxMarketLimit;
             if (managedMarket.defaultExposureValuesExist()) {
                 totalMatchedExposure += maxMarketLimit;
@@ -54,69 +55,115 @@ public final class Utils {
                 if (marketTotalExposure > maxMarketLimit) {
                     marketsWithExposureHigherThanTheirMaxLimit.add(managedMarket); // if total exposure > maxMarketLimit, reduce the exposure
                     totalExposure += Math.max(maxMarketLimit, marketMatchedExposure);
-                    logger.error("managedMarket with total exposure {} higher than maxLimit {}: {}", marketTotalExposure, maxMarketLimit, Generic.objectToString(managedMarket));
+                    if (managedMarket.isEnabledMarket()) {
+                        logger.error("managedMarket with total exposure {} higher than maxLimit {}: {} {} {}", marketTotalExposure, maxMarketLimit, managedMarket.getId(), managedMarket.simpleGetMarketName(), managedMarket.simpleGetParentEventId());
+                    } else {
+                        logger.info("disabled managedMarket with total exposure {} higher than maxLimit {}: {} {} {}", marketTotalExposure, maxMarketLimit, managedMarket.getId(), managedMarket.simpleGetMarketName(), managedMarket.simpleGetParentEventId());
+                    }
                 } else { // normal case
                     totalExposure += marketTotalExposure;
                 }
             }
         } // end for
 
-        @SuppressWarnings("unused") final double availableTotalExposure = maxTotalLimit - totalExposure; // can be positive or negative, not used for now, as I use the ConsideringOnlyMatched variant
-        final double availableExposureInTheMarkets = sumOfMaxMarketLimits - totalExposure; // should be positive, else this might be an error
-        final double availableTotalExposureConsideringOnlyMatched = maxTotalLimit - totalMatchedExposure; // can be positive or negative
-        final double availableExposureInTheMarketsConsideringOnlyMatched = sumOfMaxMarketLimits - totalMatchedExposure; // should always be positive, else this is an error
+//        final double totalMarketLimit = Math.min(maxTotalLimit, sumOfMaxMarketLimits);
+//        @SuppressWarnings("unused") final double availableTotalExposure = totalMarketLimit - totalExposure; // can be positive or negative, not used for now, as I use the ConsideringOnlyMatched variant
+//        final double availableExposureInTheMarkets = totalMarketLimit - totalExposure; // should be positive, else this might be an error, or maybe not error
+//        final double availableTotalExposureConsideringOnlyMatched = totalMarketLimit - totalMatchedExposure; // can be positive or negative
+//        final double availableExposureInTheMarketsConsideringOnlyMatched = totalMarketLimit - totalMatchedExposure; // should always be positive, else this is an error
 
         for (final ManagedMarket managedMarket : marketsWithErrorCalculatingExposure) {
             managedMarket.cancelAllUnmatchedBets.set(true);
+            managedMarket.setCalculatedLimit(0d, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
         }
         for (final ManagedMarket managedMarket : marketsWithExposureHigherThanTheirMaxLimit) {
 //            final double totalExposure = managedMarket.getMarketTotalExposure();
-            final double maxLimit = managedMarket.getMaxMarketLimit(safetyLimits, marketCataloguesMap);
+            final double maxLimit = managedMarket.getMaxMarketLimit(safetyLimits);
 //            final double reducedExposure = totalExposure - maxLimit;
 //            availableExposureInTheMarkets += reducedExposure;
             // I don't think modifying the availableExposureInTheMarkets is needed, as the maxMarketLimit was already used when calculating in the case of these ExposureHigherThanTheirMaxLimit markets
 
-            managedMarket.setCalculatedLimit(maxLimit, marketLimitsCanBeIncreased, safetyLimits, marketCataloguesMap);
+            managedMarket.setCalculatedLimit(maxLimit, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
         }
-        if (sumOfMaxMarketLimits <= maxTotalLimit) { // nothing to do
-        } else if (totalMatchedExposure <= maxTotalLimit && availableExposureInTheMarketsConsideringOnlyMatched >= 0d) {
-            if (availableExposureInTheMarkets < 0d) { // availableTotalExposure will be negative, guaranteed
-                logger.error("availableExposureInTheMarkets negative in calculateMarketLimits: {} {} for: {} {} {} {}", sumOfMaxMarketLimits, totalExposure, maxTotalLimit, shouldCalculateExposure, marketLimitsCanBeIncreased,
-                             Generic.objectToString(marketsSet));
-            } else { // normal branch, nothing to do here
-            }
-
-            final double proportionOfAvailableMarketExposureThatWillBeUsed = availableExposureInTheMarketsConsideringOnlyMatched == 0d || availableTotalExposureConsideringOnlyMatched > availableExposureInTheMarketsConsideringOnlyMatched ? 1d :
-                                                                             availableTotalExposureConsideringOnlyMatched / availableExposureInTheMarketsConsideringOnlyMatched;
-            for (final ManagedMarket managedMarket : marketsSet) {
-                if (marketsWithErrorCalculatingExposure.contains(managedMarket)) { // nothing to do, all unmatched bets on this market were previously been canceled
-                } else { // calculatedLimit = (maxMarketLimit - matchedExposure) / proportionOfAvailableMarketExposureThatWillBeUsed
-                    final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits, marketCataloguesMap);
-                    final double matchedExposure = managedMarket.getMarketMatchedExposure();
-                    final double calculatedLimit = (maxMarketLimit - matchedExposure) * proportionOfAvailableMarketExposureThatWillBeUsed + matchedExposure;
-                    managedMarket.setCalculatedLimit(calculatedLimit, marketLimitsCanBeIncreased, safetyLimits, marketCataloguesMap);
-                }
-            } // end for
-        } else {
-            logger.error("bad amounts in calculateMarketLimits: {} {} for: {} {} {} {}", totalMatchedExposure, availableExposureInTheMarketsConsideringOnlyMatched, maxTotalLimit, shouldCalculateExposure, marketLimitsCanBeIncreased,
-                         Generic.objectToString(marketsSet));
-            // minimize exposure in all markets, except those with error in calculating the exposure, where all unmatched will be canceled
-            final double proportionMatchedExposureWithinLimit;
-            if (totalMatchedExposure == 0d) {
-                logger.error("bad totalMatchedExposure in calculateMarketLimits: {}", totalMatchedExposure);
-                proportionMatchedExposureWithinLimit = 1d;
-            } else {
-                proportionMatchedExposureWithinLimit = maxTotalLimit / totalMatchedExposure;
-            }
+        if (sumOfMaxMarketLimits <= maxTotalLimit) { // nothing to do, totalMarketLimit == sumOfMaxMarketLimits
+//            logger.info("sumOfMaxMarketLimits <= maxTotalLimit: {} {}", sumOfMaxMarketLimits, maxTotalLimit);
             for (final ManagedMarket managedMarket : marketsSet) {
                 if (marketsWithErrorCalculatingExposure.contains(managedMarket)) { // nothing to do, all unmatched bets on this market were previously been canceled
                 } else {
-                    final double matchedExposure = managedMarket.getMarketMatchedExposure();
-                    final double maxLimit = managedMarket.getMaxMarketLimit(safetyLimits, marketCataloguesMap);
-                    managedMarket.setCalculatedLimit(Math.min(matchedExposure * proportionMatchedExposureWithinLimit, maxLimit), marketLimitsCanBeIncreased, safetyLimits, marketCataloguesMap);
+                    final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
+                    final double calculatedLimit = managedMarket.simpleGetCalculatedLimit();
+                    if (calculatedLimit > maxMarketLimit) {
+                        managedMarket.setCalculatedLimit(maxMarketLimit, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
+                    } else { // calculatedLimit is smaller than maxLimit, nothing to do
+                    }
+                }
+            } // end for
+        } else {
+            final double calculatedLimitProportionOutOfMaxLimit = Math.max(Math.min(sumOfMaxMarketLimits == 0d ? 1d : maxTotalLimit / sumOfMaxMarketLimits, 1d), 0d);
+            for (final ManagedMarket managedMarket : marketsSet) {
+                if (marketsWithErrorCalculatingExposure.contains(managedMarket)) { // nothing to do, all unmatched bets on this market were previously been canceled
+                } else { // calculatedLimit = (maxMarketLimit - matchedExposure) / proportionOfAvailableMarketExposureThatWillBeUsed
+                    final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
+//                    final double matchedExposure = managedMarket.getMarketMatchedExposure();
+                    final double calculatedLimit = maxMarketLimit * calculatedLimitProportionOutOfMaxLimit;
+//                    logger.info("set market calculatedLimit: {} {} {} {}", calculatedLimit, maxMarketLimit, sumOfMaxMarketLimits, maxTotalLimit);
+                    managedMarket.setCalculatedLimit(calculatedLimit, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
                 }
             } // end for
         }
+
+//      it's not trivial and it's probably not good to have a complicated way of setting the market limit, based on matched and not matched exposure; let's keep things simple
+//            if (availableExposureInTheMarkets >= 0d) {
+//
+//        } else if (availableTotalExposureConsideringOnlyMatched >= 0d) {
+////            if (availableExposureInTheMarkets < 0d) {
+////                logger.error("availableExposureInTheMarkets negative in calculateMarketLimits: {} {} for: {} {} {} {}", sumOfMaxMarketLimits, totalExposure, maxTotalLimit, shouldCalculateExposure, marketLimitsCanBeIncreased,
+////                             Generic.objectToString(marketsSet));
+////            } else { // normal branch, nothing to do here
+////            }
+//
+//            double proportionOfAvailableMarketExposureThatWillBeUsed = Math.max(0d, availableTotalExposureConsideringOnlyMatched == 0d ? 1d : availableExposureInTheMarkets / availableTotalExposureConsideringOnlyMatched);
+//            if (proportionOfAvailableMarketExposureThatWillBeUsed > 1d) {
+//                logger.error("proportionOfAvailableMarketExposureThatWillBeUsed too big: {} {} {} {} {} {} {}", proportionOfAvailableMarketExposureThatWillBeUsed, availableExposureInTheMarkets, availableTotalExposureConsideringOnlyMatched, maxTotalLimit,
+//                             sumOfMaxMarketLimits, totalExposure, totalMatchedExposure);
+//                proportionOfAvailableMarketExposureThatWillBeUsed = 1d;
+//            } else { // no error, nothing to be done
+//            }
+//            for (final ManagedMarket managedMarket : marketsSet) {
+//                if (marketsWithErrorCalculatingExposure.contains(managedMarket)) { // nothing to do, all unmatched bets on this market were previously been canceled
+//                } else { // calculatedLimit = (maxMarketLimit - matchedExposure) / proportionOfAvailableMarketExposureThatWillBeUsed
+//                    final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
+//                    final double matchedExposure = managedMarket.getMarketMatchedExposure();
+//                    final double calculatedLimit = (maxMarketLimit - matchedExposure) * proportionOfAvailableMarketExposureThatWillBeUsed + matchedExposure;
+//                    managedMarket.setCalculatedLimit(calculatedLimit, marketLimitsCanBeIncreased, safetyLimits);
+//                }
+//            } // end for
+//        } else {
+//            logger.error("negative availableTotalExposureConsideringOnlyMatched in calculateMarketLimits: {} {} for: {} {} {} {}", totalMatchedExposure, availableTotalExposureConsideringOnlyMatched, maxTotalLimit, shouldCalculateExposure,
+//                         marketLimitsCanBeIncreased, Generic.objectToString(marketsSet));
+//            // minimize exposure in all markets, except those with error in calculating the exposure, where all unmatched will be canceled
+//            double proportionMatchedExposureWithinLimit;
+//            if (totalMatchedExposure == 0d) {
+//                logger.error("bad totalMatchedExposure in calculateMarketLimits: {} {} {} {} {} {}", availableExposureInTheMarkets, availableTotalExposureConsideringOnlyMatched, maxTotalLimit, sumOfMaxMarketLimits, totalExposure, totalMatchedExposure);
+//                proportionMatchedExposureWithinLimit = 1d;
+//            } else {
+//                proportionMatchedExposureWithinLimit = totalMarketLimit / totalMatchedExposure;
+//            }
+//            if (proportionMatchedExposureWithinLimit < 0d || proportionMatchedExposureWithinLimit > 1d) {
+//                logger.error("bad proportionMatchedExposureWithinLimit in calculateMarketLimits: {} {} {} {} {} {} {}", proportionMatchedExposureWithinLimit, availableExposureInTheMarkets, availableTotalExposureConsideringOnlyMatched, maxTotalLimit,
+//                             sumOfMaxMarketLimits, totalExposure, totalMatchedExposure);
+//                proportionMatchedExposureWithinLimit = Math.max(Math.min(proportionMatchedExposureWithinLimit, 1d), 0d);
+//            } else { // no error, nothing to be done
+//            }
+//            for (final ManagedMarket managedMarket : marketsSet) {
+//                if (marketsWithErrorCalculatingExposure.contains(managedMarket)) { // nothing to do, all unmatched bets on this market were previously been canceled
+//                } else {
+//                    final double matchedExposure = managedMarket.getMarketMatchedExposure();
+//                    final double maxLimit = managedMarket.getMaxMarketLimit(safetyLimits);
+//                    managedMarket.setCalculatedLimit(Math.min(matchedExposure * proportionMatchedExposureWithinLimit, maxLimit), marketLimitsCanBeIncreased, safetyLimits);
+//                }
+//            } // end for
+//        }
     }
 
     public static List<Double> getExposureToBePlacedForTwoWayMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final OrderMarketRunner firstOrderRunner, @NotNull final OrderMarketRunner secondOrderRunner,

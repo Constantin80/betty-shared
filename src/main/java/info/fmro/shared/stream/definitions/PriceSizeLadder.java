@@ -103,7 +103,7 @@ public final class PriceSizeLadder
         if (prices != null) {
             for (final List<Double> price : prices) {
                 final PriceSize priceSize = new PriceSize(price);
-                if (priceSize.getSizeEUR(currencyRate) == 0.0d) {
+                if (priceSize.getSizeEUR(currencyRate) == 0d) {
                     this.priceToSize.remove(priceSize.getPrice());
                 } else {
                     this.priceToSize.put(priceSize.getPrice(), priceSize);
@@ -163,8 +163,12 @@ public final class PriceSizeLadder
                 priceSize.removeAmountGBP(sizeToRemove);
             }
         } else {
-            logger.error("price {} sizeToRemove {} not found in PriceSizeLadder.removeAmount for: {}", price, sizeToRemove, Generic.objectToString(this));
+            logger.info("price {} sizeToRemove {} not found in PriceSizeLadder.removeAmount for: {}", price, sizeToRemove, Generic.objectToString(this));
         }
+    }
+
+    public synchronized boolean isEmpty() {
+        return this.priceToSize.isEmpty();
     }
 
     @NotNull

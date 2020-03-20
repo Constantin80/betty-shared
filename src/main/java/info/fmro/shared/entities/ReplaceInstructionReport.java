@@ -3,6 +3,7 @@ package info.fmro.shared.entities;
 import info.fmro.shared.enums.InstructionReportErrorCode;
 import info.fmro.shared.enums.InstructionReportStatus;
 
+@SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
 public class ReplaceInstructionReport {
     private InstructionReportStatus status;
     private InstructionReportErrorCode errorCode;

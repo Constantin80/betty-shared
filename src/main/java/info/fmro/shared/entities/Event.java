@@ -31,13 +31,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
-@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
+@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass", "WeakerAccess"})
 public class Event
         extends Ignorable
         implements Serializable, Comparable<Event> {
     private static final Logger logger = LoggerFactory.getLogger(Event.class);
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
     private static final long serialVersionUID = -6755870038911915452L;
+    // ScraperEventInterface likely can't be used to send items from Server to Client; if I ever decide to reenable the scraper system, I need to fix this
     private LinkedHashMap<Class<? extends ScraperEventInterface>, Long> scraperEventIds; // <class, scraperId>; initialization doesn't work when using Gson
     //    private transient boolean scraperEventsCached;
 //    private transient LinkedHashSet<ScraperEvent> scraperEvents; // initialization doesn't work when using Gson
@@ -290,7 +291,6 @@ public class Event
         return modified;
     }
 
-    @SuppressWarnings("WeakerAccess")
     @Contract(pure = true)
     @Nullable
     public synchronized Date getOpenDate() {

@@ -70,11 +70,12 @@ public class ManagedMarketsMap
                 }
                 for (final String marketId : this.parentEvent.marketIds.copy()) {
                     final ManagedMarket market = rulesManager.markets.get(marketId);
-                    if (market == null) { // I'll print error message, but I'll still add the null value to the returnMap
+                    if (market == null) {
                         logger.error("null managedMarket found during initializeMap in rulesManager markets map for: {}", marketId);
-                    } else { // normal case, nothing to be done on branch
+                        this.parentEvent.marketIds.remove(marketId);
+                    } else { // normal case
+                        this.putIfAbsent(marketId, market, rulesManager);
                     }
-                    this.putIfAbsent(marketId, market, rulesManager);
                 }
             }
         }

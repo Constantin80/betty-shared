@@ -77,8 +77,8 @@ public class OrderCache
             for (final OrderMarketChange change : changeMessage.getItems()) {
                 final OrderMarket orderMarket = onOrderMarketChange(change, newOrderMarketCreated, pendingOrdersThread, currencyRate);
 
-                if (this.orderMarketRemovedOnClose && orderMarket.isClosed()) {
-                    // remove on close
+                if (orderMarket.isEmpty() || (this.orderMarketRemovedOnClose && orderMarket.isClosed())) {
+                    // remove on close or if empty
                     this.markets.remove(orderMarket.getMarketId());
                 }
             } // end for

@@ -2,17 +2,13 @@ package info.fmro.shared.logic;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.entities.CurrencyRate;
-import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.ExistingFundsModificationCommand;
 import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
-import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
-import info.fmro.shared.utility.SynchronizedMap;
 import org.apache.commons.lang3.SerializationUtils;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +17,7 @@ import java.io.Serializable;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@SuppressWarnings("NonPrivateFieldAccessedInSynchronizedContext")
+@SuppressWarnings({"NonPrivateFieldAccessedInSynchronizedContext", "WeakerAccess", "RedundantSuppression"})
 public class ExistingFunds
         implements Serializable, StreamObjectInterface {
     private static final Logger logger = LoggerFactory.getLogger(ExistingFunds.class);
@@ -167,21 +163,19 @@ public class ExistingFunds
         }
     }
 
-    // todo calculated limit for market still bigger than for event
-    // todo lots of stuff fills out.txt
     synchronized double getTotalLimit() {
         return this.getTotalFunds() - this.getReserve() - 0.01d; // leave 1 cent, to avoid errors
     }
 
-    synchronized double getDefaultEventLimit(final String eventId) {
+    synchronized double getDefaultEventLimit() {
         final double returnValue;
-        if (eventId == null) {
-            returnValue = 0d;
-            logger.info("null eventId in SafetyLimits during getDefaultEventLimit: {}", Generic.objectToString(this)); // it can actually happen in Client
-        } else {
-            // eventId not used for now, and default limit is same for all non safe events (plus I no longer use safe events)
-            returnValue = Math.min(getTotalLimit(), this.getTotalFunds() * ExistingFunds.eventLimitFraction);
-        }
+//        if (eventId == null) {
+//            returnValue = 0d;
+//            logger.info("null eventId in SafetyLimits during getDefaultEventLimit: {}", Generic.objectToString(this)); // it can actually happen in Client
+//        } else {
+//            // eventId not used for now, and default limit is same for all non safe events (plus I no longer use safe events)
+        returnValue = Math.min(getTotalLimit(), this.getTotalFunds() * ExistingFunds.eventLimitFraction);
+//        }
         return returnValue;
     }
 
@@ -189,26 +183,26 @@ public class ExistingFunds
 //        return getDefaultMarketLimit(marketId, null, parentEventId);
 //    }
 
-    synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
-        return getDefaultMarketLimit(marketId, marketCataloguesMap, null);
-    }
+//    synchronized double getDefaultMarketLimit(final String marketId, final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+//        return getDefaultMarketLimit(marketId, marketCataloguesMap, null);
+//    }
 
-    private synchronized double getDefaultMarketLimit(final String marketId, final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final String parentEventId) {
+    synchronized double getDefaultMarketLimit(final String marketId) {
         final double returnValue;
         if (marketId == null) {
             returnValue = 0d;
             logger.error("null marketId in SafetyLimits during getDefaultMarketLimit: {}", Generic.objectToString(this));
         } else {
-            @Nullable final String eventId;
-            if (parentEventId != null) {
-                eventId = parentEventId;
-            } else if (marketCataloguesMap != null) {
-                eventId = Formulas.getEventIdOfMarketId(marketId, marketCataloguesMap);
-            } else {
-                logger.error("marketCataloguesMap and parentEventId are null in getDefaultMarketLimit: {}", marketId);
-                eventId = null;
-            }
-            returnValue = Math.min(getDefaultEventLimit(eventId), this.getTotalFunds() * ExistingFunds.marketLimitFraction); // getDefaultEventLimit already contains getAvailableLimit
+//            @Nullable final String eventId;
+//            if (parentEventId != null) {
+//                eventId = parentEventId;
+//            } else if (marketCataloguesMap != null) {
+//                eventId = Formulas.getEventIdOfMarketId(marketId, marketCataloguesMap);
+//            } else {
+//                logger.error("marketCataloguesMap and parentEventId are null in getDefaultMarketLimit: {}", marketId);
+//                eventId = null;
+//            }
+            returnValue = Math.min(getDefaultEventLimit(), this.getTotalFunds() * ExistingFunds.marketLimitFraction); // getDefaultEventLimit already contains getAvailableLimit
         }
         return returnValue;
     }

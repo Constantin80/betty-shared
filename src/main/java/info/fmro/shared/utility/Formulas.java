@@ -184,9 +184,9 @@ public final class Formulas {
         pricesList = List.copyOf(localPricesList);
     }
 
-    public static double getNextOddsDown(final double odds) {
+    public static double getNextOddsDown(final double odds, @NotNull final Side side) {
         final double result;
-        final double closestOdds = getClosestOdds(odds);
+        final double closestOdds = getClosestOdds(odds, side);
         if (odds > 1_000d) {
             result = 1_000d;
         } else if (odds <= 1.01d) {
@@ -199,9 +199,9 @@ public final class Formulas {
         return result;
     }
 
-    public static double getNextOddsUp(final double odds) {
+    public static double getNextOddsUp(final double odds, @NotNull final Side side) {
         final double result;
-        final double closestOdds = getClosestOdds(odds);
+        final double closestOdds = getClosestOdds(odds, side);
         if (odds >= 1_000d) {
             result = 1_001d;
         } else if (odds < 1.01d) {
@@ -215,13 +215,13 @@ public final class Formulas {
     }
 
     @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
-    public static double getClosestOdds(final double odds) {
-        @SuppressWarnings("NumericCastThatLosesPrecision") final int intOdds = (int) (odds * 100d);
-        return getClosestOdds(intOdds);
+    public static double getClosestOdds(final double odds, @NotNull final Side side) {
+        @SuppressWarnings("NumericCastThatLosesPrecision") final int intOdds = (int) Math.round(odds * 100d);
+        return getClosestOdds(intOdds, side);
     }
 
     @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
-    public static double getClosestOdds(final int odds) {
+    public static double getClosestOdds(final int odds, @NotNull final Side side) {
         final double result;
         final int oddsPosition = pricesList.indexOf(odds);
         if (oddsPosition < 0) {
@@ -240,7 +240,14 @@ public final class Formulas {
                         break;
                     }
                 }
-                result = Generic.getClosestNumber(odds, smallerOdds, largerOdds) / 100d;
+                if (side == Side.B) {
+                    result = largerOdds / 100d;
+                } else if (side == Side.L) {
+                    result = smallerOdds / 100d;
+                } else {
+                    logger.error("unknown side in getClosestOdds: {} {}", side, odds);
+                    result = Generic.getClosestNumber(odds, smallerOdds, largerOdds) / 100d;
+                }
             }
         } else {
             result = odds / 100d;
@@ -439,22 +446,24 @@ public final class Formulas {
         return result;
     }
 
-    public static String getEventIdOfMarketId(final String marketId, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public static String getEventIdOfMarketId(final String marketId, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         @Nullable final String result;
 
         final MarketCatalogue marketCatalogue = marketCataloguesMap.get(marketId);
         if (marketCatalogue != null) {
             result = getEventIdOfMarketCatalogue(marketCatalogue);
         } else {
-            Formulas.logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventOfMarket", marketId);
+            if (marketCataloguesMap.isEmpty()) { // normal, before map got a chance to be updated
+            } else {
+                Formulas.logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventOfMarket", marketId);
+            }
             result = null;
         }
 
         return result;
     }
 
-    public static Event getStoredEventOfMarketId(final String marketId, final @NotNull SynchronizedMap<? super String, ? extends Event> eventsMap,
-                                                 final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public static Event getStoredEventOfMarketId(final String marketId, final @NotNull SynchronizedMap<? super String, ? extends Event> eventsMap, final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final String eventId = getEventIdOfMarketId(marketId, marketCataloguesMap);
         return eventsMap.get(eventId);
     }
@@ -502,18 +511,23 @@ public final class Formulas {
     @Nullable
     public static String getMarketCatalogueName(final String marketId, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final MarketCatalogue marketCatalogue = marketCataloguesMap.get(marketId);
+        return marketCatalogue == null ? null : getMarketCatalogueName(marketCatalogue);
+    }
+
+    @Nullable
+    public static String getMarketCatalogueName(@NotNull final MarketCatalogue marketCatalogue) {
         @Nullable final String result;
-        if (marketCatalogue == null) {
-            result = null;
+        final String marketName = marketCatalogue.getMarketName();
+        if (marketName == null) {
+            final MarketDescription marketDescription = marketCatalogue.getDescription();
+            result = marketDescription == null ? null : marketDescription.getMarketType();
         } else {
-            final String marketName = marketCatalogue.getMarketName();
-            if (marketName == null) {
-                final MarketDescription marketDescription = marketCatalogue.getDescription();
-                result = marketDescription == null ? null : marketDescription.getMarketType();
-            } else {
-                result = marketName;
-            }
+            result = marketName;
         }
         return result;
+    }
+
+    public static boolean programHasRecentlyStarted(final long currentTime, final long PROGRAM_START_TIME) {
+        return currentTime - PROGRAM_START_TIME <= Generic.MINUTE_LENGTH_MILLISECONDS;
     }
 }

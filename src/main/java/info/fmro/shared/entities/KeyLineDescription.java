@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
+@SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
 public class KeyLineDescription
         implements Serializable {
     private static final long serialVersionUID = -7685044775812063409L;

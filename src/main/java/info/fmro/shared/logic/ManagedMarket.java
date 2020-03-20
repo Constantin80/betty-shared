@@ -4,6 +4,7 @@ import com.google.common.math.DoubleMath;
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.MarketBettingType;
+import info.fmro.shared.enums.ProgramName;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.stream.cache.Utils;
 import info.fmro.shared.stream.cache.market.Market;
@@ -17,10 +18,10 @@ import info.fmro.shared.stream.enums.Side;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
+import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import info.fmro.shared.utility.ComparatorMarketPrices;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
-import info.fmro.shared.utility.SynchronizedMap;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -46,6 +47,7 @@ public class ManagedMarket
     private static final long serialVersionUID = -7958840665816144122L;
     public static final long recentCalculatedLimitPeriod = 30_000L;
     public static final long almostLivePeriod = Generic.HOUR_LENGTH_MILLISECONDS;
+    public static final long veryRecentPeriod = 10_000L;
     public final AtomicBoolean cancelAllUnmatchedBets = new AtomicBoolean();
     private final HashMap<RunnerId, ManagedRunner> runners = new HashMap<>(4); // this is the only place where managedRunners are stored permanently
     private final HashMap<RunnerId, Double> runnerMatchedExposure = new HashMap<>(4), runnerTotalExposure = new HashMap<>(4);
@@ -61,6 +63,8 @@ public class ManagedMarket
     private double totalBackExposureSum;
     private long timeMarketGoesLive, calculatedLimitStamp, manageMarketStamp;
     private boolean marketAlmostLive;
+    private boolean enabledMarket = true;
+    private final long creationTime;
 
     @SuppressWarnings("InstanceVariableMayNotBeInitializedByReadObject")
     private transient ManagedEvent parentEvent;
@@ -71,11 +75,20 @@ public class ManagedMarket
     private transient OrderMarket orderMarket;
 //    private transient ArrayList<ManagedRunner> runnersOrderedList = new ArrayList<>(this.runners.values());
 
-    public ManagedMarket(@NotNull final String id, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public ManagedMarket(@NotNull final String id, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
+                         final long programStartTime) {
+        this(id, marketCache, rulesManager, marketCataloguesMap, programStartTime, true); // default sendRunnersThroughStream true
+    }
+
+    @SuppressWarnings("ConstructorWithTooManyParameters")
+    public ManagedMarket(@NotNull final String id, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
+                         final long programStartTime, final boolean sendRunnersThroughStream) {
         this.id = id;
+        this.creationTime = System.currentTimeMillis();
 //        this.parentEventId = info.fmro.shared.utility.Formulas.getEventIdOfMarketId(this.id, marketCataloguesMap);
 //        this.runnersOrderedList.sort(Comparator.comparing(k -> k.getLastTradedPrice(marketCache), new ComparatorMarketPrices()));
-        attachMarket(marketCache, rulesManager, marketCataloguesMap);
+        this.setMarketName(Formulas.getMarketCatalogueName(id, marketCataloguesMap), rulesManager);
+        attachMarket(marketCache, rulesManager, marketCataloguesMap, programStartTime, sendRunnersThroughStream);
     }
 
     private void readObject(@NotNull final java.io.ObjectInputStream in)
@@ -97,6 +110,40 @@ public class ManagedMarket
         return new HashMap<>(this.runners);
     }
 
+    private synchronized boolean isVeryRecent() {
+        return isVeryRecent(System.currentTimeMillis());
+    }
+
+    private synchronized boolean isVeryRecent(final long currentTime) {
+        return currentTime - this.creationTime <= veryRecentPeriod;
+    }
+
+    public synchronized boolean isEnabledMarket() {
+        return this.enabledMarket;
+    }
+
+    public synchronized void setEnabledMarket(final boolean enabledMarket, @NotNull final RulesManager rulesManager) {
+        setEnabledMarket(enabledMarket, rulesManager, true); // default true sendModificationThroughStream
+    }
+
+    public synchronized void setEnabledMarket(final boolean enabledMarket, @NotNull final RulesManager rulesManager, final boolean sendModificationThroughStream) {
+        if (this.enabledMarket == enabledMarket) { // no update needed
+        } else {
+            this.enabledMarket = enabledMarket;
+            rulesManager.rulesHaveChanged.set(true);
+            rulesManager.marketsMapModified.set(true);
+            if (rulesManager.marketsForOutsideCheck.add(this.id)) {
+                rulesManager.newMarketsOrEventsForOutsideCheck.set(true);
+            }
+            rulesManager.addMarketToCheck(this.id);
+
+            if (sendModificationThroughStream) {
+                rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMarketEnabled, this.id, this.enabledMarket));
+            } else { // no need to send this modification
+            }
+        }
+    }
+
     public synchronized int getNRunners() {
         return this.runners.size();
     }
@@ -109,19 +156,21 @@ public class ManagedMarket
         return this.marketName;
     }
 
-    public synchronized String getMarketName(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public synchronized String getMarketName(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
+                                             final long programStartTime) {
         if (this.marketName == null) {
-            attachMarket(marketCache, rulesManager, marketCataloguesMap);
+            attachMarket(marketCache, rulesManager, marketCataloguesMap, programStartTime);
         } else { // I already have marketName, I'll just return it
         }
         return this.marketName;
     }
 
-    public synchronized void setMarketName(final String marketName, @NotNull final RulesManager rulesManager) {
-        if (this.marketName == null && marketName != null) {
+    @SuppressWarnings("InstanceVariableUsedBeforeInitialized")
+    public final synchronized void setMarketName(final String marketName, @NotNull final RulesManager rulesManager) {
+        if (marketName != null && !Objects.equals(this.marketName, marketName)) {
             this.marketName = marketName;
             rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMarketName, this.id, this.marketName));
-        } else { // I'll keep the old name
+        } else { // new value null or same as old value
         }
     }
 
@@ -145,7 +194,7 @@ public class ManagedMarket
         return this.parentEventId;
     }
 
-    public synchronized String getParentEventId(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean rulesHaveChanged) {
+    public synchronized String getParentEventId(@NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean rulesHaveChanged) {
         if (this.parentEventId == null) {
             this.parentEventId = Formulas.getEventIdOfMarketId(this.id, marketCataloguesMap);
             if (this.parentEventId == null) {
@@ -157,7 +206,7 @@ public class ManagedMarket
             }
 
             if (this.parentEventId == null) {
-                logger.error("parentEventId not found for managedMarket: {}", Generic.objectToString(this));
+                logger.info("parentEventId not found for managedMarket: {} {}", this.id, this.marketName);
             } else {
                 rulesHaveChanged.set(true);
             }
@@ -167,11 +216,11 @@ public class ManagedMarket
         return this.parentEventId;
     }
 
-    public synchronized ManagedEvent getParentEvent(@NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final RulesManager rulesManager) {
+    public synchronized ManagedEvent getParentEvent(@NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final RulesManager rulesManager) {
         if (this.parentEvent == null) {
             final String localParentEventId = this.getParentEventId(marketCataloguesMap, rulesManager.rulesHaveChanged);
             if (localParentEventId == null) {
-                logger.error("parentEventId && parentEvent null in getParentEvent for: {}", Generic.objectToString(this));
+                logger.info("parentEventId && parentEvent null in getParentEvent for: {} {}", this.id, this.marketName);
             } else {
                 this.parentEvent = rulesManager.events.get(localParentEventId);
                 if (this.parentEvent == null) { // I won't create the event here, but outside the method, in the caller, due to potential synchronization problems
@@ -340,7 +389,7 @@ public class ManagedMarket
         this.setTimeMarketGoesLive(result, rulesManager);
     }
 
-    synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final RulesManager rulesManager) {
+    synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final RulesManager rulesManager, @NotNull final ExistingFunds safetyLimits) {
         final boolean modified;
         if (Double.isNaN(newAmountLimit)) {
             modified = false;
@@ -356,6 +405,12 @@ public class ManagedMarket
             rulesManager.rulesHaveChanged.set(true);
 
             rulesManager.addMarketToCheck(this.id);
+
+            final double maxLimit = getMaxMarketLimit(safetyLimits);
+            if (simpleGetCalculatedLimit() > maxLimit) {
+                setCalculatedLimit(maxLimit, true, safetyLimits, rulesManager);
+            } else { // no need to update calculatedLimit
+            }
         }
         return modified;
     }
@@ -430,13 +485,20 @@ public class ManagedMarket
     }
 
     public synchronized boolean addRunner(@NotNull final RunnerId runnerId, @NotNull final ManagedRunner managedRunner, @NotNull final RulesManager rulesManager) {
+        return addRunner(runnerId, managedRunner, rulesManager, true); // default sendRunnerThroughStream true
+    }
+
+    public synchronized boolean addRunner(@NotNull final RunnerId runnerId, @NotNull final ManagedRunner managedRunner, @NotNull final RulesManager rulesManager, final boolean sendRunnerThroughStream) {
         final boolean success;
-        if (this.runners.containsKey(runnerId)) { // already exists, nothing to be done
+        if (this.runners.containsKey(runnerId) || this.runners.containsValue(managedRunner)) { // already exists, nothing to be done
             final ManagedRunner existingManagedRunner = this.runners.get(runnerId);
-            logger.error("trying to add managedRunner over existing one: {} {} {}", Generic.objectToString(runnerId), Generic.objectToString(existingManagedRunner), Generic.objectToString(managedRunner));
+            logger.error("trying to add managedRunner over existing one: {} {} {} {} {}", this.id, this.marketName, Generic.objectToString(runnerId), Generic.objectToString(existingManagedRunner), Generic.objectToString(managedRunner));
             success = false;
         } else {
-            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.addManagedRunner, managedRunner));
+            if (sendRunnerThroughStream) {
+                rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.addManagedRunner, managedRunner));
+            } else { // no need to send runner through stream, most likely the entire market object will be sent
+            }
             this.runners.put(runnerId, managedRunner); // runners.put needs to be before runnersOrderedList.addAll
             managedRunner.attachRunner(this.market);
 
@@ -448,12 +510,19 @@ public class ManagedMarket
     }
 
     private synchronized ManagedRunner addRunner(@NotNull final RunnerId runnerId, @NotNull final RulesManager rulesManager) {
+        return addRunner(runnerId, rulesManager, true); // default sendRunnerThroughStream true
+    }
+
+    private synchronized ManagedRunner addRunner(@NotNull final RunnerId runnerId, @NotNull final RulesManager rulesManager, final boolean sendRunnerThroughStream) {
         final ManagedRunner returnValue;
         if (this.runners.containsKey(runnerId)) { // already exists, nothing to be done
             returnValue = this.runners.get(runnerId);
         } else { // managedRunner does not exist, I'll generate it; this is done initially, but also later if runners are added
             returnValue = new ManagedRunner(this.id, runnerId);
-            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.addManagedRunner, returnValue));
+            if (sendRunnerThroughStream) {
+                rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.addManagedRunner, returnValue));
+            } else { // no need to send runner through stream, most likely the entire market object will be sent
+            }
             this.runners.put(runnerId, returnValue); // runners.put needs to be before runnersOrderedList.addAll
             returnValue.attachRunner(this.market);
 
@@ -494,31 +563,43 @@ public class ManagedMarket
 //        return previousValue;
 //    }
 
-    public synchronized Market getMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
-        attachMarket(marketCache, rulesManager, marketCataloguesMap);
+    public synchronized Market getMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
+        attachMarket(marketCache, rulesManager, marketCataloguesMap, programStartTime);
         return this.market;
     }
 
-    public final synchronized void attachMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public final synchronized void attachMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
+                                                final long programStartTime) {
+        attachMarket(marketCache, rulesManager, marketCataloguesMap, programStartTime, true); // default sendRunnerThroughStream true
+    }
+
+    public final synchronized void attachMarket(@NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
+                                                final long programStartTime, final boolean sendRunnerThroughStream) {
         // this is run periodically, as it's contained in the manage method, that is run periodically
         if (this.market == null) {
             this.market = marketCache.getMarket(this.id);
         } else { // I already have the market, nothing to be done
         }
         if (this.market == null) {
-            logger.info("no market found in MarketCache for: {}", this.id);
+            if (Formulas.programHasRecentlyStarted(System.currentTimeMillis(), programStartTime) || isVeryRecent()) { // normal
+            } else {
+                logger.info("no market found in MarketCache, probably old expired market, for: {} {}", this.id, this.marketName); // this happens for manager markets that are old and no longer exist on the site
+            }
         } else {
             for (final ManagedRunner managedRunner : this.runners.values()) {
                 managedRunner.attachRunner(this.market);
             }
-            final HashSet<RunnerId> runnerIds = this.market.getRunnerIds();
-            for (final RunnerId runnerId : runnerIds) {
-                if (runnerId != null) {
-                    addRunner(runnerId, rulesManager); // only adds if doesn't exist
-                } else {
-                    logger.error("null runnerId for orderMarket: {}", Generic.objectToString(this.market));
-                }
-            } // end for
+            if (Generic.programName.get() == ProgramName.SERVER) {
+                final HashSet<RunnerId> runnerIds = this.market.getRunnerIds();
+                for (final RunnerId runnerId : runnerIds) {
+                    if (runnerId != null) {
+                        addRunner(runnerId, rulesManager, sendRunnerThroughStream); // only adds if doesn't exist
+                    } else {
+                        logger.error("null runnerId for orderMarket: {}", Generic.objectToString(this.market));
+                    }
+                } // end for
+            } else { // will only auto add runners on the server, and the server will send them to the client, else I end up adding them twice
+            }
             setMarketName(this.market.getMarketDefinition(), rulesManager);
         }
 //        getParentEventId(marketCataloguesMap, rulesManager.rulesHaveChanged);
@@ -591,8 +672,7 @@ public class ManagedMarket
                 logger.error("null runner in checkTwoWayMarketLimitsValid for: {} {} {} {}", Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), Generic.objectToString(runnersOrderedList), Generic.objectToString(this));
                 isValid = false;
             } else {
-                final double firstBackAmountLimit = firstRunner.getBackAmountLimit(), secondBackAmountLimit = secondRunner.getBackAmountLimit(),
-                        firstLayAmountLimit = firstRunner.getLayAmountLimit(), secondLayAmountLimit = secondRunner.getLayAmountLimit();
+                final double firstBackAmountLimit = firstRunner.getBackAmountLimit(), secondBackAmountLimit = secondRunner.getBackAmountLimit(), firstLayAmountLimit = firstRunner.getLayAmountLimit(), secondLayAmountLimit = secondRunner.getLayAmountLimit();
                 //noinspection FloatingPointEquality
                 if (firstBackAmountLimit != secondLayAmountLimit || secondBackAmountLimit != firstLayAmountLimit) {
                     logger.error("not equal amountLimits in checkTwoWayMarketLimitsValid for: {} {} {} {} {} {} {} {}", firstBackAmountLimit, secondBackAmountLimit, firstLayAmountLimit, secondLayAmountLimit, Generic.objectToString(firstRunner),
@@ -772,7 +852,8 @@ public class ManagedMarket
     }
 
     @SuppressWarnings({"OverlyLongMethod", "OverlyNestedMethod"})
-    private synchronized int useTheNewLimit(final @NotNull ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final RulesManager rulesManager) {
+    private synchronized int useTheNewLimit(final @NotNull ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final RulesManager rulesManager,
+                                            final long programStartTime) {
         int modifications = 0;
         if (Double.isNaN(this.marketTotalExposure)) {
             logger.error("marketTotalExposure not initialized in useTheNewLimit for: {}", Generic.objectToString(this));
@@ -820,9 +901,11 @@ public class ManagedMarket
                     if (this.calculatedLimit >= this.totalBackExposureSum + .1d) { // placing extra back bets
                         final double extraBackBetsToBePlaced = Math.min(this.calculatedLimit - this.marketTotalExposure, this.calculatedLimit - this.totalBackExposureSum);
                         final double availableIdealBackExposure = calculateAvailableIdealBackExposureSum(runnersOrderedList);
-                        if (availableIdealBackExposure <= 0d) {
-                            logger.error("negative or zero availableIdealBackExposure: {} {} {} {} {} {}", availableIdealBackExposure, extraBackBetsToBePlaced, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure,
-                                         Generic.objectToString(this));
+                        if (availableIdealBackExposure == 0d) { // this is normal when no managed runners exist on market
+//                            logger.info("zero availableIdealBackExposure: {} {} {} {} {} {} {}", availableIdealBackExposure, extraBackBetsToBePlaced, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure, this.id, this.marketName);
+                        } else if (availableIdealBackExposure < 0d) {
+                            logger.error("negative availableIdealBackExposure: {} {} {} {} {} {}", availableIdealBackExposure, extraBackBetsToBePlaced, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure,
+                                         Generic.objectToString(this, "parentEvent"));
                         } else {
                             final double proportionOfAvailableIdealBackExposureToBeUsed = Math.min(1d, extraBackBetsToBePlaced / availableIdealBackExposure);
                             for (final ManagedRunner managedRunner : runnersOrderedList) {
@@ -865,7 +948,7 @@ public class ManagedMarket
                     }
                 }
                 if (modifications > 0) {
-                    calculateExposure(pendingOrdersThread, orderCache);
+                    calculateExposure(pendingOrdersThread, orderCache, programStartTime, rulesManager);
                     modifications = 0;
                 } else { // no need to calculateExposure
                 }
@@ -892,8 +975,8 @@ public class ManagedMarket
                         if (orderMarketRunner == null) {
                             logger.error("null orderMarketRunner while negative minimumAvailableLimit for: {} {} {}", minimumAvailableLimit, Generic.objectToString(managedRunner), Generic.objectToString(this));
                         } else {
-                            modifications += orderMarketRunner.balanceTotalAmounts(managedRunner.getBackAmountLimit(), managedRunner.getLayAmountLimit(), managedRunner.getToBeUsedBackOdds(), managedRunner.getToBeUsedLayOdds(),
-                                                                                   0d, -minimumAvailableLimit, pendingOrdersThread);
+                            modifications += orderMarketRunner.balanceTotalAmounts(managedRunner.getBackAmountLimit(), managedRunner.getLayAmountLimit(), managedRunner.getToBeUsedBackOdds(), managedRunner.getToBeUsedLayOdds(), 0d,
+                                                                                   -minimumAvailableLimit, pendingOrdersThread);
                         }
                     } else { // difference too small, nothing to be done
                     }
@@ -962,9 +1045,13 @@ public class ManagedMarket
                     } else { // all exposure has been added, this runner might still be usable in further iterations of the while loop
                     }
                 }
-            } else {
-                logger.error("bogus totalProportionSumForRemainingRunners {} for: {} {} {} {}", totalProportionSumForRemainingRunners, exposureLeftToBeAssigned, whileCounter, Generic.objectToString(runnersThatCanStillBeAssignedExposure),
-                             Generic.objectToString(this));
+            } else {//non positive totalProportionSumForRemainingRunners 0.0 for: 584.3413960020026 0 20 1.162659886 Winner
+                if (totalProportionSumForRemainingRunners == 0d) { // normal when no managed runners exist on market
+                } else {
+                    logger.error("negative totalProportionSumForRemainingRunners {} for: {} {} {} {} {}", totalProportionSumForRemainingRunners, exposureLeftToBeAssigned, whileCounter, runnersThatCanStillBeAssignedExposure.size(), this.id,
+                                 this.marketName);
+                }
+                runnersThatCanStillBeAssignedExposure.clear();
                 break;
             }
 
@@ -972,15 +1059,15 @@ public class ManagedMarket
             whileCounter++;
         }
         if (exposureLeftToBeAssigned >= .1d && !runnersThatCanStillBeAssignedExposure.isEmpty()) {
-            logger.error("runnersThatCanStillBeAssignedExposure not empty: {} {} {} {}", whileCounter, exposureLeftToBeAssigned, Generic.objectToString(runnersThatCanStillBeAssignedExposure), Generic.objectToString(this));
+            logger.error("runnersThatCanStillBeAssignedExposure not empty: {} {} {} {} {}", whileCounter, exposureLeftToBeAssigned, runnersThatCanStillBeAssignedExposure.size(), this.id, this.marketName);
         } else { // no error, nothing to print
         }
 //        updateIdealBackExposureSum();
     }
 
-    public synchronized double getMaxMarketLimit(@NotNull final ExistingFunds safetyLimits, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public synchronized double getMaxMarketLimit(@NotNull final ExistingFunds safetyLimits) {
         final double result;
-        final double safetyLimit = safetyLimits.getDefaultMarketLimit(this.id, marketCataloguesMap);
+        final double safetyLimit = safetyLimits.getDefaultMarketLimit(this.id);
         result = this.amountLimit >= 0 ? Math.min(this.amountLimit, safetyLimit) : safetyLimit;
         return result;
     }
@@ -995,20 +1082,21 @@ public class ManagedMarket
         final long currentTime = System.currentTimeMillis();
         if (currentTime > this.calculatedLimitStamp) {
             this.calculatedLimitStamp = currentTime;
+        } else if (currentTime == this.calculatedLimitStamp) { // happens
         } else {
-            logger.error("currentTime {} is not greater than calculatedLimitStamp {} and difference is: {}", currentTime, this.calculatedLimitStamp, currentTime - this.calculatedLimitStamp);
+            logger.error("currentTime {} is not greater than calculatedLimitStamp {} and difference is: {} for: {}", currentTime, this.calculatedLimitStamp, currentTime - this.calculatedLimitStamp, this.id);
         }
     }
 
-    public synchronized boolean setCalculatedLimit(final double newLimit, final boolean limitCanBeIncreased, @NotNull final ExistingFunds safetyLimits,
-                                                   final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public synchronized boolean setCalculatedLimit(final double newLimit, final boolean limitCanBeIncreased, @NotNull final ExistingFunds safetyLimits, @NotNull final RulesManager rulesManager) {
         final boolean modified;
-        modified = (limitCanBeIncreased || newLimit < this.calculatedLimit) && setCalculatedLimit(newLimit, safetyLimits, marketCataloguesMap);
+        modified = (limitCanBeIncreased || newLimit < this.calculatedLimit) && setCalculatedLimit(newLimit, safetyLimits, rulesManager);
         return modified;
     }
 
-    private synchronized boolean setCalculatedLimit(final double newLimit, @NotNull final ExistingFunds safetyLimits, final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    private synchronized boolean setCalculatedLimit(final double newLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final RulesManager rulesManager) {
         final boolean gettingModified;
+//        logger.info("setCalculatedLimit: {} {}", newLimit, this.calculatedLimit);
 
         // both are zero
         if (this.calculatedLimit == 0) {
@@ -1017,12 +1105,13 @@ public class ManagedMarket
         } else {
             final double difference = Math.abs(newLimit - this.calculatedLimit);
             final double differenceProportion = difference / this.calculatedLimit;
-            gettingModified = difference >= 2 || differenceProportion >= .02d;
+            gettingModified = difference >= 2d || differenceProportion >= .02d;
         }
 
         if (gettingModified) {
             this.calculatedLimit = newLimit;
-            final double maxLimit = this.getMaxMarketLimit(safetyLimits, marketCataloguesMap);
+            final double maxLimit = this.getMaxMarketLimit(safetyLimits);
+//            this.calculatedLimit = Math.min(this.calculatedLimit, maxLimit);
             if (this.calculatedLimit > maxLimit) {
                 this.calculatedLimit = maxLimit;
             }
@@ -1030,6 +1119,7 @@ public class ManagedMarket
                 logger.error("trying to set negative calculated limit {} in setCalculatedLimit for: {}", this.calculatedLimit, Generic.objectToString(this));
                 this.calculatedLimit = 0d;
             }
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMarketCalculatedLimit, this.id, this.calculatedLimit));
         } else { // nothing to do, won't modify the value
         }
         calculatedLimitStamp(); // I'll stamp even in the 2 cases where modified is false, because the limit has been recalculated and is valid, there's just no reason to update the value
@@ -1037,7 +1127,11 @@ public class ManagedMarket
         return gettingModified;
     }
 
-    private synchronized double getCalculatedLimit() {
+    public synchronized double simpleGetCalculatedLimit() {
+        return this.calculatedLimit;
+    }
+
+    public synchronized double getCalculatedLimit() {
         final double result;
 
         if (isCalculatedLimitRecent()) {
@@ -1059,9 +1153,6 @@ public class ManagedMarket
 
 //        final OrderMarket orderMarket = orderCache.getOrderMarket(this.id);
         if (this.orderMarket == null) { // this is a normal branch, no orders are placed on this market
-            for (final ManagedRunner managedRunner : this.runners.values()) {
-                managedRunner.timeStamp();
-            }
             success = true;
         } else {
             final ArrayList<OrderMarketRunner> orderMarketRunners = this.orderMarket.getOrderMarketRunners();
@@ -1091,11 +1182,17 @@ public class ManagedMarket
                 success = !error;
             }
         }
+        if (success) {
+            for (final ManagedRunner managedRunner : this.runners.values()) {
+                managedRunner.timeStamp();
+            }
+        } else { // I probably shouldn't timestamp if the operation was not successful
+        }
         return success;
     }
 
-    public synchronized void calculateExposure(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache) {
-        if (isSupported()) {
+    public synchronized void calculateExposure(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, final long programStartTime, @NotNull final RulesManager rulesManager) {
+        if (this.market != null && isSupported(rulesManager)) {
             final boolean success = updateRunnerExposure(pendingOrdersThread, orderCache);
             this.marketMatchedExposure = Double.NaN;
             this.marketTotalExposure = Double.NaN;
@@ -1116,7 +1213,10 @@ public class ManagedMarket
             }
         } else { // for not supported I can't calculate the exposure
 //            logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {}", Generic.objectToString(this));
-            logger.info("trying to calculateExposure on unSupported managedMarket, nothing will be done: {} {}", this.id, this.marketName);
+            if (Formulas.programHasRecentlyStarted(System.currentTimeMillis(), programStartTime) || isVeryRecent() || !isEnabledMarket()) { // normal
+            } else {
+                logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {} {} - Market attached: {}", this.id, this.marketName, this.market != null);
+            }
         }
     }
 
@@ -1229,7 +1329,7 @@ public class ManagedMarket
         return modifications;
     }
 
-    public synchronized boolean isSupported() {
+    public synchronized boolean isSupported(@NotNull final RulesManager rulesManager) {
         final boolean result;
         if (this.market == null) {
             result = false;
@@ -1247,11 +1347,14 @@ public class ManagedMarket
                     result = true;
                 } else {
                     result = false;
-                    logger.error("unsupported managedMarket: {}", Generic.objectToString(this));
+                    if (isEnabledMarket()) {
+                        logger.info("disabling unsupported managedMarket: {} {} {} {}", this.id, this.marketName, marketBettingType, nWinners);
+                        this.setEnabledMarket(false, rulesManager);
+                    } else { // normal
+                    }
                 }
             }
         }
-
         return result;
     }
 
@@ -1277,52 +1380,55 @@ public class ManagedMarket
     @SuppressWarnings("OverlyNestedMethod")
     public synchronized void manage(@NotNull final MarketCache marketCache, @NotNull final OrderCache orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate,
                                     @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final RulesManager rulesManager,
-                                    @NotNull final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
-        final long currentTime = System.currentTimeMillis();
-        final long timeSinceLastManageMarketStamp = currentTime - this.manageMarketStamp;
-        if (timeSinceLastManageMarketStamp >= speedLimit.getManageMarketPeriod(this.calculatedLimit, safetyLimits)) {
-            manageMarketStamp(currentTime);
-            attachMarket(marketCache, rulesManager, marketCataloguesMap);
-            if (this.market != null) {
-                attachOrderMarket(orderCache);
-                if (isSupported()) {
-                    if (checkCancelAllUnmatchedBetsFlag(pendingOrdersThread)) { // all unmatched bets have been canceled already, not much more to be done
-                    } else {
-//                    final double calculatedLimit = this.getCalculatedLimit();
-                        int exposureHasBeenModified = 0;
-                        for (final ManagedRunner runner : this.runners.values()) {
-                            exposureHasBeenModified += runner.calculateOdds(this.calculatedLimit, pendingOrdersThread, currencyRate, orderCache, marketCache); // also removes unmatched orders at worse odds, and hardToReachOrders
-                        }
-                        if (exposureHasBeenModified > 0) {
-                            calculateExposure(pendingOrdersThread, orderCache);
-                            exposureHasBeenModified = 0;
-                        } else { // no need to calculateExposure
-                        }
-
-                        @NotNull final ArrayList<ManagedRunner> runnersOrderedList = createRunnersOrderedList(marketCache);
-                        if (isMarketAlmostLive(rulesManager)) {
-                            //noinspection UnusedAssignment
-                            exposureHasBeenModified += removeExposure(runnersOrderedList, orderCache, pendingOrdersThread);
+                                    @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
+        if (this.isEnabledMarket()) {
+            final long currentTime = System.currentTimeMillis();
+            final long timeSinceLastManageMarketStamp = currentTime - this.manageMarketStamp;
+            if (timeSinceLastManageMarketStamp >= speedLimit.getManageMarketPeriod(this.calculatedLimit, safetyLimits)) {
+                manageMarketStamp(currentTime);
+                attachMarket(marketCache, rulesManager, marketCataloguesMap, programStartTime);
+                if (this.market != null) {
+                    attachOrderMarket(orderCache);
+                    if (isSupported(rulesManager)) {
+                        if (checkCancelAllUnmatchedBetsFlag(pendingOrdersThread)) { // all unmatched bets have been canceled already, not much more to be done
                         } else {
+//                    final double calculatedLimit = this.getCalculatedLimit();
+                            int exposureHasBeenModified = 0;
                             for (final ManagedRunner runner : this.runners.values()) {
-                                exposureHasBeenModified += runner.checkRunnerLimits(pendingOrdersThread, orderCache);
+                                exposureHasBeenModified += runner.calculateOdds(this.calculatedLimit, pendingOrdersThread, currencyRate, orderCache, marketCache); // also removes unmatched orders at worse odds, and hardToReachOrders
                             }
                             if (exposureHasBeenModified > 0) {
-                                calculateExposure(pendingOrdersThread, orderCache);
+                                calculateExposure(pendingOrdersThread, orderCache, programStartTime, rulesManager);
                                 exposureHasBeenModified = 0;
                             } else { // no need to calculateExposure
                             }
 
-                            //noinspection UnusedAssignment
-                            exposureHasBeenModified += useTheNewLimit(runnersOrderedList, orderCache, pendingOrdersThread, rulesManager);
+                            @NotNull final ArrayList<ManagedRunner> runnersOrderedList = createRunnersOrderedList(marketCache);
+                            if (isMarketAlmostLive(rulesManager)) {
+                                //noinspection UnusedAssignment
+                                exposureHasBeenModified += removeExposure(runnersOrderedList, orderCache, pendingOrdersThread);
+                            } else {
+                                for (final ManagedRunner runner : this.runners.values()) {
+                                    exposureHasBeenModified += runner.checkRunnerLimits(pendingOrdersThread, orderCache);
+                                }
+                                if (exposureHasBeenModified > 0) {
+                                    calculateExposure(pendingOrdersThread, orderCache, programStartTime, rulesManager);
+                                    exposureHasBeenModified = 0;
+                                } else { // no need to calculateExposure
+                                }
+
+                                //noinspection UnusedAssignment
+                                exposureHasBeenModified += useTheNewLimit(runnersOrderedList, orderCache, pendingOrdersThread, rulesManager, programStartTime);
+                            }
                         }
+                    } else { // for not supported I can't calculate the limit
+                        logger.error("trying to manage unSupported managedMarket, nothing will be done: {} {}", this.id, this.marketName);
                     }
-                } else { // for not supported I can't calculate the limit
-                    logger.error("trying to manage unSupported managedMarket, nothing will be done: {}", Generic.objectToString(this));
+                } else { // error message was logged elsewhere, nothing to be done
                 }
-            } else { // error message was logged elsewhere, nothing to be done
+            } else { // not enough time has passed since last manage, nothing to be done
             }
-        } else { // not enough time has passed since last manage, nothing to be done
+        } else { // not enabled, won't be managed
         }
     }
 

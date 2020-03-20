@@ -2,6 +2,7 @@ package info.fmro.shared.utility;
 
 import info.fmro.shared.logic.ManagedRunner;
 import info.fmro.shared.objects.Exposure;
+import info.fmro.shared.stream.definitions.PriceSize;
 import info.fmro.shared.stream.objects.RunnerId;
 import junitx.framework.FileAssert;
 import org.jetbrains.annotations.Contract;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -1778,6 +1780,14 @@ class GenericTest {
         expResult = "Thu Jan 01 00:00:00 UTC 1970";
         result = Generic.objectToString(new Date(0L));
         assertEquals(expResult, result, "fifth");
+
+        final Map<Double, PriceSize> priceToSize = new TreeMap<>();
+        priceToSize.put(1.1d, new PriceSize(List.of(1.1d, 0.2d)));
+        priceToSize.put(1.5d, new PriceSize(List.of(1.5d, 0.6d)));
+        priceToSize.put(1.05d, new PriceSize(List.of(1.05d, 0.1d)));
+        result = Generic.objectToString(priceToSize);
+        expResult = "[(key=1.05 value=(price=1.05 size=0.1)), (key=1.1 value=(price=1.1 size=0.2)), (key=1.5 value=(price=1.5 size=0.6))]";
+        assertEquals(expResult, result, "6");
     }
 
     // Test of objectToString method, of class Generic.

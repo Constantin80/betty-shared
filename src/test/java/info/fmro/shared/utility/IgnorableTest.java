@@ -101,6 +101,7 @@ public class IgnorableTest {
         currentTime = System.currentTimeMillis();
         instance.isIgnored();
 
+        // sometimes, during heavy load, the test fails
         result = instance.isResetIgnoredRecent();
         assertTrue(result, "after sleep, no argument");
         result = instance.isResetIgnoredRecent(currentTime);

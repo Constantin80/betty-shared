@@ -1,6 +1,7 @@
 package info.fmro.shared.stream.cache.market;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.logic.ManagedMarket;
 import info.fmro.shared.stream.definitions.MarketChange;
 import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
@@ -126,6 +127,17 @@ public class MarketCache
         return this.markets.size();
     }
 
+    public synchronized boolean isEmpty() {
+        return this.markets.isEmpty();
+    }
+
+    public synchronized boolean contains(final String marketId) {
+        return this.markets.containsKey(marketId);
+    }
+
+    public synchronized boolean contains(@NotNull final ManagedMarket managedMarket) {
+        return this.markets.containsKey(managedMarket.getId());
+    }
 //    public synchronized long getTimeClean() {
 //        return timeClean;
 //    }

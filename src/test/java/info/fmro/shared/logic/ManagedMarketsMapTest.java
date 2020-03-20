@@ -4,7 +4,6 @@ import info.fmro.shared.entities.Event;
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.stream.cache.market.MarketCache;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
-import info.fmro.shared.utility.SynchronizedMap;
 import org.junit.jupiter.api.Test;
 
 class ManagedMarketsMapTest {
@@ -17,8 +16,8 @@ class ManagedMarketsMapTest {
         final ManagedMarketsMap managedMarketsMap = new ManagedMarketsMap(parentEvent);
 
         final MarketCache marketCache = new MarketCache();
-        final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap = new SynchronizedMap<>();
-        final ManagedMarket managedMarket = new ManagedMarket("marketId", marketCache, rulesManager, marketCataloguesMap);
+        final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap = new StreamSynchronizedMap<>(MarketCatalogue.class);
+        final ManagedMarket managedMarket = new ManagedMarket("marketId", marketCache, rulesManager, marketCataloguesMap, 0L);
 
         managedMarketsMap.put("marketId", managedMarket, rulesManager);
     }

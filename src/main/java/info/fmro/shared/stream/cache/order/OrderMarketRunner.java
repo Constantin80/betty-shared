@@ -20,6 +20,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -59,13 +60,23 @@ public class OrderMarketRunner
             this.unmatchedOrders.clear();
         }
 
-        if (orderRunnerChange.getUo() != null) {
-            for (final Order order : orderRunnerChange.getUo()) {
-                this.unmatchedOrders.put(order.getId(), order);
+        final List<Order> unmatchedOrdersList = orderRunnerChange.getUo();
+        if (unmatchedOrdersList != null) {
+            for (final Order order : unmatchedOrdersList) {
+                final Double sizeRemaining = order.getSr();
+                if (sizeRemaining == null || sizeRemaining == 0d) {
+                    this.unmatchedOrders.remove(order.getId());
+                } else {
+                    this.unmatchedOrders.put(order.getId(), order);
+                }
             }
         }
         this.layMatches.onPriceChange(isImage, orderRunnerChange.getMl(), currencyRate);
         this.backMatches.onPriceChange(isImage, orderRunnerChange.getMb(), currencyRate);
+    }
+
+    public synchronized boolean isEmpty() {
+        return this.unmatchedOrders.isEmpty() && this.backMatches.isEmpty() && this.layMatches.isEmpty();
     }
 
     public synchronized Order getUnmatchedOrder(final String betId) {
@@ -161,10 +172,12 @@ public class OrderMarketRunner
         return this.tempLayCancel;
     }
 
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public synchronized double getTotalBackExposure() {
         return this.matchedBackExposure + this.unmatchedBackExposure + this.tempBackExposure;
     }
 
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public synchronized double getTotalLayExposure() {
         return this.matchedLayExposure + this.unmatchedLayExposure + this.tempLayExposure;
     }
@@ -323,7 +336,8 @@ public class OrderMarketRunner
         } else if (side == Side.L) {
             final double layTotalExposure = this.matchedLayExposure + this.unmatchedLayExposure + this.tempLayExposure;
             final double availableLayExposure = Math.max(0d, layLimit - layTotalExposure);
-            sizePlaced = Math.min(availableLayExposure / (price - 1d), size);
+            final double reducedPrice = price - 1d; // protection against division by zero
+            sizePlaced = reducedPrice == 0d ? size : Math.min(availableLayExposure / reducedPrice, size);
         } else {
             logger.error("unknown side {} {} {} during placeOrder for: {}", side, price, size, Generic.objectToString(this));
             sizePlaced = 0d;
@@ -351,7 +365,7 @@ public class OrderMarketRunner
                 final double price = order.getP();
                 final double sizeRemaining = order.getSr();
                 final double excessPresentInOrder = price * sizeRemaining;
-                if (excessPresentInOrder <= 0d) {
+                if (excessPresentInOrder <= 0d) { // it's dangerous to try to fix the error here; orders with zero size remaining are removed from cache when the orderChange happens, so I shouldn't get zero size here
                     logger.error("order with zero or negative amount left in cancelUnmatchedExceptExcessOnTheOtherSide for: {} {} {} {} {} {}", price, sizeRemaining, side, excessOnTheOtherSide, Generic.objectToString(order), Generic.objectToString(this));
                 } else if (excessOnTheOtherSideRemaining < .1d) { // no more excess left, everything from now on will be canceled
                     order.cancelOrder(this.marketId, this.runnerId, pendingOrdersThread);

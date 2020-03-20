@@ -10,6 +10,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
 
+@SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
 public class SynchronizedSafeSet<E extends SafeObjectInterface>
         extends SynchronizedSet<E>
         implements Serializable {  // it already implements Serializable from super

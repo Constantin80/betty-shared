@@ -26,6 +26,18 @@ public class Exposure
         this.timeStamp = 0L;
     }
 
+//    private boolean hasDefaultValues() {
+//        return this.backMatchedExposure == 0d &&
+//               this.layMatchedExposure == 0d &&
+//               this.backTotalExposure == 0d &&
+//               this.layTotalExposure == 0d &&
+//               this.backUnmatchedProfit == 0d &&
+//               this.layUnmatchedProfit == 0d &&
+//               this.tempBackCancel == 0d &&
+//               this.tempLayCancel == 0d &&
+//               this.timeStamp == 0L;
+//    }
+
     public synchronized void updateExposure(final Exposure source) {
         if (source == null) {
             logger.error("null source in Exposure update for: {}", Generic.objectToString(this));
@@ -65,7 +77,10 @@ public class Exposure
         final long timeSinceUpdate = currentTime - this.timeStamp;
         final boolean isRecent = timeSinceUpdate <= recentPeriod;
         if (!isRecent) {
-            logger.warn("non recent Exposure {} for: {}", timeSinceUpdate, Generic.objectToString(this));
+//            if (hasDefaultValues()) { // values have been reset
+//            } else {
+            logger.error("non recent Exposure {} for: {}", timeSinceUpdate, Generic.objectToString(this));
+//            }
         }
 
         return isRecent;

@@ -9,7 +9,6 @@ import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
-import info.fmro.shared.utility.SynchronizedMap;
 import info.fmro.shared.utility.SynchronizedSet;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -57,7 +56,7 @@ public class ManagedEvent
 
     @SuppressWarnings("UnusedReturnValue")
     synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final RulesManager rulesManager, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                        final SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache) {
+                                        final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, final long programStartTime) {
         final boolean modified;
         if (Double.isNaN(newAmountLimit)) {
             modified = false;
@@ -72,7 +71,7 @@ public class ManagedEvent
         if (modified) {
             rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setEventAmountLimit, this.id, this.amountLimit));
             if (pendingOrdersThread != null && marketCataloguesMap != null) {
-                calculateMarketLimits(rulesManager, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache);
+                calculateMarketLimits(rulesManager, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, programStartTime);
             } else { // Statics variables don't exist, so I'm in a Client, and I won't calculate the limits here
             }
             rulesManager.rulesHaveChanged.set(true);
@@ -139,16 +138,17 @@ public class ManagedEvent
 
     public synchronized double getAmountLimit(@NotNull final ExistingFunds safetyLimits) {
         final double result;
-        final double safetyLimit = safetyLimits.getDefaultEventLimit(this.id);
+        final double safetyLimit = safetyLimits.getDefaultEventLimit();
         result = this.amountLimit >= 0 ? Math.min(this.amountLimit, safetyLimit) : safetyLimit;
         return result;
     }
 
     synchronized void calculateMarketLimits(@NotNull final RulesManager rulesManager, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                            final @NotNull SynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache) {
+                                            final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, final long programStartTime) {
         final double maxEventLimit = getAmountLimit(safetyLimits);
         //noinspection NonPrivateFieldAccessedInSynchronizedContext
-        Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(rulesManager), true, true, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, rulesManager);
+        Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(rulesManager), true, true, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, rulesManager,
+                                    programStartTime);
     }
 
     @Contract(value = "null -> false", pure = true)

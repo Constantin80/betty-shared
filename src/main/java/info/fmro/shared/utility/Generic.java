@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import info.fmro.shared.enums.ProgramName;
 import javafx.scene.control.TreeItem;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Contract;
@@ -161,6 +162,7 @@ public final class Generic {
                    "XN--ROVU88B", "XN--RVC1E0AM3E", "XN--S9BRJ9C", "XN--SES554G", "XN--T60B56A", "XN--TCKWE", "XN--TIQ49XQYJ", "XN--UNUP4Y", "XN--VERMGENSBERATER-CTB", "XN--VERMGENSBERATUNG-PWB", "XN--VHQUV", "XN--VUQ861B", "XN--W4R85EL8FHU5DNRA",
                    "XN--W4RS40L", "XN--WGBH1C", "XN--WGBL6A", "XN--XHQ521B", "XN--XKC2AL3HYE2A", "XN--XKC2DL3A5EE0H", "XN--Y9A3AQ", "XN--YFRO4I67O", "XN--YGBI2AMMX", "XN--ZFR164B", "XXX", "XYZ", "YACHTS", "YAHOO", "YAMAXUN", "YANDEX", "YE",
                    "YODOBASHI", "YOGA", "YOKOHAMA", "YOU", "YOUTUBE", "YT", "YUN", "ZA", "ZAPPOS", "ZARA", "ZERO", "ZIP", "ZM", "ZONE", "ZUERICH", "ZW");
+    public static final AtomicReference<ProgramName> programName = new AtomicReference<>();
     public static final Pattern SPACE_PATTERN_COMPILE = Pattern.compile("\\s+");
     public static final String[] EMPTY_STRING_ARRAY = {};
     public static final String US_ASCII_CHARSET = "US-ASCII", UTF8_CHARSET = "UTF-8", UTF16_CHARSET = "UTF-16";
@@ -2686,23 +2688,19 @@ public final class Generic {
                                                 final Object objectValue = field.get(object);
                                                 final Object[] arrayValue = objectValue == null ? null : ((Collection<?>) objectValue).toArray();
                                                 returnStringBuilder.append(fieldName).append("=").
-                                                        append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
-                                                                              excludePatterns)).append(" ");
+                                                        append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).append(" ");
                                             } else if (Map.class.isAssignableFrom(fieldClass)) {
                                                 final Object objectValue = field.get(object);
                                                 final Object[] arrayValue = objectValue == null ? null : ((Map<?, ?>) objectValue).entrySet().toArray();
                                                 returnStringBuilder.append(fieldName).append("=").
-                                                        append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
-                                                                              excludePatterns)).append(" ");
+                                                        append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).append(" ");
                                             } else if (Entry.class.isAssignableFrom(fieldClass)) {
                                                 final Entry<?, ?> entry = (Entry<?, ?>) field.get(object);
                                                 final Object key = entry == null ? null : entry.getKey();
                                                 final Object value = entry == null ? null : entry.getValue();
                                                 returnStringBuilder.append(fieldName).append("=(key=").
-                                                        append(objectToString(key, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
-                                                                              excludePatterns)).append(" value=").
-                                                                           append(objectToString(value, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1,
-                                                                                                 excludePatterns)).append(") ");
+                                                        append(objectToString(key, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).append(" value=").
+                                                                           append(objectToString(value, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).append(") ");
                                             } else if (fieldClass.equals(String.class)) {
                                                 final Object objectValue = field.get(object);
                                                 final String stringValue = objectValue == null ? null : objectValue.toString();
@@ -2840,16 +2838,14 @@ public final class Generic {
                                                                 if (appendedCounter > 0) {
                                                                     returnStringBuilder.append(", ");
                                                                 }
-                                                                returnStringBuilder.append(objectToString(objectArray[i], printDefaultValueFields, printFinalFields,
-                                                                                                          useToStringMethod, recursionCounter + 1, excludePatterns));
+                                                                returnStringBuilder.append(objectToString(objectArray[i], printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
                                                                 appendedCounter++;
                                                             }
                                                         }
                                                         returnStringBuilder.append("] ");
                                                     } else {
                                                         returnStringBuilder.append(fieldName).append("=").
-                                                                append(objectToString(objectValue, printDefaultValueFields, printFinalFields, useToStringMethod,
-                                                                                      recursionCounter + 1, excludePatterns)).append(" ");
+                                                                append(objectToString(objectValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns)).append(" ");
                                                     }
                                                 } else { // !printDefaultValueFields && objectValue == null , this won't be printed
                                                 }

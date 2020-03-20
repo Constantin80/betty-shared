@@ -4,7 +4,8 @@ import info.fmro.shared.enums.MatchStatus;
 
 import java.io.Serializable;
 
-@SuppressWarnings("ClassWithTooManyMethods")
+// InterfaceNeverImplemented is a true problem in the client, that only needs to be fixed if I ever reenable scrapers
+@SuppressWarnings({"ClassWithTooManyMethods", "InterfaceNeverImplemented", "RedundantSuppression"})
 public interface ScraperEventInterface
         extends Serializable {
     long getIgnoredExpiration();

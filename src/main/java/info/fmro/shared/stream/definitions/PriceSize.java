@@ -13,14 +13,14 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
-class PriceSize
+public class PriceSize
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(PriceSize.class);
     private static final long serialVersionUID = 6795917492745798841L;
     private final double price;
     private double size; // info.fmro.betty.stream.cache.util.PriceSize has size in GBP
 
-    PriceSize(final List<Double> priceSize) {
+    public PriceSize(final List<Double> priceSize) {
         if (priceSize != null) {
             final int listSize = priceSize.size();
             if (listSize == 2) {

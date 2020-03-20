@@ -17,7 +17,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 
-@SuppressWarnings("NonPrivateFieldAccessedInSynchronizedContext")
+@SuppressWarnings({"NonPrivateFieldAccessedInSynchronizedContext", "WeakerAccess", "RedundantSuppression"})
 public class StreamSynchronizedMap<K extends Serializable, V extends Serializable>
         extends SynchronizedMap<K, V>
         implements StreamObjectInterface, Serializable {
