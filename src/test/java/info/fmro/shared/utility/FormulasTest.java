@@ -4,6 +4,7 @@ import info.fmro.shared.stream.enums.Side;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FormulasTest {
     @Test
@@ -51,7 +52,17 @@ class FormulasTest {
         result = Formulas.getClosestOdds(999.999d, Side.B);
         assertEquals(1_000d, result, "9");
         result = Formulas.getClosestOdds(999.999d, Side.L);
-        assertEquals(1_000d, result, "9L");
+        assertEquals(990d, result, "9L");
+
+        result = Formulas.getClosestOdds(1.18518518518518518519d, Side.B);
+        assertEquals(1.19d, result, "10");
+        result = Formulas.getClosestOdds(1.18518518518518518519d, Side.L);
+        assertEquals(1.18d, result, "10L");
+
+        result = Formulas.getClosestOdds(3.0408163265306122449d, Side.B);
+        assertEquals(3.05d, result, "11");
+        result = Formulas.getClosestOdds(3.0408163265306122449d, Side.L);
+        assertEquals(3d, result, "11L");
     }
 
     @Test
@@ -128,5 +139,30 @@ class FormulasTest {
         assertEquals(1_001d, result, "8");
         result = Formulas.getNextOddsUp(1_000.01d, Side.L);
         assertEquals(1_001d, result, "8L");
+    }
+
+    @Test
+    void inverseOdds() {
+        assertTrue(Formulas.oddsAreInverse(1d, Formulas.inverseOdds(1d, Side.L)), "i1");
+        assertTrue(Formulas.oddsAreInverse(1_001d, Formulas.inverseOdds(1_001d, Side.B)), "i2");
+        assertTrue(Formulas.oddsAreInverse(1d, Formulas.inverseOdds(1111111d, Side.L)), "i3");
+        assertTrue(Formulas.oddsAreInverse(1_001d, Formulas.inverseOdds(0d, Side.B)), "i4");
+
+        for (final int oddsInList : Formulas.pricesList) {
+            final double doubleOdds = oddsInList / 100d;
+            assertTrue(Formulas.oddsAreInverse(doubleOdds, Formulas.inverseOdds(doubleOdds, Side.B)), oddsInList + " " + Formulas.inverseOdds(doubleOdds, Side.B) + " B");
+            assertTrue(Formulas.oddsAreInverse(doubleOdds, Formulas.inverseOdds(doubleOdds, Side.L)), oddsInList + " " + Formulas.inverseOdds(doubleOdds, Side.L) + " L");
+        }
+
+        assertTrue(Formulas.orderedOddsAreInverse(Formulas.inverseOdds(1d, Side.L), 1d), "oi1");
+        assertTrue(Formulas.orderedOddsAreInverse(1_001d, Formulas.inverseOdds(1_001d, Side.B)), "oi2");
+        assertTrue(Formulas.orderedOddsAreInverse(Formulas.inverseOdds(1111111d, Side.L), 1d), "oi3");
+        assertTrue(Formulas.orderedOddsAreInverse(1_001d, Formulas.inverseOdds(0d, Side.B)), "oi4");
+
+        for (final int oddsInList : Formulas.pricesList) {
+            final double doubleOdds = oddsInList / 100d;
+            assertTrue(Formulas.orderedOddsAreInverse(doubleOdds, Formulas.inverseOdds(doubleOdds, Side.B)), oddsInList + " " + Formulas.inverseOdds(doubleOdds, Side.B) + " Bo");
+            assertTrue(Formulas.orderedOddsAreInverse(Formulas.inverseOdds(doubleOdds, Side.L), doubleOdds), oddsInList + " " + Formulas.inverseOdds(doubleOdds, Side.L) + " Lo");
+        }
     }
 }

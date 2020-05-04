@@ -283,7 +283,7 @@ public class RulesManager
         return success;
     }
 
-    public synchronized ManagedEvent removeManagedEvent(final String eventId, final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public synchronized ManagedEvent removeManagedEvent(final String eventId, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         this.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.removeManagedEvent, eventId));
         @Nullable final ManagedEvent managedEvent = this.events.remove(eventId);
         if (managedEvent != null) {
@@ -330,7 +330,7 @@ public class RulesManager
 
     @NotNull
     protected synchronized ManagedEvent addManagedEvent(@NotNull final String eventId, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap,
-                                                        final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+                                                        @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         @NotNull final ManagedEvent managedEvent;
         if (this.events.containsKey(eventId)) {
             final ManagedEvent existingManagedEvent = this.events.get(eventId);
@@ -499,7 +499,7 @@ public class RulesManager
     }
 
     private synchronized void addManagedRunner(@NotNull final String marketId, final long selectionId, final Double handicap, final double minBackOdds, final double maxLayOdds, final double backAmountLimit, final double layAmountLimit,
-                                               final double marketAmountLimit, final double eventAmountLimit, final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
+                                               final double marketAmountLimit, final double eventAmountLimit, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
                                                @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits, @NotNull final MarketCache marketCache,
                                                @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, final long programStartTime) {
         final ManagedMarket managedMarket = this.addManagedMarket(marketId, marketCataloguesMap, marketCache, eventsMap, programStartTime);
@@ -580,7 +580,7 @@ public class RulesManager
         return success;
     }
 
-    public synchronized ManagedMarket removeManagedMarket(final String marketId, final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public synchronized ManagedMarket removeManagedMarket(final String marketId, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         this.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.removeManagedMarket, marketId));
         @Nullable final ManagedMarket managedMarket = this.markets.remove(marketId);
         if (managedMarket != null) {
@@ -599,7 +599,7 @@ public class RulesManager
     }
 
     public synchronized void executeCommand(@NotNull final String commandString, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                            final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap,
+                                            @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap,
                                             @NotNull final MarketCache marketCache, final long programStartTime) {
         if (commandString.startsWith("event ")) {
             final String eventString = commandString.substring("event ".length()).trim();
@@ -677,7 +677,7 @@ public class RulesManager
     }
 
     public synchronized void calculateMarketLimits(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                                   final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, final long programStartTime) {
+                                                   @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, final long programStartTime) {
 //        this.marketsMapModified.set(false);
         final double totalLimit = safetyLimits.getTotalLimit();
         Utils.calculateMarketLimits(totalLimit, this.markets.valuesCopy(), true, true, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, this, programStartTime);
@@ -758,6 +758,24 @@ public class RulesManager
             }
         } else { // I won't run this method too often; nothing to be done
         }
+
+        // also attach OrderMarkets
+        for (final ManagedMarket managedMarket : this.markets.valuesCopy()) {
+            if (managedMarket == null) {
+                logger.error("null managedMarket in addManagedMarketsForExistingOrders for: {}", Generic.objectToString(this.markets.keySetCopy()));
+                for (@NotNull final Map.Entry<String, ManagedMarket> entry : this.markets.entrySetCopy()) {
+                    final String key = entry.getKey();
+                    final ManagedMarket value = entry.getValue();
+                    if (value == null) {
+                        logger.error("null managedMarket in addManagedMarketsForExistingOrders for: {}", key);
+                        removeManagedMarket(key, marketCataloguesMap);
+                    } else { // not null, nothing to be done
+                    }
+                }
+            } else {
+                managedMarket.attachOrderMarket(orderCache);
+            }
+        }
     }
 
     public synchronized void resetOrderCacheObjects() {
@@ -767,7 +785,7 @@ public class RulesManager
         }
     }
 
-    public synchronized void addManagedRunnerCommands(final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache,
+    public synchronized void addManagedRunnerCommands(@NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache,
                                                       @NotNull final ExistingFunds safetyLimits, @NotNull final MarketCache marketCache, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, final long programStartTime) {
         this.newAddManagedRunnerCommand.set(false);
         final HashSet<String> setCopy = this.addManagedRunnerCommands.clear();
@@ -778,7 +796,7 @@ public class RulesManager
     }
 
     @SuppressWarnings("OverlyNestedMethod")
-    private synchronized void parseAddManagedRunnerCommand(final String addManagedRunnerCommand, final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
+    private synchronized void parseAddManagedRunnerCommand(final String addManagedRunnerCommand, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
                                                            @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits, @NotNull final MarketCache marketCache,
                                                            @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, final long programStartTime) {
         // String:marketId long:selectionId Double:handicap(default:null)

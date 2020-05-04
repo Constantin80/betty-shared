@@ -4,8 +4,6 @@ import info.fmro.shared.stream.definitions.MarketChange;
 import info.fmro.shared.stream.definitions.MarketChangeMessage;
 import info.fmro.shared.stream.definitions.OrderChangeMessage;
 import info.fmro.shared.stream.definitions.OrderMarketChange;
-import info.fmro.shared.stream.enums.ChangeType;
-import info.fmro.shared.stream.enums.SegmentType;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -25,40 +23,10 @@ public final class ChangeMessageFactory {
         change.setInitialClk(message.getInitialClk());
         change.setConflateMs(message.getConflateMs());
         change.setHeartbeatMs(message.getHeartbeatMs());
-
         change.setItems(message.getMc());
 
-        SegmentType segmentType = SegmentType.NONE;
-        if (message.getSegmentType() != null) {
-            switch (message.getSegmentType()) {
-                case SEG_START:
-                    segmentType = SegmentType.SEG_START;
-                    break;
-                case SEG_END:
-                    segmentType = SegmentType.SEG_END;
-                    break;
-                case SEG:
-                    segmentType = SegmentType.SEG;
-                    break;
-            }
-        }
-        change.setSegmentType(segmentType);
-
-        ChangeType changeType = ChangeType.UPDATE;
-        if (message.getCt() != null) {
-            switch (message.getCt()) {
-                case HEARTBEAT:
-                    changeType = ChangeType.HEARTBEAT;
-                    break;
-                case RESUB_DELTA:
-                    changeType = ChangeType.RESUB_DELTA;
-                    break;
-                case SUB_IMAGE:
-                    changeType = ChangeType.SUB_IMAGE;
-                    break;
-            }
-        }
-        change.setChangeType(changeType);
+        change.setSegmentType(message.getSegmentType());
+        change.setChangeType(message.getCt());
 
         return change;
     }
@@ -74,37 +42,8 @@ public final class ChangeMessageFactory {
         change.setHeartbeatMs(message.getHeartbeatMs());
         change.setItems(message.getOc());
 
-        SegmentType segmentType = SegmentType.NONE;
-        if (message.getSegmentType() != null) {
-            switch (message.getSegmentType()) {
-                case SEG_START:
-                    segmentType = SegmentType.SEG_START;
-                    break;
-                case SEG_END:
-                    segmentType = SegmentType.SEG_END;
-                    break;
-                case SEG:
-                    segmentType = SegmentType.SEG;
-                    break;
-            }
-        }
-        change.setSegmentType(segmentType);
-
-        ChangeType changeType = ChangeType.UPDATE;
-        if (message.getCt() != null) {
-            switch (message.getCt()) {
-                case HEARTBEAT:
-                    changeType = ChangeType.HEARTBEAT;
-                    break;
-                case RESUB_DELTA:
-                    changeType = ChangeType.RESUB_DELTA;
-                    break;
-                case SUB_IMAGE:
-                    changeType = ChangeType.SUB_IMAGE;
-                    break;
-            }
-        }
-        change.setChangeType(changeType);
+        change.setSegmentType(message.getSegmentType());
+        change.setChangeType(message.getCt());
 
         return change;
     }

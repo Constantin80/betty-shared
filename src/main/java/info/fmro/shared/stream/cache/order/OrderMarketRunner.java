@@ -26,7 +26,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
+@SuppressWarnings("OverlyComplexClass")
 public class OrderMarketRunner
         implements Serializable { // amounts are in account currency (EUR)
     private static final long serialVersionUID = 6359709424181107081L;
@@ -37,7 +37,6 @@ public class OrderMarketRunner
     private final PriceSizeLadder layMatches = PriceSizeLadder.newLay();
     private final PriceSizeLadder backMatches = PriceSizeLadder.newBack();
     private final Map<String, Order> unmatchedOrders = new ConcurrentHashMap<>(2); // only place where orders are permanently stored
-    private double matchedBackExposure, matchedLayExposure, unmatchedBackExposure, unmatchedBackProfit, unmatchedLayExposure, unmatchedLayProfit, tempBackExposure, tempBackProfit, tempLayExposure, tempLayProfit, tempBackCancel, tempLayCancel;
 
     OrderMarketRunner(final String marketId, final RunnerId runnerId) {
         if (marketId == null || runnerId == null) {
@@ -124,108 +123,22 @@ public class OrderMarketRunner
         return new HashMap<>(this.unmatchedOrders);
     }
 
-    public synchronized double getMatchedBackExposure() {
-        return this.matchedBackExposure;
-    }
-
-    public synchronized double getMatchedLayExposure() {
-        return this.matchedLayExposure;
-    }
-
-    public synchronized double getUnmatchedBackExposure() {
-        return this.unmatchedBackExposure;
-    }
-
-    public synchronized double getUnmatchedBackProfit() {
-        return this.unmatchedBackProfit;
-    }
-
-    public synchronized double getUnmatchedLayExposure() {
-        return this.unmatchedLayExposure;
-    }
-
-    public synchronized double getUnmatchedLayProfit() {
-        return this.unmatchedLayProfit;
-    }
-
-    public synchronized double getTempBackExposure() {
-        return this.tempBackExposure;
-    }
-
-    public synchronized double getTempBackProfit() {
-        return this.tempBackProfit;
-    }
-
-    public synchronized double getTempLayExposure() {
-        return this.tempLayExposure;
-    }
-
-    public synchronized double getTempLayProfit() {
-        return this.tempLayProfit;
-    }
-
-    public synchronized double getTempBackCancel() {
-        return this.tempBackCancel;
-    }
-
-    public synchronized double getTempLayCancel() {
-        return this.tempLayCancel;
-    }
-
-    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
-    public synchronized double getTotalBackExposure() {
-        return this.matchedBackExposure + this.unmatchedBackExposure + this.tempBackExposure;
-    }
-
-    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
-    public synchronized double getTotalLayExposure() {
-        return this.matchedLayExposure + this.unmatchedLayExposure + this.tempLayExposure;
-    }
-
-    public synchronized void getExposure(final Exposure exposure, final OrdersThreadInterface pendingOrdersThread) {
-        this.getMatchedExposure(); // updates matchedBackExposure and matchedLayExposure
-        this.getUnmatchedExposureAndProfit(); // updates unmatchedBackExposure/Profit and unmatchedLayExposure/Profit
-        if (pendingOrdersThread == null) { // I'm in the Client, I'm not using the pendingOrdersThread
-        } else {
-            pendingOrdersThread.checkTemporaryOrdersExposure(this.marketId, this.runnerId, this);
-        }
-        if (exposure != null) {
-            exposure.setBackMatchedExposure(this.matchedBackExposure);
-            exposure.setLayMatchedExposure(this.matchedLayExposure);
-            exposure.setBackTotalExposure(getTotalBackExposure());
-            exposure.setLayTotalExposure(getTotalLayExposure());
-            exposure.setBackUnmatchedProfit(this.unmatchedBackProfit + this.tempBackProfit);
-            exposure.setLayUnmatchedProfit(this.unmatchedLayProfit + this.tempLayProfit);
-            exposure.setTempBackCancel(this.tempBackCancel);
-            exposure.setTempLayCancel(this.tempLayCancel);
-            exposure.timeStamp();
-        } else {
-            if (pendingOrdersThread == null) { // I'm in the client and this is normal behavior
-            } else {
-                logger.error("null exposure in getExposure for: {}", Generic.objectToString(this));
-            }
-        }
-    }
-
-    private synchronized void resetUnmatchedExposureAndProfit() {
-        this.unmatchedBackExposure = 0d;
-        this.unmatchedLayExposure = 0d;
-        this.unmatchedBackProfit = 0d;
-        this.unmatchedLayProfit = 0d;
-    }
-
-    private synchronized void getUnmatchedExposureAndProfit() {
-        resetUnmatchedExposureAndProfit();
+    public synchronized void getUnmatchedExposureAndProfit(@NotNull final Exposure exposure) {
+        double unmatchedBackExposure = 0d, unmatchedLayExposure = 0d, unmatchedBackProfit = 0d, unmatchedLayProfit = 0d;
         for (final Order order : this.unmatchedOrders.values()) {
             order.calculateExposureAndProfit();
-            this.unmatchedBackExposure += order.getBackExposure();
-            this.unmatchedLayExposure += order.getLayExposure();
-            this.unmatchedBackProfit += order.getBackProfit();
-            this.unmatchedLayProfit += order.getLayProfit();
+            unmatchedBackExposure += order.getBackExposure();
+            unmatchedLayExposure += order.getLayExposure();
+            unmatchedBackProfit += order.getBackProfit();
+            unmatchedLayProfit += order.getLayProfit();
         }
+        exposure.setBackUnmatchedExposure(unmatchedBackExposure);
+        exposure.setLayUnmatchedExposure(unmatchedLayExposure);
+        exposure.setBackUnmatchedProfit(unmatchedBackProfit);
+        exposure.setLayUnmatchedProfit(unmatchedLayProfit);
     }
 
-    private synchronized void getMatchedExposure() {
+    public synchronized void getMatchedExposure(@NotNull final Exposure exposure) {
         final TwoDoubles backProfitExposurePair = this.backMatches.getBackProfitExposurePair();
         final double backProfit = backProfitExposurePair.getFirstDouble();
         final double backExposure = backProfitExposurePair.getSecondDouble();
@@ -233,8 +146,8 @@ public class OrderMarketRunner
         final double layExposure = layProfitExposurePair.getFirstDouble();
         final double layProfit = layProfitExposurePair.getSecondDouble();
 
-        this.matchedBackExposure = backExposure - layProfit;
-        this.matchedLayExposure = layExposure - backProfit;
+        exposure.setBackMatchedExposure(backExposure - layProfit);
+        exposure.setLayMatchedExposure(layExposure - backProfit);
     }
 
     public synchronized int cancelUnmatchedAmounts(final double backExcessExposure, final double layExcessExposure, final OrdersThreadInterface pendingOrdersThread) {
@@ -284,66 +197,6 @@ public class OrderMarketRunner
         }
 
         return exposureHasBeenModified;
-    }
-
-    public synchronized int balanceTotalAmounts(final double backLimit, final double layLimit, final double toBeUsedBackOdds, final double toBeUsedLayOdds, final double backExcessExposure, final double layExcessExposure,
-                                                final OrdersThreadInterface pendingOrdersThread) {
-        int exposureHasBeenModified = 0;
-        final double backUnmatchedExposureToBeCanceled = Math.min(backExcessExposure, this.unmatchedBackExposure), layUnmatchedExposureToBeCanceled = Math.min(layExcessExposure, this.unmatchedLayExposure);
-        exposureHasBeenModified += cancelUnmatchedAmounts(backUnmatchedExposureToBeCanceled, layUnmatchedExposureToBeCanceled, pendingOrdersThread);
-        exposureHasBeenModified += balanceMatchedAmounts(backLimit, layLimit, toBeUsedBackOdds, toBeUsedLayOdds, backExcessExposure - backUnmatchedExposureToBeCanceled,
-                                                         layExcessExposure - layUnmatchedExposureToBeCanceled, pendingOrdersThread);
-
-        return exposureHasBeenModified;
-    }
-
-    public synchronized int balanceMatchedAmounts(final double backLimit, final double layLimit, final double toBeUsedBackOdds, final double toBeUsedLayOdds, final double backExcessExposure, final double layExcessExposure,
-                                                  final OrdersThreadInterface pendingOrdersThread) {
-        int exposureHasBeenModified = 0;
-        if (backExcessExposure >= .1d) { // I need to place a lay bet, with profit that would cancel the excess
-            // backExcessExposure - newLayProfit = newLayExposure
-            // backExcessExposure - sizeToPlace = sizeToPlace*(toBeUsedLayOdds-1d)
-            // backExcessExposure = sizeToPlace * toBeUsedLayOdds
-            if (placeOrder(backLimit, layLimit, Side.L, toBeUsedLayOdds, backExcessExposure / toBeUsedLayOdds, pendingOrdersThread) > 0d) {
-                exposureHasBeenModified++;
-            } else { // no modification, nothing to be done
-            }
-        } else { // no excess exposure present, nothing to do
-        }
-
-        if (layExcessExposure >= .1d) { // I need to place a back bet, with profit that would cancel the excess
-            // layExcessExposure - newBackProfit = newBackExposure
-            // layExcessExposure - sizeToPlace*(toBeUsedBackOdds-1d) = sizeToPlace
-            // layExcessExposure = sizeToPlace * toBeUsedBackOdds
-            if (placeOrder(backLimit, layLimit, Side.B, toBeUsedBackOdds, layExcessExposure / toBeUsedBackOdds, pendingOrdersThread) > 0d) {
-                exposureHasBeenModified++;
-            } else { // no modification, nothing to be done
-            }
-        } else { // no excess exposure present, nothing to do
-        }
-        return exposureHasBeenModified;
-    }
-
-    public synchronized double placeOrder(final double backLimit, final double layLimit, final Side side, final double price, final double size, final OrdersThreadInterface pendingOrdersThread) {
-        // exposure.setBackTotalExposure(matchedBackExposure + unmatchedBackExposure + tempBackExposure);
-        // exposure.setLayTotalExposure(matchedLayExposure + unmatchedLayExposure + tempLayExposure);
-        final double sizePlaced;
-
-        if (side == Side.B) {
-            final double backTotalExposure = this.matchedBackExposure + this.unmatchedBackExposure + this.tempBackExposure;
-            final double availableBackExposure = Math.max(0d, backLimit - backTotalExposure);
-            sizePlaced = Math.min(availableBackExposure, size);
-        } else if (side == Side.L) {
-            final double layTotalExposure = this.matchedLayExposure + this.unmatchedLayExposure + this.tempLayExposure;
-            final double availableLayExposure = Math.max(0d, layLimit - layTotalExposure);
-            final double reducedPrice = price - 1d; // protection against division by zero
-            sizePlaced = reducedPrice == 0d ? size : Math.min(availableLayExposure / reducedPrice, size);
-        } else {
-            logger.error("unknown side {} {} {} during placeOrder for: {}", side, price, size, Generic.objectToString(this));
-            sizePlaced = 0d;
-        }
-
-        return pendingOrdersThread.addPlaceOrder(this.marketId, this.runnerId, side, price, sizePlaced);
     }
 
     public synchronized double cancelUnmatchedExceptExcessOnTheOtherSide(final Side side, final double excessOnTheOtherSide, final OrdersThreadInterface pendingOrdersThread) {
@@ -539,29 +392,5 @@ public class OrderMarketRunner
             }
         }
         return result;
-    }
-
-    public synchronized void setTempBackExposure(final double tempBackExposure) {
-        this.tempBackExposure = tempBackExposure;
-    }
-
-    public synchronized void setTempBackProfit(final double tempBackProfit) {
-        this.tempBackProfit = tempBackProfit;
-    }
-
-    public synchronized void setTempLayExposure(final double tempLayExposure) {
-        this.tempLayExposure = tempLayExposure;
-    }
-
-    public synchronized void setTempLayProfit(final double tempLayProfit) {
-        this.tempLayProfit = tempLayProfit;
-    }
-
-    public synchronized void setTempBackCancel(final double tempBackCancel) {
-        this.tempBackCancel = tempBackCancel;
-    }
-
-    public synchronized void setTempLayCancel(final double tempLayCancel) {
-        this.tempLayCancel = tempLayCancel;
     }
 }

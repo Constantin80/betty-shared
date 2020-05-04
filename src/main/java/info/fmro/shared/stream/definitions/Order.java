@@ -62,26 +62,27 @@ public class Order
             this.backProfit = 0d;
             this.layProfit = 0d;
         } else {
+            //noinspection SwitchStatementDensity
             switch (this.side) {
-                case B:
+                case B -> {
                     this.backExposure = this.sr;
-                    this.backProfit = info.fmro.shared.utility.Formulas.layExposure(this.p, this.sr);
+                    this.backProfit = Formulas.layExposure(this.p, this.sr);
                     this.layExposure = 0d;
                     this.layProfit = 0d;
-                    break;
-                case L:
+                }
+                case L -> {
                     this.backExposure = 0d;
                     this.backProfit = 0d;
-                    this.layExposure = info.fmro.shared.utility.Formulas.layExposure(this.p, this.sr);
+                    this.layExposure = Formulas.layExposure(this.p, this.sr);
                     this.layProfit = this.sr;
-                    break;
-                default:
+                }
+                default -> {
                     logger.error("strange side in Order calculateExposureAndProfit: {} {}", this.side, Generic.objectToString(this));
                     this.backExposure = 0d;
                     this.layExposure = 0d;
                     this.backProfit = 0d;
                     this.layProfit = 0d;
-                    break;
+                }
             }
         }
         if (this.backExposure != 0d && this.layExposure != 0d) { // this condition should always be false, only one type of exposure should exist

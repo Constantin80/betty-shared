@@ -1,5 +1,6 @@
 package info.fmro.shared.utility;
 
+import com.google.common.math.DoubleMath;
 import info.fmro.shared.entities.Event;
 import info.fmro.shared.entities.EventType;
 import info.fmro.shared.entities.MarketCatalogue;
@@ -27,7 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 
-@SuppressWarnings({"UtilityClass", "WeakerAccess", "ClassWithTooManyMethods", "OverlyComplexClass"})
+@SuppressWarnings({"UtilityClass", "ClassWithTooManyMethods", "OverlyComplexClass"})
 public final class Formulas {
     private static final Logger logger = LoggerFactory.getLogger(Formulas.class);
     //    public static final List<Double> pricesList = List.of(1.01, 1.02,1.03,1.04,1.05,1.06,1.07,1.08,1.09,1.1,1.11,1.12,1.13,1.14 ...);
@@ -36,6 +37,7 @@ public final class Formulas {
     @SuppressWarnings("PublicStaticCollectionField")
     public static final Map<String, String> charactersMap = Collections.synchronizedMap(new LinkedHashMap<>(128, 0.75f));
     public static final double CENT_TOLERANCE = .009999d;
+    public static final double ODDS_TOLERANCE = .0001d;
 
     @Contract(pure = true)
     private Formulas() {
@@ -214,9 +216,17 @@ public final class Formulas {
         return result;
     }
 
-    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
+    @SuppressWarnings({"OverloadedMethodsWithSameNumberOfParameters", "NumericCastThatLosesPrecision"})
     public static double getClosestOdds(final double odds, @NotNull final Side side) {
-        @SuppressWarnings("NumericCastThatLosesPrecision") final int intOdds = (int) Math.round(odds * 100d);
+        final double odds100 = odds * 100d;
+        final double floor = Math.floor(odds100);
+        final int intOdds;
+        if (odds100 - floor < .01d) {
+            intOdds = (int) floor;
+        } else {
+            final double ceiling = Math.ceil(odds100);
+            intOdds = ceiling - odds100 < .01d || side == Side.B ? (int) ceiling : (int) floor;
+        }
         return getClosestOdds(intOdds, side);
     }
 
@@ -284,62 +294,57 @@ public final class Formulas {
         return odds <= 1_000d && odds >= 1.01d;
     }
 
-    private static double inverseOdds(final double odds) {
+    public static double inverseOdds(final double odds, @NotNull final Side side) {
         final double returnValue;
         if (oddsAreUsable(odds)) {
-            returnValue = 1d / (odds - 1d) + 1d;
+            returnValue = getClosestOdds(Math.max(1.01d, 1d / (odds - 1d) + 1d), side == Side.B ? Side.L : Side.B);
         } else {
-            logger.error("unusable odds in Formulas.inverseOdds for: {}", odds);
-            returnValue = 0d;
+            if (side == Side.L && DoubleMath.fuzzyEquals(odds, 1d, ODDS_TOLERANCE)) {
+                returnValue = 1_001d;
+            } else if (side == Side.B && DoubleMath.fuzzyEquals(odds, 1_001d, ODDS_TOLERANCE)) {
+                returnValue = 1d;
+            } else {
+                logger.error("unusable odds in Formulas.inverseOdds for: {} {}", odds, side);
+                returnValue = side == Side.B ? 1d : 1_001d;
+            }
         }
         return returnValue;
     }
 
-    private static int getOddsPosition(final double odds) {
-        @SuppressWarnings("NumericCastThatLosesPrecision") final int intOdds = (int) (odds * 100d);
+//    private static double inverseOdds(final double odds) {
+//        final double returnValue;
+//        if (oddsAreUsable(odds)) {
+//            returnValue = Math.max(1.01d, 1d / (odds - 1d) + 1d);
+//        } else {
+//            logger.error("unusable odds in Formulas.inverseOdds for: {}", odds);
+//            returnValue = 0d;
+//        }
+//        return returnValue;
+//    }
+
+    public static int getOddsPosition(final double odds) {
+        @SuppressWarnings("NumericCastThatLosesPrecision") final int intOdds = (int) Math.round(odds * 100d);
         return pricesList.indexOf(intOdds);
     }
 
-    @SuppressWarnings("OverlyNestedMethod")
     public static boolean oddsAreInverse(final double firstOdds, final double secondOdds) {
+        return orderedOddsAreInverse(firstOdds, secondOdds) || orderedOddsAreInverse(secondOdds, firstOdds);
+    }
+
+    public static boolean orderedOddsAreInverse(final double firstBackOdds, final double secondLayOdds) { // assume first odds are back and second are lay
         final boolean areInverse;
-        if (oddsAreUsable(firstOdds) && oddsAreUsable(secondOdds)) {
-            final int secondOddsPosition = getOddsPosition(secondOdds);
-            if (secondOddsPosition >= 0) {
-                final double inverseFirstOdds = inverseOdds(firstOdds);
-                @SuppressWarnings("NumericCastThatLosesPrecision") final int intInverseFirstOdds = (int) (inverseFirstOdds * 100d);
-                if (intInverseFirstOdds > 10_100 || intInverseFirstOdds < 100) {
-                    logger.error("bad value for intInverseFirstOdds in Formulas.oddsAreInverse for: {} {} {}", intInverseFirstOdds, firstOdds, secondOdds);
-                    areInverse = false;
-                } else {
-                    if (inverseFirstOdds <= 101) {
-                        areInverse = secondOddsPosition == 0;
-                    } else if (intInverseFirstOdds == 10_100) {
-                        areInverse = secondOdds >= inverseFirstOdds;
-                    } else {
-                        @SuppressWarnings("NumericCastThatLosesPrecision") final int intSecondOdds = (int) (secondOdds * 100d);
-                        if (intInverseFirstOdds == intSecondOdds) {
-                            areInverse = true;
-                        } else {
-                            if (intInverseFirstOdds > intSecondOdds) {
-                                final int intNextOdds = pricesList.get(secondOddsPosition + 1);
-                                areInverse = intInverseFirstOdds < intNextOdds;
-                            } else {
-                                final int intPreviousOdds = pricesList.get(secondOddsPosition - 1);
-                                areInverse = intInverseFirstOdds > intPreviousOdds;
-                            }
-                        }
-                    }
-                }
+        if (oddsAreUsable(firstBackOdds) && oddsAreUsable(secondLayOdds)) {
+            final double inverseFirstOdds = inverseOdds(firstBackOdds, Side.B), inverseSecondOdds = inverseOdds(secondLayOdds, Side.L);
+            areInverse = DoubleMath.fuzzyEquals(firstBackOdds, inverseSecondOdds, ODDS_TOLERANCE) || DoubleMath.fuzzyEquals(inverseFirstOdds, secondLayOdds, ODDS_TOLERANCE);
+        } else { // unusable odds in Formulas.oddsAreInverse for: 1001.0 1.0
+            if ((DoubleMath.fuzzyEquals(firstBackOdds, 1d, ODDS_TOLERANCE) && DoubleMath.fuzzyEquals(secondLayOdds, 1_001d, ODDS_TOLERANCE)) ||
+                (DoubleMath.fuzzyEquals(secondLayOdds, 1d, ODDS_TOLERANCE) && DoubleMath.fuzzyEquals(firstBackOdds, 1_001d, ODDS_TOLERANCE))) {
+                areInverse = true;
             } else {
-                logger.error("secondOddsPosition negative in Formulas.oddsAreInverse for: {} {}", firstOdds, secondOdds);
+                logger.error("unusable odds in Formulas.oddsAreInverse for: {} {}", firstBackOdds, secondLayOdds);
                 areInverse = false;
             }
-        } else {
-            logger.error("unusable odds in Formulas.oddsAreInverse for: {} {}", firstOdds, secondOdds);
-            areInverse = false;
         }
-
         return areInverse;
     }
 
@@ -356,7 +361,6 @@ public final class Formulas {
             logger.error("bogus side {} in Formulas.exposure for: {} {}", side, price, size);
             exposure = 0d;
         }
-
         return exposure;
     }
 
@@ -455,15 +459,14 @@ public final class Formulas {
         } else {
             if (marketCataloguesMap.isEmpty()) { // normal, before map got a chance to be updated
             } else {
-                Formulas.logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventOfMarket", marketId);
+                Formulas.logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventIdOfMarketId", marketId);
             }
             result = null;
         }
-
         return result;
     }
 
-    public static Event getStoredEventOfMarketId(final String marketId, final @NotNull SynchronizedMap<? super String, ? extends Event> eventsMap, final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public static Event getStoredEventOfMarketId(final String marketId, final @NotNull SynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final String eventId = getEventIdOfMarketId(marketId, marketCataloguesMap);
         return eventsMap.get(eventId);
     }

@@ -86,8 +86,7 @@ public class OrderCache
     }
 
     @NotNull
-    private synchronized OrderMarket onOrderMarketChange(@NotNull final OrderMarketChange orderMarketChange, @NotNull final AtomicBoolean newOrderMarketCreated, final OrdersThreadInterface pendingOrdersThread,
-                                                         @NotNull final AtomicDouble currencyRate) {
+    private synchronized OrderMarket onOrderMarketChange(@NotNull final OrderMarketChange orderMarketChange, @NotNull final AtomicBoolean newOrderMarketCreated, final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate) {
         final String marketId = orderMarketChange.getId();
         final OrderMarket orderMarket = this.markets.computeIfAbsent(marketId, k -> new OrderMarket(marketId, newOrderMarketCreated));
 

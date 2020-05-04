@@ -78,7 +78,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.Stack;
 import java.util.StringTokenizer;
 import java.util.TimeZone;
 import java.util.UUID;
@@ -1430,7 +1429,7 @@ public final class Generic {
 
         if (initialString != null) {
             @SuppressWarnings("UseOfStringTokenizer") final StringTokenizer stringTokenizer = new StringTokenizer(initialString, " ", true);
-            final Stack<String> stack = new Stack<>();
+            final LinkedList<String> stack = new LinkedList<>();
             final StringBuilder stringBuilder = new StringBuilder(initialString.length());
             while (stringTokenizer.hasMoreElements()) {
                 final String word = stringTokenizer.nextToken();
@@ -1669,38 +1668,18 @@ public final class Generic {
         try {
             final SecureRandom secureRandom = new SecureRandom();
             switch (secureRandom.nextInt(3)) {
-                case 0:
-                    userAgent += "4.0 (compatible; MSIE 7.0; ";
-                    break;
-                case 1:
-                    userAgent += "4.0 (compatible; MSIE 8.0; ";
-                    break;
-                case 2:
-                    userAgent += "5.0 (Windows; U; ";
-                    break;
+                case 0 -> userAgent += "4.0 (compatible; MSIE 7.0; ";
+                case 1 -> userAgent += "4.0 (compatible; MSIE 8.0; ";
+                case 2 -> userAgent += "5.0 (Windows; U; ";
             }
             switch (secureRandom.nextInt(7)) {
-                case 0:
-                    userAgent += "Windows NT 6.0";
-                    break;
-                case 1:
-                    userAgent += "Windows NT 5.2";
-                    break;
-                case 2:
-                    userAgent += "Windows NT 5.1";
-                    break;
-                case 3:
-                    userAgent += "Windows NT 5.01";
-                    break;
-                case 4:
-                    userAgent += "Windows NT 5.0";
-                    break;
-                case 5:
-                    userAgent += "Windows NT 4.0";
-                    break;
-                case 6:
-                    userAgent += "Windows 98";
-                    break;
+                case 0 -> userAgent += "Windows NT 6.0";
+                case 1 -> userAgent += "Windows NT 5.2";
+                case 2 -> userAgent += "Windows NT 5.1";
+                case 3 -> userAgent += "Windows NT 5.01";
+                case 4 -> userAgent += "Windows NT 5.0";
+                case 5 -> userAgent += "Windows NT 4.0";
+                case 6 -> userAgent += "Windows 98";
             }
             userAgent += ")";
         } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {
@@ -2978,13 +2957,11 @@ public final class Generic {
                 final X509TrustManager finalMyTm = myTm;
                 //noinspection OverlyComplexAnonymousInnerClass
                 customTm = new X509TrustManager() {
-                    @SuppressWarnings("ConstantConditions")
                     @Override
                     public X509Certificate[] getAcceptedIssuers() {
                         return arrayMerge(finalMyTm.getAcceptedIssuers(), finalDefaultTm.getAcceptedIssuers());
                     }
 
-                    @SuppressWarnings("ConstantConditions")
                     @Override
                     public void checkServerTrusted(final X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType)
                             throws CertificateException {
@@ -2996,7 +2973,6 @@ public final class Generic {
                         }
                     }
 
-                    @SuppressWarnings("ConstantConditions")
                     @Override
                     public void checkClientTrusted(final X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType)
                             throws CertificateException {

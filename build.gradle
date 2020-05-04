@@ -7,11 +7,11 @@ plugins {
 group = 'info.fmro'
 version = '0.1'
 description = "shared"
-sourceCompatibility = 13
-targetCompatibility = 13
+sourceCompatibility = 14
+targetCompatibility = 14
 
 javafx {
-    version = "13"
+    version = "14"
     modules = ['javafx.controls']
 }
 compileJava {
@@ -37,19 +37,19 @@ repositories {
 dependencies {
     implementation group: 'org.reflections', name: 'reflections', version: '0.9.12'
     implementation group: 'junit-addons', name: 'junit-addons', version: '1.4'
-    implementation group: 'com.google.guava', name: 'guava', version: '28.2-jre'
+    implementation group: 'com.google.guava', name: 'guava', version: '29.0-jre'
     implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
     implementation group: 'org.slf4j', name: 'slf4j-ext', version: '1.7.30'
     implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     implementation group: 'ch.qos.logback', name: 'logback-core', version: '1.2.3'
     implementation group: 'org.jmock', name: 'jmock', version: '2.12.0'
-    implementation group: 'net.sourceforge.htmlunit', name: 'htmlunit', version: '2.38.0'
+    implementation group: 'net.sourceforge.htmlunit', name: 'htmlunit', version: '2.40.0'
     implementation group: 'org.jetbrains', name: 'annotations', version: '19.0.0'
     implementation group: 'net.sf.trove4j', name: 'trove4j', version: '3.0.3'
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.10.3'
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.10.3'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.11.0'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.0'
     testImplementation group: 'org.assertj', name: 'assertj-core', version: '3.15.0'
-    testImplementation('org.junit.jupiter:junit-jupiter-api:5.6.0')
-    testImplementation "org.junit.jupiter:junit-jupiter-engine:5.6.0"
-    testImplementation "org.mockito:mockito-junit-jupiter:3.2.4"
+    testImplementation('org.junit.jupiter:junit-jupiter-api:5.6.2')
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:5.6.2"
+    testImplementation "org.mockito:mockito-junit-jupiter:3.3.3"
 }

@@ -55,8 +55,8 @@ public class ChangeMessage<T>
         return this.changeType;
     }
 
-    synchronized void setChangeType(final ChangeType changeType) {
-        this.changeType = changeType;
+    synchronized void setChangeType(@Nullable final ChangeType changeType) {
+        this.changeType = changeType == null ? ChangeType.UPDATE : changeType;
     }
 
     @Nullable
@@ -130,7 +130,7 @@ public class ChangeMessage<T>
         return this.segmentType;
     }
 
-    synchronized void setSegmentType(final SegmentType segmentType) {
-        this.segmentType = segmentType;
+    synchronized void setSegmentType(@Nullable final SegmentType segmentType) {
+        this.segmentType = segmentType == null ? SegmentType.NONE : segmentType;
     }
 }

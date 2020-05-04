@@ -2,6 +2,7 @@ package info.fmro.shared.stream.cache.market;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.logic.ManagedMarket;
+import info.fmro.shared.logic.RulesManager;
 import info.fmro.shared.stream.definitions.MarketChange;
 import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
@@ -65,7 +66,7 @@ public class MarketCache
         return readSuccessful;
     }
 
-    public synchronized void onMarketChange(@NotNull final ChangeMessage<? extends MarketChange> changeMessage, @NotNull final AtomicDouble currencyRate) {
+    public synchronized void onMarketChange(@NotNull final ChangeMessage<? extends MarketChange> changeMessage, @NotNull final AtomicDouble currencyRate, @NotNull final RulesManager rulesManager) {
         if (changeMessage.isStartOfNewSubscription()) {
             // was it right to disable markets.clear() in isStartOfNewSubscription ?; maybe, it seems markets are properly updated, although some old no longer used markets are probably not removed, I'll see more with testing
             //clear cache ... no clear anymore, because of multiple clients
@@ -73,7 +74,7 @@ public class MarketCache
         }
         if (changeMessage.getItems() != null) {
             for (final MarketChange marketChange : changeMessage.getItems()) {
-                final Market market = onMarketChange(marketChange, currencyRate);
+                final Market market = onMarketChange(marketChange, currencyRate, rulesManager);
 
                 if (this.isMarketRemovedOnClose && market.isClosed()) {
                     //remove on close
@@ -85,11 +86,12 @@ public class MarketCache
     }
 
     @NotNull
-    private synchronized Market onMarketChange(@NotNull final MarketChange marketChange, @NotNull final AtomicDouble currencyRate) {
+    private synchronized Market onMarketChange(@NotNull final MarketChange marketChange, @NotNull final AtomicDouble currencyRate, @NotNull final RulesManager rulesManager) {
         if (Boolean.TRUE.equals(marketChange.getCon())) {
             this.conflatedCount++;
         }
-        final Market market = this.markets.computeIfAbsent(marketChange.getId(), Market::new);
+        final String marketId = marketChange.getId();
+        final Market market = this.markets.computeIfAbsent(marketId, k -> new Market(marketId, rulesManager));
         market.onMarketChange(marketChange, currencyRate);
         return market;
     }

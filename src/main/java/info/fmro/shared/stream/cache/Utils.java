@@ -7,7 +7,6 @@ import info.fmro.shared.logic.ManagedRunner;
 import info.fmro.shared.logic.RulesManager;
 import info.fmro.shared.stream.cache.market.MarketCache;
 import info.fmro.shared.stream.cache.order.OrderCache;
-import info.fmro.shared.stream.cache.order.OrderMarketRunner;
 import info.fmro.shared.stream.enums.Side;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
@@ -32,7 +31,7 @@ public final class Utils {
 
     public static void calculateMarketLimits(final double maxTotalLimit, @NotNull final Iterable<? extends ManagedMarket> marketsSet, final boolean shouldCalculateExposure, final boolean marketLimitsCanBeIncreased,
                                              @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                             final @NotNull StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager,
+                                             @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager,
                                              final long programStartTime) {
         @SuppressWarnings("unused") double totalMatchedExposure = 0d, totalExposure = 0d, sumOfMaxMarketLimits = 0d;
         final Collection<ManagedMarket> marketsWithErrorCalculatingExposure = new HashSet<>(1), marketsWithExposureHigherThanTheirMaxLimit = new HashSet<>(1);
@@ -66,6 +65,16 @@ public final class Utils {
             }
         } // end for
 
+        // todo test order placing
+        // todo it takes too long until market appears with all the values set in the GUI; it takes too long to add the managedRunners to the managedMarket
+        // todo runners are not in proper order, plus I get a lot of extra runners
+        // todo see if still happens: while right panel visible, don't remove events from map (I think I should still remove markets)
+        // todo see if it works: keyboard shortcut to the textField on the right, if visible
+        // todo see if it works: click on right treeview should reset the filter and select whatever item was clicked; I can use treeview scrollTo (or I can even bind that action to a key to press manually, if automated scroll doesn't work)
+
+        // todo strange errors in client out.txt; does manually clearing the textField cause the same erorrs?
+        // todo errors in server out.txt, plus "no market found in MarketCache, probably old expired market, for:"
+
 //        final double totalMarketLimit = Math.min(maxTotalLimit, sumOfMaxMarketLimits);
 //        @SuppressWarnings("unused") final double availableTotalExposure = totalMarketLimit - totalExposure; // can be positive or negative, not used for now, as I use the ConsideringOnlyMatched variant
 //        final double availableExposureInTheMarkets = totalMarketLimit - totalExposure; // should be positive, else this might be an error, or maybe not error
@@ -73,8 +82,11 @@ public final class Utils {
 //        final double availableExposureInTheMarketsConsideringOnlyMatched = totalMarketLimit - totalMatchedExposure; // should always be positive, else this is an error
 
         for (final ManagedMarket managedMarket : marketsWithErrorCalculatingExposure) {
-            managedMarket.cancelAllUnmatchedBets.set(true);
-            managedMarket.setCalculatedLimit(0d, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
+            if (managedMarket.simpleGetMarket() == null) { // no market attached, won't do anything on this market yet, likely the stream hasn't updated yet
+            } else {
+                managedMarket.cancelAllUnmatchedBets.set(true);
+                managedMarket.setCalculatedLimit(0d, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
+            }
         }
         for (final ManagedMarket managedMarket : marketsWithExposureHigherThanTheirMaxLimit) {
 //            final double totalExposure = managedMarket.getMarketTotalExposure();
@@ -91,11 +103,11 @@ public final class Utils {
                 if (marketsWithErrorCalculatingExposure.contains(managedMarket)) { // nothing to do, all unmatched bets on this market were previously been canceled
                 } else {
                     final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
-                    final double calculatedLimit = managedMarket.simpleGetCalculatedLimit();
-                    if (calculatedLimit > maxMarketLimit) {
-                        managedMarket.setCalculatedLimit(maxMarketLimit, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
-                    } else { // calculatedLimit is smaller than maxLimit, nothing to do
-                    }
+//                    final double calculatedLimit = managedMarket.simpleGetCalculatedLimit();
+//                    if (calculatedLimit > maxMarketLimit) {
+                    managedMarket.setCalculatedLimit(maxMarketLimit, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
+//                    } else { // calculatedLimit is smaller than maxLimit, nothing to do
+//                    }
                 }
             } // end for
         } else {
@@ -166,30 +178,27 @@ public final class Utils {
 //        }
     }
 
-    public static List<Double> getExposureToBePlacedForTwoWayMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final OrderMarketRunner firstOrderRunner, @NotNull final OrderMarketRunner secondOrderRunner,
-                                                                    @NotNull final List<Side> sideList, final double excessMatchedExposure) {
+    public static List<Double> getExposureToBePlacedForTwoWayMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sideList, final double excessMatchedExposure) {
         final List<Double> existingTempExposures, existingNonMatchedExposures, nonMatchedExposureLimitList, toBeUsedOdds, resultList;
         if (sideList.size() != 2 || sideList.contains(null)) {
-            logger.error("bogus sideList for getExposureToBePlacedForTwoWayMarket: {} {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), Generic.objectToString(firstOrderRunner),
-                         Generic.objectToString(secondOrderRunner), excessMatchedExposure);
+            logger.error("bogus sideList for getExposureToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure);
             resultList = List.of(0d, 0d);
         } else {
             final @NotNull Side firstSide = sideList.get(0), secondSide = sideList.get(1);
             if (firstSide == Side.B && secondSide == Side.L) {
-                existingTempExposures = List.of(firstOrderRunner.getTempBackExposure(), secondOrderRunner.getTempLayExposure());
-                existingNonMatchedExposures = List.of(firstOrderRunner.getUnmatchedBackExposure() + firstOrderRunner.getTempBackExposure(), secondOrderRunner.getUnmatchedLayExposure() + secondOrderRunner.getTempLayExposure());
-                nonMatchedExposureLimitList = List.of(firstRunner.getBackAmountLimit() - firstOrderRunner.getMatchedBackExposure(), secondRunner.getLayAmountLimit() - secondOrderRunner.getMatchedLayExposure());
+                existingTempExposures = List.of(firstRunner.getBackTempExposure(), secondRunner.getLayTempExposure());
+                existingNonMatchedExposures = List.of(firstRunner.getBackUnmatchedExposure() + firstRunner.getBackTempExposure(), secondRunner.getLayUnmatchedExposure() + secondRunner.getLayTempExposure());
+                nonMatchedExposureLimitList = List.of(firstRunner.getBackAmountLimit() - firstRunner.getBackMatchedExposure(), secondRunner.getLayAmountLimit() - secondRunner.getLayMatchedExposure());
                 toBeUsedOdds = List.of(firstRunner.getToBeUsedBackOdds(), secondRunner.getToBeUsedLayOdds());
                 resultList = getExposureToBePlacedForTwoWayMarket(existingTempExposures, existingNonMatchedExposures, nonMatchedExposureLimitList, sideList, toBeUsedOdds, excessMatchedExposure);
             } else if (firstSide == Side.L && secondSide == Side.B) {
-                existingTempExposures = List.of(firstOrderRunner.getTempLayExposure(), secondOrderRunner.getTempBackExposure());
-                existingNonMatchedExposures = List.of(firstOrderRunner.getUnmatchedLayExposure() + firstOrderRunner.getTempLayExposure(), secondOrderRunner.getUnmatchedBackExposure() + secondOrderRunner.getTempBackExposure());
-                nonMatchedExposureLimitList = List.of(firstRunner.getLayAmountLimit() - firstOrderRunner.getMatchedLayExposure(), secondRunner.getBackAmountLimit() - secondOrderRunner.getMatchedBackExposure());
+                existingTempExposures = List.of(firstRunner.getLayTempExposure(), secondRunner.getBackTempExposure());
+                existingNonMatchedExposures = List.of(firstRunner.getLayUnmatchedExposure() + firstRunner.getLayTempExposure(), secondRunner.getBackUnmatchedExposure() + secondRunner.getBackTempExposure());
+                nonMatchedExposureLimitList = List.of(firstRunner.getLayAmountLimit() - firstRunner.getLayMatchedExposure(), secondRunner.getBackAmountLimit() - secondRunner.getBackMatchedExposure());
                 toBeUsedOdds = List.of(firstRunner.getToBeUsedLayOdds(), secondRunner.getToBeUsedBackOdds());
                 resultList = getExposureToBePlacedForTwoWayMarket(existingTempExposures, existingNonMatchedExposures, nonMatchedExposureLimitList, sideList, toBeUsedOdds, excessMatchedExposure);
             } else {
-                logger.error("bogus sides for getExposureToBePlacedForTwoWayMarket: {} {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), Generic.objectToString(firstOrderRunner),
-                             Generic.objectToString(secondOrderRunner), excessMatchedExposure);
+                logger.error("bogus sides for getExposureToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure);
                 resultList = List.of(0d, 0d);
             }
         }
@@ -319,32 +328,29 @@ public final class Utils {
         return resultList;
     }
 
-    public static List<Double> getAmountsToBePlacedForTwoWayMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final OrderMarketRunner firstOrderRunner, @NotNull final OrderMarketRunner secondOrderRunner,
-                                                                   @NotNull final List<Side> sideList, final double availableLimit) {
+    public static List<Double> getAmountsToBePlacedForTwoWayMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sideList, final double availableLimit) {
         final List<Double> existingUnmatchedExposures, existingNonMatchedExposures, availableLimitList, toBeUsedOdds, resultList;
         if (sideList.size() != 2 || sideList.contains(null)) {
-            logger.error("bogus sideList for getAmountsToBePlacedForTwoWayMarket: {} {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), Generic.objectToString(firstOrderRunner),
-                         Generic.objectToString(secondOrderRunner), availableLimit);
+            logger.error("bogus sideList for getAmountsToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit);
             resultList = List.of(0d, 0d);
         } else {
             final @NotNull Side firstSide = sideList.get(0), secondSide = sideList.get(1);
             if (firstSide == Side.B && secondSide == Side.L) {
-                existingUnmatchedExposures = List.of(firstOrderRunner.getUnmatchedBackExposure(), secondOrderRunner.getUnmatchedLayExposure());
-                existingNonMatchedExposures = List.of(firstOrderRunner.getUnmatchedBackExposure() + firstOrderRunner.getTempBackExposure(), secondOrderRunner.getUnmatchedLayExposure() + secondOrderRunner.getTempLayExposure());
-                availableLimitList = List.of(firstRunner.getBackAmountLimit() - firstOrderRunner.getMatchedBackExposure() - firstOrderRunner.getUnmatchedBackExposure() - firstOrderRunner.getTempBackExposure(),
-                                             secondRunner.getLayAmountLimit() - secondOrderRunner.getMatchedLayExposure() - secondOrderRunner.getUnmatchedLayExposure() - secondOrderRunner.getTempLayExposure());
+                existingUnmatchedExposures = List.of(firstRunner.getBackUnmatchedExposure(), secondRunner.getLayUnmatchedExposure());
+                existingNonMatchedExposures = List.of(firstRunner.getBackUnmatchedExposure() + firstRunner.getBackTempExposure(), secondRunner.getLayUnmatchedExposure() + secondRunner.getLayTempExposure());
+                availableLimitList = List.of(firstRunner.getBackAmountLimit() - firstRunner.getBackMatchedExposure() - firstRunner.getBackUnmatchedExposure() - firstRunner.getBackTempExposure(),
+                                             secondRunner.getLayAmountLimit() - secondRunner.getLayMatchedExposure() - secondRunner.getLayUnmatchedExposure() - secondRunner.getLayTempExposure());
                 toBeUsedOdds = List.of(firstRunner.getToBeUsedBackOdds(), secondRunner.getToBeUsedLayOdds());
                 resultList = getAmountsToBePlacedForTwoWayMarket(existingUnmatchedExposures, existingNonMatchedExposures, availableLimitList, sideList, toBeUsedOdds, availableLimit);
             } else if (firstSide == Side.L && secondSide == Side.B) {
-                existingUnmatchedExposures = List.of(firstOrderRunner.getUnmatchedLayExposure(), secondOrderRunner.getUnmatchedBackExposure());
-                existingNonMatchedExposures = List.of(firstOrderRunner.getUnmatchedLayExposure() + firstOrderRunner.getTempLayExposure(), secondOrderRunner.getUnmatchedBackExposure() + secondOrderRunner.getTempBackExposure());
-                availableLimitList = List.of(firstRunner.getLayAmountLimit() - firstOrderRunner.getMatchedLayExposure() - firstOrderRunner.getUnmatchedLayExposure() - firstOrderRunner.getTempLayExposure(),
-                                             secondRunner.getBackAmountLimit() - secondOrderRunner.getMatchedBackExposure() - secondOrderRunner.getUnmatchedBackExposure() - secondOrderRunner.getTempBackExposure());
+                existingUnmatchedExposures = List.of(firstRunner.getLayUnmatchedExposure(), secondRunner.getBackUnmatchedExposure());
+                existingNonMatchedExposures = List.of(firstRunner.getLayUnmatchedExposure() + firstRunner.getLayTempExposure(), secondRunner.getBackUnmatchedExposure() + secondRunner.getBackTempExposure());
+                availableLimitList = List.of(firstRunner.getLayAmountLimit() - firstRunner.getLayMatchedExposure() - firstRunner.getLayUnmatchedExposure() - firstRunner.getLayTempExposure(),
+                                             secondRunner.getBackAmountLimit() - secondRunner.getBackMatchedExposure() - secondRunner.getBackUnmatchedExposure() - secondRunner.getBackTempExposure());
                 toBeUsedOdds = List.of(firstRunner.getToBeUsedLayOdds(), secondRunner.getToBeUsedBackOdds());
                 resultList = getAmountsToBePlacedForTwoWayMarket(existingUnmatchedExposures, existingNonMatchedExposures, availableLimitList, sideList, toBeUsedOdds, availableLimit);
             } else {
-                logger.error("bogus sides for getAmountsToBePlacedForTwoWayMarket: {} {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), Generic.objectToString(firstOrderRunner),
-                             Generic.objectToString(secondOrderRunner), availableLimit);
+                logger.error("bogus sides for getAmountsToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit);
                 resultList = List.of(0d, 0d);
             }
         }

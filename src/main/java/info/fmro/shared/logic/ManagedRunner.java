@@ -37,6 +37,7 @@ public class ManagedRunner
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ManagedRunner.class);
     private static final long serialVersionUID = 3553997020269888719L;
+    private static final long attachOrderMarketRunnerRecentPeriod = 100L;
     private final String marketId;
     private final RunnerId runnerId;
     //    private final long selectionId;
@@ -45,14 +46,38 @@ public class ManagedRunner
     private double minBackOdds = 1_001d, maxLayOdds = 1d; // defaults are unusable, which means no betting unless modified
     private double toBeUsedBackOdds = 1_001d, toBeUsedLayOdds = 1d;
     private double proportionOfMarketLimitPerRunner, idealBackExposure;
+    @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     private transient MarketRunner marketRunner;
     @Nullable
     private transient OrderMarketRunner orderMarketRunner;
+    private long attachOrderMarketRunnerStamp;
 
     public ManagedRunner(final String marketId, final RunnerId runnerId) {
         super();
         this.marketId = marketId;
         this.runnerId = runnerId;
+    }
+
+    public synchronized void setAttachOrderMarketRunnerStamp() {
+        final long currentTime = System.currentTimeMillis();
+        setAttachOrderMarketRunnerStamp(currentTime);
+    }
+
+    private synchronized void setAttachOrderMarketRunnerStamp(final long currentTime) {
+        this.attachOrderMarketRunnerStamp = currentTime;
+    }
+
+    public synchronized long getAttachOrderMarketRunnerStamp() {
+        return this.attachOrderMarketRunnerStamp;
+    }
+
+    public synchronized boolean isAttachOrderMarketRunnerRecent() {
+        final long currentTime = System.currentTimeMillis();
+        return isAttachOrderMarketRunnerRecent(currentTime);
+    }
+
+    private synchronized boolean isAttachOrderMarketRunnerRecent(final long currentTime) {
+        return this.attachOrderMarketRunnerStamp + attachOrderMarketRunnerRecentPeriod > currentTime;
     }
 
     private synchronized void attachRunner(@NotNull final MarketCache marketCache) {
@@ -83,23 +108,41 @@ public class ManagedRunner
         }
     }
 
+    @SuppressWarnings("unused")
     private synchronized void attachOrderRunner(@NotNull final OrderCache orderCache) {
+        attachOrderRunner(orderCache, false, System.currentTimeMillis());
+    }
+
+    private synchronized void attachOrderRunner(@NotNull final OrderCache orderCache, final boolean ignoreRecentFlag, final long currentTime) {
         if (this.orderMarketRunner == null) {
-            final OrderMarket orderMarket = Formulas.getOrderMarket(this.marketId, orderCache);
-            attachOrderRunner(orderMarket);
+            if (ignoreRecentFlag || !isAttachOrderMarketRunnerRecent(currentTime)) {
+                final OrderMarket orderMarket = Formulas.getOrderMarket(this.marketId, orderCache);
+                attachOrderRunner(orderMarket, true, currentTime);
+            } else { // !ignoreRecentFlag && isAttachOrderMarketRunnerRecent()
+                // too recent, won't try to attach again
+            }
         } else { // I already have the orderMarketRunner, nothing to be done
         }
     }
 
-    synchronized void attachOrderRunner(final OrderMarket orderMarket) {
+    @SuppressWarnings("unused")
+    private synchronized void attachOrderRunner(final OrderMarket orderMarket) {
+        attachOrderRunner(orderMarket, false, System.currentTimeMillis());
+    }
+
+    synchronized void attachOrderRunner(final OrderMarket orderMarket, final boolean ignoreRecentFlag, final long currentTime) {
         if (this.orderMarketRunner == null) {
             if (orderMarket == null) { // this is actually normal, no orders exist on the market
 //                logger.error("null orderMarket in attachOrderRunner for: {}", Generic.objectToString(this)); // I'll just print the error message; this error shouldn't happen and I don't think it's properly fixable
 //                logger.info("null orderMarket in attachOrderRunner for: {} {}", this.marketId, Generic.objectToString(this.runnerId));
 //                Generic.alreadyPrintedMap.logOnce(Generic.DAY_LENGTH_MILLISECONDS, logger, LogLevel.INFO, "null orderMarket in attachOrderRunner for: {} {}", this.marketId, Generic.objectToString(this.runnerId));
             } else {
-                this.orderMarketRunner = orderMarket.getOrderMarketRunner(this.runnerId);
-                if (this.orderMarketRunner == null) { // normal, it means no orders exist for this managedRunner, nothing else to be done
+                if (ignoreRecentFlag || !isAttachOrderMarketRunnerRecent(currentTime)) {
+                    this.orderMarketRunner = orderMarket.getOrderMarketRunner(this.runnerId);
+                    if (this.orderMarketRunner == null) { // normal, it means no orders exist for this managedRunner, nothing else to be done
+                    }
+                } else { // !ignoreRecentFlag && isAttachOrderMarketRunnerRecent()
+                    // too recent, won't try to attach again
                 }
             }
         } else { // I already have the orderMarketRunner, nothing to be done
@@ -114,7 +157,17 @@ public class ManagedRunner
 
     @SuppressWarnings("WeakerAccess")
     public synchronized OrderMarketRunner getOrderMarketRunner(@NotNull final OrderCache orderCache) {
-        attachOrderRunner(orderCache);
+        return getOrderMarketRunner(orderCache, false, System.currentTimeMillis());
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public synchronized OrderMarketRunner getOrderMarketRunner(@NotNull final OrderCache orderCache, final long currentTime) {
+        return getOrderMarketRunner(orderCache, false, currentTime);
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public synchronized OrderMarketRunner getOrderMarketRunner(@NotNull final OrderCache orderCache, final boolean ignoreRecentFlag, final long currentTime) {
+        attachOrderRunner(orderCache, ignoreRecentFlag, currentTime);
         return this.orderMarketRunner;
     }
 
@@ -127,7 +180,7 @@ public class ManagedRunner
             final RunnerId localRunnerId = this.runnerId;
             if (localRunnerId.equals(orderRunnerId)) {
 //                this.updateExposure(orderMarketRunner.getExposure());
-                this.orderMarketRunner.getExposure(this, pendingOrdersThread); // updates the exposure into this object
+                this.getExposure(orderCache, pendingOrdersThread); // updates the exposure into this object
             } else {
                 logger.error("not equal runnerIds in ManagedRunner.processOrders for: {} {} {}", Generic.objectToString(orderRunnerId), Generic.objectToString(localRunnerId), Generic.objectToString(this));
             }
@@ -162,8 +215,7 @@ public class ManagedRunner
             if (backExcessMatchedExposure >= .1d || layExcessMatchedExposure >= .1d) {
                 logger.error("matched exposure has breached the limit back:{} {} lay:{} {} for runner: {}", localBackAmountLimit, backMatchedExposure, localLayAmountLimit, layMatchedExposure, Generic.objectToString(this));
                 if (this.orderMarketRunner != null) {
-                    exposureHasBeenModified += this.orderMarketRunner.balanceMatchedAmounts(localBackAmountLimit, localLayAmountLimit, this.getToBeUsedBackOdds(), this.getToBeUsedLayOdds(), backExcessMatchedExposure, layExcessMatchedExposure,
-                                                                                            pendingOrdersThread);
+                    exposureHasBeenModified += this.balanceMatchedAmounts(backExcessMatchedExposure, layExcessMatchedExposure, pendingOrdersThread);
                 } else { // orderMarketRunner is null if no orders exist on the runner yet
                 }
             } else { // matched amounts don't break the limits, nothing to be done
@@ -204,7 +256,7 @@ public class ManagedRunner
                 exposureHasBeenModified += this.orderMarketRunner.cancelUnmatched(Side.B, pendingOrdersThread);
                 // matchedBackExposure, matchedLayExposure, unmatchedBackExposure, unmatchedBackProfit, unmatchedLayExposure, unmatchedLayProfit, tempBackExposure, tempBackProfit, tempLayExposure, tempLayProfit, tempBackCancel, tempLayCancel;
                 final double backExcessExposureAfterTempIsConsidered =
-                        backMatchedExcessExposure + this.orderMarketRunner.getTempBackExposure() + this.orderMarketRunner.getTempBackProfit() - this.orderMarketRunner.getTempLayExposure() - this.orderMarketRunner.getTempLayProfit();
+                        backMatchedExcessExposure + this.getBackTempExposure() + this.getBackTempProfit() - this.getLayTempExposure() - this.getLayTempProfit();
                 if (backExcessExposureAfterTempIsConsidered < .1d) {
                     exposureHasBeenModified += this.orderMarketRunner.cancelUnmatched(Side.L, pendingOrdersThread);
                 } else {
@@ -215,8 +267,7 @@ public class ManagedRunner
                     }
 
                     if (excessOnTheOtherSideRemaining >= .1d) {
-                        exposureHasBeenModified += this.orderMarketRunner.balanceMatchedAmounts(this.getBackAmountLimit(), this.getLayAmountLimit(), this.getToBeUsedBackOdds(), this.getToBeUsedLayOdds(), excessOnTheOtherSideRemaining, 0d,
-                                                                                                pendingOrdersThread);
+                        exposureHasBeenModified += this.balanceMatchedAmounts(excessOnTheOtherSideRemaining, 0d, pendingOrdersThread);
                     } else { // problem solved, no more adjustments needed
                     }
                 }
@@ -224,7 +275,7 @@ public class ManagedRunner
                 exposureHasBeenModified += this.orderMarketRunner.cancelUnmatched(Side.L, pendingOrdersThread);
                 // matchedBackExposure, matchedLayExposure, unmatchedBackExposure, unmatchedBackProfit, unmatchedLayExposure, unmatchedLayProfit, tempBackExposure, tempBackProfit, tempLayExposure, tempLayProfit, tempBackCancel, tempLayCancel;
                 final double layExcessExposureAfterTempIsConsidered =
-                        layMatchedExcessExposure + this.orderMarketRunner.getTempLayExposure() + this.orderMarketRunner.getTempLayProfit() - this.orderMarketRunner.getTempBackExposure() - this.orderMarketRunner.getTempBackProfit();
+                        layMatchedExcessExposure + this.getLayTempExposure() + this.getLayTempProfit() - this.getBackTempExposure() - this.getBackTempProfit();
                 if (layExcessExposureAfterTempIsConsidered < .1d) {
                     exposureHasBeenModified += this.orderMarketRunner.cancelUnmatched(Side.B, pendingOrdersThread);
                 } else {
@@ -235,8 +286,7 @@ public class ManagedRunner
                     }
 
                     if (excessOnTheOtherSideRemaining >= .1d) {
-                        exposureHasBeenModified += this.orderMarketRunner.balanceMatchedAmounts(this.getBackAmountLimit(), this.getLayAmountLimit(), this.getToBeUsedBackOdds(), this.getToBeUsedLayOdds(), 0d, excessOnTheOtherSideRemaining,
-                                                                                                pendingOrdersThread);
+                        exposureHasBeenModified += this.balanceMatchedAmounts(0d, excessOnTheOtherSideRemaining, pendingOrdersThread);
                     } else { // problem solved, no more adjustments needed
                     }
                 }
@@ -416,6 +466,10 @@ public class ManagedRunner
         return this.runnerId.getHandicap();
     }
 
+    public synchronized double simpleGetBackAmountLimit() {
+        return this.backAmountLimit;
+    }
+
     public synchronized double getBackAmountLimit() {
         return Formulas.oddsAreUsable(this.minBackOdds) ? this.backAmountLimit : 0d;
     }
@@ -431,6 +485,10 @@ public class ManagedRunner
             result = Math.min(marketCalculatedLimit, localBackAmountLimit);
         }
         return result;
+    }
+
+    public synchronized double simpleGetLayAmountLimit() {
+        return this.layAmountLimit;
     }
 
     public synchronized double getLayAmountLimit() {
@@ -596,6 +654,115 @@ public class ManagedRunner
             rulesManager.rulesHaveChanged.set(true);
         }
         return modified;
+    }
+
+    public synchronized double getTotalBackExposure() {
+        return this.getBackMatchedExposure() + this.getBackUnmatchedExposure() + this.getBackTempExposure();
+    }
+
+    public synchronized double getTotalLayExposure() {
+        return this.getLayMatchedExposure() + this.getLayUnmatchedExposure() + this.getLayTempExposure();
+    }
+
+    synchronized double placeOrder(final Side side, final double price, final double size, final OrdersThreadInterface pendingOrdersThread) {
+        // exposure.setBackTotalExposure(matchedBackExposure + unmatchedBackExposure + tempBackExposure);
+        // exposure.setLayTotalExposure(matchedLayExposure + unmatchedLayExposure + tempLayExposure);
+        final double sizePlaced;
+
+        if (side == Side.B) {
+            final double backTotalExposure = this.getBackMatchedExposure() + this.getBackUnmatchedExposure() + this.getBackTempExposure();
+            final double availableBackExposure = Math.max(0d, this.getBackAmountLimit() - backTotalExposure);
+            sizePlaced = Math.min(availableBackExposure, size);
+        } else if (side == Side.L) {
+            final double layTotalExposure = this.getLayMatchedExposure() + this.getLayUnmatchedExposure() + this.getLayTempExposure();
+            final double availableLayExposure = Math.max(0d, this.getLayAmountLimit() - layTotalExposure);
+            final double reducedPrice = price - 1d; // protection against division by zero
+            sizePlaced = reducedPrice == 0d ? size : Math.min(availableLayExposure / reducedPrice, size);
+        } else {
+            logger.error("unknown side {} {} {} during placeOrder for: {}", side, price, size, Generic.objectToString(this));
+            sizePlaced = 0d;
+        }
+
+        return pendingOrdersThread.addPlaceOrder(this.marketId, this.runnerId, side, price, sizePlaced);
+    }
+
+    synchronized int balanceTotalAmounts(final double backExcessExposure, final double layExcessExposure, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache) {
+        int exposureHasBeenModified = 0;
+        final double backUnmatchedExposureToBeCanceled = Math.min(backExcessExposure, this.getBackUnmatchedExposure()), layUnmatchedExposureToBeCanceled = Math.min(layExcessExposure, this.getLayUnmatchedExposure());
+        exposureHasBeenModified += cancelUnmatchedAmounts(backUnmatchedExposureToBeCanceled, layUnmatchedExposureToBeCanceled, pendingOrdersThread, orderCache);
+        exposureHasBeenModified += balanceMatchedAmounts(backExcessExposure - backUnmatchedExposureToBeCanceled, layExcessExposure - layUnmatchedExposureToBeCanceled, pendingOrdersThread);
+
+        return exposureHasBeenModified;
+    }
+
+    synchronized int cancelUnmatchedAmounts(final double backExcessExposure, final double layExcessExposure, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache) {
+        final OrderMarketRunner localOrderMarketRunner = this.getOrderMarketRunner(orderCache);
+        return localOrderMarketRunner == null ? 0 : localOrderMarketRunner.cancelUnmatchedAmounts(backExcessExposure, layExcessExposure, pendingOrdersThread);
+    }
+
+    private synchronized int balanceMatchedAmounts(final double backExcessExposure, final double layExcessExposure, final OrdersThreadInterface pendingOrdersThread) {
+        int exposureHasBeenModified = 0;
+        if (backExcessExposure >= .1d) { // I need to place a lay bet, with profit that would cancel the excess
+            // backExcessExposure - newLayProfit = newLayExposure
+            // backExcessExposure - sizeToPlace = sizeToPlace*(toBeUsedLayOdds-1d)
+            // backExcessExposure = sizeToPlace * toBeUsedLayOdds
+            if (placeOrder(Side.L, this.toBeUsedLayOdds, this.toBeUsedLayOdds == 0d ? 0d : backExcessExposure / this.toBeUsedLayOdds, pendingOrdersThread) > 0d) {
+                exposureHasBeenModified++;
+            } else { // no modification, nothing to be done
+            }
+        } else { // no excess exposure present, nothing to do
+        }
+
+        if (layExcessExposure >= .1d) { // I need to place a back bet, with profit that would cancel the excess
+            // layExcessExposure - newBackProfit = newBackExposure
+            // layExcessExposure - sizeToPlace*(toBeUsedBackOdds-1d) = sizeToPlace
+            // layExcessExposure = sizeToPlace * toBeUsedBackOdds
+            if (placeOrder(Side.B, this.toBeUsedBackOdds, this.toBeUsedBackOdds == 0d ? 0d : layExcessExposure / this.toBeUsedBackOdds, pendingOrdersThread) > 0d) {
+                exposureHasBeenModified++;
+            } else { // no modification, nothing to be done
+            }
+        } else { // no excess exposure present, nothing to do
+        }
+        return exposureHasBeenModified;
+    }
+
+    private synchronized void getOrderMarketRunnerExposure(@NotNull final OrderCache orderCache, final long currentTime) {
+        final OrderMarketRunner localOrderMarketRunner = this.getOrderMarketRunner(orderCache, currentTime);
+        if (localOrderMarketRunner == null) { // normal, nothing to do
+        } else {
+            localOrderMarketRunner.getMatchedExposure(this);
+            localOrderMarketRunner.getUnmatchedExposureAndProfit(this);
+        }
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public synchronized void getExposure(@NotNull final OrderCache orderCache, final OrdersThreadInterface pendingOrdersThread) {
+        final long currentTime = System.currentTimeMillis();
+        this.getOrderMarketRunnerExposure(orderCache, currentTime); // updates matchedBackExposure and matchedLayExposure; updates unmatchedBackExposure/Profit and unmatchedLayExposure/Profit
+        if (pendingOrdersThread == null) { // I'm in the Client, I'm not using the pendingOrdersThread
+        } else {
+            pendingOrdersThread.checkTemporaryOrdersExposure(this.marketId, this.runnerId, this);
+        }
+        this.timeStamp(); // it's fine to have the timeStamp before some chunk of the method, as this sequence is all synchronized; I need to timeStamp before the lines with getBack/LayUnmatchedProfit() & getBack/LayTempProfit()
+        this.setBackUnmatchedProfit(this.getBackUnmatchedProfit() + this.getBackTempProfit());
+        this.setLayUnmatchedProfit(this.getLayUnmatchedProfit() + this.getLayTempProfit());
+    }
+
+    @SuppressWarnings("unused")
+    synchronized int cancelUnmatched(final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache) { // cancel all unmatched orders
+        final OrderMarketRunner localOrderMarketRunner = this.getOrderMarketRunner(orderCache);
+        return localOrderMarketRunner == null ? 0 : localOrderMarketRunner.cancelUnmatched(pendingOrdersThread);
+    }
+
+    synchronized int cancelUnmatched(final Side sideToCancel, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache) { // cancel all unmatched orders on that side
+        final OrderMarketRunner localOrderMarketRunner = this.getOrderMarketRunner(orderCache);
+        return localOrderMarketRunner == null ? 0 : localOrderMarketRunner.cancelUnmatched(sideToCancel, pendingOrdersThread);
+    }
+
+    @SuppressWarnings("unused")
+    synchronized int cancelUnmatched(final Side sideToCancel, final double worstNotCanceledOdds, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache) {
+        final OrderMarketRunner localOrderMarketRunner = this.getOrderMarketRunner(orderCache);
+        return localOrderMarketRunner == null ? 0 : localOrderMarketRunner.cancelUnmatched(sideToCancel, worstNotCanceledOdds, pendingOrdersThread);
     }
 
     public synchronized int update(final double newMinBackOdds, final double newMaxLayOdds, final double newBackAmountLimit, final double newLayAmountLimit, @NotNull final RulesManager rulesManager) {

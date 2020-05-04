@@ -71,23 +71,21 @@ public final class CurrentOrderSummary
                 logger.error("null side in CurrentOrderSummary placedAmount: {}", Generic.objectToString(this));
                 amount = Math.max(size, Formulas.layExposure(price, size)); // assume the worst
             } else {
-                switch (this.side) {
-                    case BACK:
-                        amount = size;
-                        break;
-                    case LAY:
-                        amount = Formulas.layExposure(price, size);
-                        break;
-                    default:
+                amount = switch (this.side) {
+                    case BACK -> size;
+                    case LAY -> Formulas.layExposure(price, size);
+                    //noinspection UnnecessaryDefault
+                    default -> {
                         logger.error("unknown side {} in CurrentOrderSummary placedAmount: {}", this.side, Generic.objectToString(this));
-                        amount = Math.max(size, Formulas.layExposure(price, size)); // assume the worst
-                        break;
-                } // end switch
+                        yield Math.max(size, Formulas.layExposure(price, size)); // assume the worst
+                    }
+                }; // end switch
             }
         }
-
         return amount;
     }
+
+    // todo check all lines in server out.txt ... the program needs to have easy to understand output
 
     public synchronized String getEventId(@NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         if (this.eventId == null) {
