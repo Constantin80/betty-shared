@@ -43,12 +43,13 @@ public class FilterableTreeItem<T>
         super(value);
         this.filteredList.predicateProperty().bind(Bindings.createObjectBinding(() -> child -> {
             // Set the predicate of child items to force filtering
+            final TreeItemPredicate<T> predicateValue = this.predicate.get();
             if (child instanceof FilterableTreeItem) {
                 final FilterableTreeItem<T> filterableChild = (FilterableTreeItem<T>) child;
-                filterableChild.setPredicate(this.predicate.get());
+                filterableChild.setPredicate(predicateValue);
             }
             // If there is no predicate, keep this tree item
-            if (this.predicate.get() == null) {
+            if (predicateValue == null) {
                 return true;
             }
             // If there are children, keep this tree item
@@ -56,7 +57,7 @@ public class FilterableTreeItem<T>
                 return true;
             }
             // Otherwise ask the TreeItemPredicate
-            return this.predicate.get().test(this, child.getValue());
+            return predicateValue.test(this, child.getValue());
         }, this.predicate));
 
         //noinspection OverridableMethodCallDuringObjectConstruction
@@ -103,5 +104,10 @@ public class FilterableTreeItem<T>
      */
     public final void setPredicate(final TreeItemPredicate<T> predicate) {
         this.predicate.set(predicate);
+    }
+
+    public final void unbind() {
+//        this.filteredList.predicateProperty().unbind();
+//        Bindings.unbindContent(getChildren(), getBackingList());
     }
 }

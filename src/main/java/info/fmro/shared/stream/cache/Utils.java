@@ -2,16 +2,20 @@ package info.fmro.shared.stream.cache;
 
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.logic.ExistingFunds;
+import info.fmro.shared.logic.ManagedEventsMap;
 import info.fmro.shared.logic.ManagedMarket;
 import info.fmro.shared.logic.ManagedRunner;
-import info.fmro.shared.logic.RulesManager;
-import info.fmro.shared.stream.cache.market.MarketCache;
-import info.fmro.shared.stream.cache.order.OrderCache;
+import info.fmro.shared.logic.MarketsToCheckQueue;
+import info.fmro.shared.stream.cache.market.Market;
+import info.fmro.shared.stream.cache.order.OrderMarket;
 import info.fmro.shared.stream.enums.Side;
+import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
+import info.fmro.shared.utility.SynchronizedMap;
+import info.fmro.shared.utility.SynchronizedSet;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -20,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuppressWarnings({"OverlyComplexClass", "UtilityClass"})
 public final class Utils {
@@ -30,50 +35,55 @@ public final class Utils {
     }
 
     public static void calculateMarketLimits(final double maxTotalLimit, @NotNull final Iterable<? extends ManagedMarket> marketsSet, final boolean shouldCalculateExposure, final boolean marketLimitsCanBeIncreased,
-                                             @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderCache orderCache, @NotNull final ExistingFunds safetyLimits,
-                                             @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final MarketCache marketCache, @NotNull final RulesManager rulesManager,
-                                             final long programStartTime) {
+                                             @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final ExistingFunds safetyLimits,
+                                             @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache,
+                                             @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> markets,
+                                             @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck, @NotNull final AtomicBoolean marketsMapModified,
+                                             @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, final long programStartTime) {
         @SuppressWarnings("unused") double totalMatchedExposure = 0d, totalExposure = 0d, sumOfMaxMarketLimits = 0d;
         final Collection<ManagedMarket> marketsWithErrorCalculatingExposure = new HashSet<>(1), marketsWithExposureHigherThanTheirMaxLimit = new HashSet<>(1);
         for (final ManagedMarket managedMarket : marketsSet) {
-            if (shouldCalculateExposure && marketCache.contains(managedMarket)) {
-                managedMarket.attachMarket(marketCache, rulesManager, marketCataloguesMap, programStartTime);
-                managedMarket.calculateExposure(pendingOrdersThread, orderCache, programStartTime, rulesManager);
-            } else { // no need to calculate exposure, it was just calculated previously
-            }
-            final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
-            sumOfMaxMarketLimits += maxMarketLimit;
-            if (managedMarket.defaultExposureValuesExist()) {
-                totalMatchedExposure += maxMarketLimit;
-                totalExposure += maxMarketLimit;
-                marketsWithErrorCalculatingExposure.add(managedMarket); // this market should have all its unmatched bets cancelled, nothing else as I don't know the exposure
+            if (managedMarket == null) {
+                logger.error("null managedMarket in calculateMarketLimits for: {}", Generic.objectToString(marketsSet));
             } else {
-                final double marketMatchedExposure = managedMarket.getMarketMatchedExposure();
-                totalMatchedExposure += marketMatchedExposure;
-                final double marketTotalExposure = managedMarket.getMarketTotalExposure();
-                if (marketTotalExposure > maxMarketLimit) {
-                    marketsWithExposureHigherThanTheirMaxLimit.add(managedMarket); // if total exposure > maxMarketLimit, reduce the exposure
-                    totalExposure += Math.max(maxMarketLimit, marketMatchedExposure);
-                    if (managedMarket.isEnabledMarket()) {
-                        logger.error("managedMarket with total exposure {} higher than maxLimit {}: {} {} {}", marketTotalExposure, maxMarketLimit, managedMarket.getId(), managedMarket.simpleGetMarketName(), managedMarket.simpleGetParentEventId());
-                    } else {
-                        logger.info("disabled managedMarket with total exposure {} higher than maxLimit {}: {} {} {}", marketTotalExposure, maxMarketLimit, managedMarket.getId(), managedMarket.simpleGetMarketName(), managedMarket.simpleGetParentEventId());
+                if (shouldCalculateExposure && marketCache.containsKey(managedMarket.getMarketId())) {
+                    managedMarket.attachMarket(marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime);
+                    managedMarket.calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck);
+                } else { // no need to calculate exposure, it was just calculated previously
+                }
+                final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
+                sumOfMaxMarketLimits += maxMarketLimit;
+                if (managedMarket.defaultExposureValuesExist()) {
+                    totalMatchedExposure += maxMarketLimit;
+                    totalExposure += maxMarketLimit;
+                    marketsWithErrorCalculatingExposure.add(managedMarket); // this market should have all its unmatched bets cancelled, nothing else as I don't know the exposure
+                } else {
+                    final double marketMatchedExposure = managedMarket.getMarketMatchedExposure();
+                    totalMatchedExposure += marketMatchedExposure;
+                    final double marketTotalExposure = managedMarket.getMarketTotalExposure();
+                    if (marketTotalExposure > maxMarketLimit) {
+                        marketsWithExposureHigherThanTheirMaxLimit.add(managedMarket); // if total exposure > maxMarketLimit, reduce the exposure
+                        totalExposure += Math.max(maxMarketLimit, marketMatchedExposure);
+                        if (managedMarket.isEnabledMarket()) {
+                            logger.error("managedMarket with total exposure {} higher than maxLimit {}: {} {} {}", marketTotalExposure, maxMarketLimit, managedMarket.getMarketId(), managedMarket.simpleGetMarketName(),
+                                         managedMarket.simpleGetParentEventId());
+                        } else {
+                            logger.info("disabled managedMarket with total exposure {} higher than maxLimit {}: {} {} {}", marketTotalExposure, maxMarketLimit, managedMarket.getMarketId(), managedMarket.simpleGetMarketName(),
+                                        managedMarket.simpleGetParentEventId());
+                        }
+                    } else { // normal case
+                        totalExposure += marketTotalExposure;
                     }
-                } else { // normal case
-                    totalExposure += marketTotalExposure;
                 }
             }
         } // end for
 
         // todo test order placing
+        // todo the program needs to have easy to understand output
+
         // todo it takes too long until market appears with all the values set in the GUI; it takes too long to add the managedRunners to the managedMarket
         // todo runners are not in proper order, plus I get a lot of extra runners
-        // todo see if still happens: while right panel visible, don't remove events from map (I think I should still remove markets)
-        // todo see if it works: keyboard shortcut to the textField on the right, if visible
-        // todo see if it works: click on right treeview should reset the filter and select whatever item was clicked; I can use treeview scrollTo (or I can even bind that action to a key to press manually, if automated scroll doesn't work)
-
-        // todo strange errors in client out.txt; does manually clearing the textField cause the same erorrs?
-        // todo errors in server out.txt, plus "no market found in MarketCache, probably old expired market, for:"
+        // todo some errors in both out.txt
 
 //        final double totalMarketLimit = Math.min(maxTotalLimit, sumOfMaxMarketLimits);
 //        @SuppressWarnings("unused") final double availableTotalExposure = totalMarketLimit - totalExposure; // can be positive or negative, not used for now, as I use the ConsideringOnlyMatched variant
@@ -85,7 +95,7 @@ public final class Utils {
             if (managedMarket.simpleGetMarket() == null) { // no market attached, won't do anything on this market yet, likely the stream hasn't updated yet
             } else {
                 managedMarket.cancelAllUnmatchedBets.set(true);
-                managedMarket.setCalculatedLimit(0d, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
+                managedMarket.setCalculatedLimit(0d, marketLimitsCanBeIncreased, safetyLimits, listOfQueues);
             }
         }
         for (final ManagedMarket managedMarket : marketsWithExposureHigherThanTheirMaxLimit) {
@@ -95,7 +105,7 @@ public final class Utils {
 //            availableExposureInTheMarkets += reducedExposure;
             // I don't think modifying the availableExposureInTheMarkets is needed, as the maxMarketLimit was already used when calculating in the case of these ExposureHigherThanTheirMaxLimit markets
 
-            managedMarket.setCalculatedLimit(maxLimit, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
+            managedMarket.setCalculatedLimit(maxLimit, marketLimitsCanBeIncreased, safetyLimits, listOfQueues);
         }
         if (sumOfMaxMarketLimits <= maxTotalLimit) { // nothing to do, totalMarketLimit == sumOfMaxMarketLimits
 //            logger.info("sumOfMaxMarketLimits <= maxTotalLimit: {} {}", sumOfMaxMarketLimits, maxTotalLimit);
@@ -105,7 +115,7 @@ public final class Utils {
                     final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
 //                    final double calculatedLimit = managedMarket.simpleGetCalculatedLimit();
 //                    if (calculatedLimit > maxMarketLimit) {
-                    managedMarket.setCalculatedLimit(maxMarketLimit, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
+                    managedMarket.setCalculatedLimit(maxMarketLimit, marketLimitsCanBeIncreased, safetyLimits, listOfQueues);
 //                    } else { // calculatedLimit is smaller than maxLimit, nothing to do
 //                    }
                 }
@@ -119,7 +129,7 @@ public final class Utils {
 //                    final double matchedExposure = managedMarket.getMarketMatchedExposure();
                     final double calculatedLimit = maxMarketLimit * calculatedLimitProportionOutOfMaxLimit;
 //                    logger.info("set market calculatedLimit: {} {} {} {}", calculatedLimit, maxMarketLimit, sumOfMaxMarketLimits, maxTotalLimit);
-                    managedMarket.setCalculatedLimit(calculatedLimit, marketLimitsCanBeIncreased, safetyLimits, rulesManager);
+                    managedMarket.setCalculatedLimit(calculatedLimit, marketLimitsCanBeIncreased, safetyLimits, listOfQueues);
                 }
             } // end for
         }
@@ -184,7 +194,7 @@ public final class Utils {
             logger.error("bogus sideList for getExposureToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure);
             resultList = List.of(0d, 0d);
         } else {
-            final @NotNull Side firstSide = sideList.get(0), secondSide = sideList.get(1);
+            @NotNull final Side firstSide = sideList.get(0), secondSide = sideList.get(1);
             if (firstSide == Side.B && secondSide == Side.L) {
                 existingTempExposures = List.of(firstRunner.getBackTempExposure(), secondRunner.getLayTempExposure());
                 existingNonMatchedExposures = List.of(firstRunner.getBackUnmatchedExposure() + firstRunner.getBackTempExposure(), secondRunner.getLayUnmatchedExposure() + secondRunner.getLayTempExposure());
@@ -334,7 +344,7 @@ public final class Utils {
             logger.error("bogus sideList for getAmountsToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit);
             resultList = List.of(0d, 0d);
         } else {
-            final @NotNull Side firstSide = sideList.get(0), secondSide = sideList.get(1);
+            @NotNull final Side firstSide = sideList.get(0), secondSide = sideList.get(1);
             if (firstSide == Side.B && secondSide == Side.L) {
                 existingUnmatchedExposures = List.of(firstRunner.getBackUnmatchedExposure(), secondRunner.getLayUnmatchedExposure());
                 existingNonMatchedExposures = List.of(firstRunner.getBackUnmatchedExposure() + firstRunner.getBackTempExposure(), secondRunner.getLayUnmatchedExposure() + secondRunner.getLayTempExposure());

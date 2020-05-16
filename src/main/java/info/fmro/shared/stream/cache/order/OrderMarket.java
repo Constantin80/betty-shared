@@ -22,7 +22,7 @@ public class OrderMarket
     private static final Logger logger = LoggerFactory.getLogger(OrderMarket.class);
     private static final long serialVersionUID = 6849187708144779801L;
     private final String marketId;
-    private final @NotNull Map<RunnerId, OrderMarketRunner> marketRunners = new ConcurrentHashMap<>(4); // only place where orderMarketRunners are stored
+    private @NotNull final Map<RunnerId, OrderMarketRunner> marketRunners = new ConcurrentHashMap<>(4); // only place where orderMarketRunners are stored
     private boolean isClosed;
 
     OrderMarket(final String marketId, @NotNull final AtomicBoolean newOrderMarketCreated) {

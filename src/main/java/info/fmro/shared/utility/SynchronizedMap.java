@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 @SuppressWarnings({"ClassWithTooManyMethods", "BooleanMethodIsAlwaysInverted"})
 public class SynchronizedMap<K, V>
@@ -125,6 +126,10 @@ public class SynchronizedMap<K, V>
 
     public synchronized boolean isEmpty() {
         return this.map.isEmpty();
+    }
+
+    public synchronized V computeIfAbsent(final K key, final Function<? super K, ? extends V> mappingFunction) {
+        return this.map.computeIfAbsent(key, mappingFunction);
     }
 
     public synchronized V put(final K key, final V value, final boolean intentionalPutInsteadOfPutIfAbsent) {

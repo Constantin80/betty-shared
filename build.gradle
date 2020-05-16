@@ -11,7 +11,7 @@ sourceCompatibility = 14
 targetCompatibility = 14
 
 javafx {
-    version = "14"
+    version = "14.0.1"
     modules = ['javafx.controls']
 }
 compileJava {

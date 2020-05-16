@@ -1017,17 +1017,6 @@ public final class Generic {
         }
     }
 
-    @NotNull
-    public static boolean[] closeObjects(@NotNull final Object... objects) {
-        final boolean[] closeSuccess = new boolean[objects.length];
-        final int arrayLength = objects.length;
-        for (int i = 0; i < arrayLength; i++) {
-            closeSuccess[i] = closeObject(objects[i]);
-        }
-
-        return closeSuccess;
-    }
-
     @Nullable
     public static Method getMethod(final Class<?> objectClass, final String methodName, final Class<?>... parameterTypes) {
         @Nullable final Method result;
@@ -1144,6 +1133,17 @@ public final class Generic {
         }
 
         return setSoLingerSuccess;
+    }
+
+    @NotNull
+    public static boolean[] closeObjects(@NotNull final Object... objects) {
+        final boolean[] closeSuccess = new boolean[objects.length];
+        final int arrayLength = objects.length;
+        for (int i = 0; i < arrayLength; i++) {
+            closeSuccess[i] = closeObject(objects[i]);
+        }
+
+        return closeSuccess;
     }
 
     @SuppressWarnings("NestedTryStatement")

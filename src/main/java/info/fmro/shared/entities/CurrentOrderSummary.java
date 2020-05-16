@@ -85,8 +85,6 @@ public final class CurrentOrderSummary
         return amount;
     }
 
-    // todo check all lines in server out.txt ... the program needs to have easy to understand output
-
     public synchronized String getEventId(@NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         if (this.eventId == null) {
             createEventId(marketCataloguesMap);

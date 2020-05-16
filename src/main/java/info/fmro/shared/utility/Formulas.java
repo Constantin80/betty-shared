@@ -6,8 +6,6 @@ import info.fmro.shared.entities.EventType;
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.entities.MarketDescription;
 import info.fmro.shared.stream.cache.market.Market;
-import info.fmro.shared.stream.cache.market.MarketCache;
-import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.cache.order.OrderMarket;
 import info.fmro.shared.stream.enums.Side;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
@@ -423,12 +421,12 @@ public final class Formulas {
         }
     }
 
-    public static Market getMarket(final String marketId, @NotNull final MarketCache marketCache) {
-        return marketCache.getMarket(marketId);
+    public static Market getMarket(final String marketId, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache) {
+        return marketCache.get(marketId);
     }
 
-    public static OrderMarket getOrderMarket(final String marketId, @NotNull final OrderCache orderCache) {
-        return orderCache.getOrderMarket(marketId);
+    public static OrderMarket getOrderMarket(final String marketId, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache) {
+        return orderCache.get(marketId);
     }
 
     public static String getEventIdOfMarketCatalogue(final MarketCatalogue marketCatalogue) {
@@ -466,12 +464,12 @@ public final class Formulas {
         return result;
     }
 
-    public static Event getStoredEventOfMarketId(final String marketId, final @NotNull SynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
+    public static Event getStoredEventOfMarketId(final String marketId, @NotNull final SynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final String eventId = getEventIdOfMarketId(marketId, marketCataloguesMap);
         return eventsMap.get(eventId);
     }
 
-    public static Event getStoredEventOfMarketCatalogue(final MarketCatalogue marketCatalogue, final @NotNull SynchronizedMap<? super String, ? extends Event> eventsMap) {
+    public static Event getStoredEventOfMarketCatalogue(final MarketCatalogue marketCatalogue, @NotNull final SynchronizedMap<? super String, ? extends Event> eventsMap) {
         final String eventId = getEventIdOfMarketCatalogue(marketCatalogue);
         return eventsMap.get(eventId);
     }

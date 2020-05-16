@@ -12,13 +12,14 @@ class ManagedMarketsMapTest {
     void put() { // no need for assertions, I'm just manually checking some log messages; this test will pass everytime
         final StreamSynchronizedMap<? super String, ? extends Event> eventsMap = new StreamSynchronizedMap<>(Event.class);
         final RulesManager rulesManager = new RulesManager();
-        final ManagedEvent parentEvent = new ManagedEvent("eventId", eventsMap, rulesManager);
+        final ManagedEvent parentEvent = new ManagedEvent("eventId", eventsMap, rulesManager.markets, rulesManager.listOfQueues);
         final ManagedMarketsMap managedMarketsMap = new ManagedMarketsMap(parentEvent);
 
         final MarketCache marketCache = new MarketCache();
         final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap = new StreamSynchronizedMap<>(MarketCatalogue.class);
-        final ManagedMarket managedMarket = new ManagedMarket("marketId", marketCache, rulesManager, marketCataloguesMap, 0L);
+        final ManagedMarket managedMarket = new ManagedMarket("marketId", marketCache.markets, rulesManager.listOfQueues, rulesManager.marketsToCheck, rulesManager.events, rulesManager.markets, rulesManager.rulesHaveChanged, marketCataloguesMap,
+                                                              0L);
 
-        managedMarketsMap.put("marketId", managedMarket, rulesManager);
+        managedMarketsMap.put("marketId", managedMarket, rulesManager.markets);
     }
 }
