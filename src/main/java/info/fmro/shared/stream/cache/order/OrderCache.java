@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class OrderCache
         implements Serializable, StreamObjectInterface {
@@ -34,11 +35,13 @@ public class OrderCache
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     public final SynchronizedMap<String, OrderMarket> markets = new SynchronizedMap<>(4); // only place where orderMarkets are permanently stored
     private boolean orderMarketRemovedOnClose = true; // default
+    public transient AtomicLong initializedFromStreamStamp = new AtomicLong();
 
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         this.listOfQueues = new ListOfQueues();
+        this.initializedFromStreamStamp = new AtomicLong();
     }
 
     public synchronized OrderCache getCopy() {
@@ -71,6 +74,10 @@ public class OrderCache
         return readSuccessful;
     }
 
+//    public synchronized boolean hasBeenInitializedFromStream() {
+//        return this.hasBeenInitializedFromStream;
+//    }
+
     public synchronized void onOrderChange(@NotNull final ChangeMessage<? extends OrderMarketChange> changeMessage, @NotNull final AtomicBoolean orderCacheHasReset, @NotNull final AtomicBoolean newOrderMarketCreated,
                                            final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache,
                                            @NotNull final ListOfQueues rulesManagerListOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final ManagedEventsMap events,
@@ -79,6 +86,8 @@ public class OrderCache
         if (changeMessage.isStartOfNewSubscription()) {
             this.markets.clear();
             orderCacheHasReset.set(true);
+            //noinspection NonPrivateFieldAccessedInSynchronizedContext
+            this.initializedFromStreamStamp.set(System.currentTimeMillis());
         }
 
         if (changeMessage.getItems() != null) {

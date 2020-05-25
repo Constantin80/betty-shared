@@ -389,13 +389,12 @@ public class RulesManager
 
     public synchronized ManagedEvent setEventAmountLimit(final String eventId, final Double newAmount, final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
                                                          @NotNull final ExistingFunds safetyLimits, final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
-                                                         @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, final long programStartTime) {
+                                                         @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         // newAmount == null resets the amount to default -1d value
         @NotNull final ManagedEvent managedEvent = this.events.get(eventId);
         if (managedEvent != null) {
             managedEvent.setAmountLimit(newAmount == null ? -1d : newAmount, this.markets, this.listOfQueues, this.marketsToCheck, this.events, this.rulesHaveChanged, this.marketsForOutsideCheck, this.marketsMapModified,
-                                        this.newMarketsOrEventsForOutsideCheck, pendingOrdersThread, orderCache,
-                                        safetyLimits, marketCataloguesMap, marketCache, programStartTime);
+                                        this.newMarketsOrEventsForOutsideCheck, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, orderCacheInitializedFromStreamStamp, programStartTime);
         } else {
             logger.error("trying to setEventAmountLimit on an event that doesn't exist: {} {}", eventId, newAmount); // this also covers the case where the element is null, but this should never happen
         }
@@ -504,7 +503,8 @@ public class RulesManager
     private synchronized void addManagedRunner(@NotNull final String marketId, final long selectionId, final Double handicap, final double minBackOdds, final double maxLayOdds, final double backAmountLimit, final double layAmountLimit,
                                                final double marketAmountLimit, final double eventAmountLimit, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
                                                @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final ExistingFunds safetyLimits,
-                                               @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, final long programStartTime) {
+                                               @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap,
+                                               @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         final ManagedMarket managedMarket = this.addManagedMarket(marketId, marketCataloguesMap, marketCache, eventsMap, programStartTime);
         if (managedMarket != null) {
             managedMarket.updateRunner(selectionId, handicap, minBackOdds, maxLayOdds, backAmountLimit, layAmountLimit, this.listOfQueues, this.marketsToCheck, this.rulesHaveChanged);
@@ -524,7 +524,7 @@ public class RulesManager
                 if (managedEvent == null) { // nothing to be done, error message was printed earlier
                 } else {
                     managedEvent.setAmountLimit(eventAmountLimit, this.markets, this.listOfQueues, this.marketsToCheck, this.events, this.rulesHaveChanged, this.marketsForOutsideCheck, this.marketsMapModified, this.newMarketsOrEventsForOutsideCheck,
-                                                pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, programStartTime);
+                                                pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, orderCacheInitializedFromStreamStamp, programStartTime);
                 }
             }
         } else {
@@ -604,7 +604,8 @@ public class RulesManager
 
     public synchronized void executeCommand(@NotNull final String commandString, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
                                             @NotNull final ExistingFunds safetyLimits, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
-                                            @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, final long programStartTime) {
+                                            @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache,
+                                            @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         if (commandString.startsWith("event ")) {
             final String eventString = commandString.substring("event ".length()).trim();
             if (eventString.contains(" ")) {
@@ -627,7 +628,7 @@ public class RulesManager
                     } else {
                         final ManagedEvent managedEvent = addManagedEvent(eventId, eventsMap, marketCataloguesMap);
                         managedEvent.setAmountLimit(doubleValue, this.markets, this.listOfQueues, this.marketsToCheck, this.events, this.rulesHaveChanged, this.marketsForOutsideCheck, this.marketsMapModified, this.newMarketsOrEventsForOutsideCheck,
-                                                    pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, programStartTime);
+                                                    pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, orderCacheInitializedFromStreamStamp, programStartTime);
                     }
                 } else {
                     logger.error("unknown eventCommand in executeCommand: {} {}", eventCommand, commandString);
@@ -683,15 +684,15 @@ public class RulesManager
 
     public synchronized void calculateMarketLimits(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final ExistingFunds safetyLimits,
                                                    @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache,
-                                                   final long programStartTime) {
+                                                   @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
 //        this.marketsMapModified.set(false);
         final double totalLimit = safetyLimits.getTotalLimit();
         Utils.calculateMarketLimits(totalLimit, this.markets.valuesCopy(), true, true, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, this.listOfQueues, this.marketsToCheck,
-                                    this.events, this.markets, this.rulesHaveChanged, this.marketsForOutsideCheck, this.marketsMapModified, this.newMarketsOrEventsForOutsideCheck, programStartTime);
+                                    this.events, this.markets, this.rulesHaveChanged, this.marketsForOutsideCheck, this.marketsMapModified, this.newMarketsOrEventsForOutsideCheck, orderCacheInitializedFromStreamStamp, programStartTime);
 
         for (final ManagedEvent managedEvent : this.events.valuesCopy()) {
             managedEvent.calculateMarketLimits(this.markets, this.listOfQueues, this.marketsToCheck, this.events, this.rulesHaveChanged, this.marketsForOutsideCheck, this.marketsMapModified, this.newMarketsOrEventsForOutsideCheck, pendingOrdersThread,
-                                               orderCache, safetyLimits, marketCataloguesMap, marketCache, programStartTime);
+                                               orderCache, safetyLimits, marketCataloguesMap, marketCache, orderCacheInitializedFromStreamStamp, programStartTime);
         }
     }
 
@@ -731,7 +732,8 @@ public class RulesManager
 
     public synchronized void manageMarket(final ManagedMarket managedMarket, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
                                           @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate, @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits,
-                                          @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
+                                          @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean mustStop, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp,
+                                          final long programStartTime) {
         if (managedMarket == null) {
             logger.error("null managedMarket to check in RulesManager, marketsToCheck: {}", Generic.objectToString(this.marketsToCheck));
             this.markets.removeValueAll(null);
@@ -740,7 +742,7 @@ public class RulesManager
             this.marketsMapModified.set(true);
         } else {
             managedMarket.manage(marketCache, orderCache, pendingOrdersThread, currencyRate, speedLimit, safetyLimits, this.listOfQueues, this.marketsToCheck, this.marketsForOutsideCheck, this.rulesHaveChanged, this.marketsMapModified,
-                                 this.newMarketsOrEventsForOutsideCheck, this.events, this.markets, marketCataloguesMap, programStartTime);
+                                 this.newMarketsOrEventsForOutsideCheck, this.events, this.markets, marketCataloguesMap, mustStop, orderCacheInitializedFromStreamStamp, programStartTime);
         }
     }
 
@@ -796,19 +798,20 @@ public class RulesManager
 
     public synchronized void addManagedRunnerCommands(@NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final OrdersThreadInterface pendingOrdersThread,
                                                       @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final ExistingFunds safetyLimits, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache,
-                                                      @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, final long programStartTime) {
+                                                      @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         this.newAddManagedRunnerCommand.set(false);
         final HashSet<String> setCopy = this.addManagedRunnerCommands.clear();
 
         for (final String addManagedRunnerCommand : setCopy) {
-            parseAddManagedRunnerCommand(addManagedRunnerCommand, marketCataloguesMap, pendingOrdersThread, orderCache, safetyLimits, marketCache, eventsMap, programStartTime);
+            parseAddManagedRunnerCommand(addManagedRunnerCommand, marketCataloguesMap, pendingOrdersThread, orderCache, safetyLimits, marketCache, eventsMap, orderCacheInitializedFromStreamStamp, programStartTime);
         }
     }
 
     @SuppressWarnings("OverlyNestedMethod")
     private synchronized void parseAddManagedRunnerCommand(final String addManagedRunnerCommand, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
                                                            @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final ExistingFunds safetyLimits,
-                                                           @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, final long programStartTime) {
+                                                           @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap,
+                                                           @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         // String:marketId long:selectionId Double:handicap(default:null)
         // double optionals:minBackOdds maxLayOdds backAmountLimit layAmountLimit marketAmountLimit eventAmountLimit
         final String[] argumentsArray = Generic.splitStringAroundSpaces(addManagedRunnerCommand);
@@ -889,7 +892,7 @@ public class RulesManager
                     logger.error("bogus addManagedRunnerCommand: {} {}", arrayLength, addManagedRunnerCommand);
                 } else {
                     addManagedRunner(marketId, selectionId, handicap, minBackOdds, maxLayOdds, backAmountLimit, layAmountLimit, marketAmountLimit, eventAmountLimit, marketCataloguesMap, pendingOrdersThread, orderCache, safetyLimits, marketCache,
-                                     eventsMap, programStartTime);
+                                     eventsMap, orderCacheInitializedFromStreamStamp, programStartTime);
                 }
             }
         } else {

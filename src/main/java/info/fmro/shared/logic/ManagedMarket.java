@@ -6,6 +6,7 @@ import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.MarketBettingType;
 import info.fmro.shared.enums.ProgramName;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
+import info.fmro.shared.objects.Exposure;
 import info.fmro.shared.stream.cache.Utils;
 import info.fmro.shared.stream.cache.market.Market;
 import info.fmro.shared.stream.cache.order.OrderMarket;
@@ -40,6 +41,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass", "WeakerAccess"})
 public class ManagedMarket
@@ -66,6 +68,7 @@ public class ManagedMarket
     private boolean marketAlmostLive;
     private boolean enabledMarket = true;
     private final long creationTime;
+    private final AtomicBoolean isBeingManaged = new AtomicBoolean();
 
     @SuppressWarnings("InstanceVariableMayNotBeInitializedByReadObject")
     private transient ManagedEvent parentEvent;
@@ -105,6 +108,29 @@ public class ManagedMarket
     @NotNull
     public synchronized HashMap<RunnerId, ManagedRunner> getRunners() {
         return new HashMap<>(this.runners);
+    }
+
+//    private synchronized boolean exposureIsRecent() {
+//        final long currentTime = System.currentTimeMillis();
+//        return exposureIsRecent(currentTime);
+//    }
+
+    private synchronized boolean exposureIsRecent(final long currentTime) {
+        final boolean isRecent;
+        int notRecentCounter = 0;
+        for (final ManagedRunner managedRunner : this.runners.values()) {
+            if (managedRunner.isRecent(currentTime)) { // no error, nothing to be done
+            } else {
+                notRecentCounter++;
+            }
+        }
+        if (notRecentCounter == 0) {
+            isRecent = true;
+        } else {
+            isRecent = false;
+            logger.info("exposureIsNotRecent {} out of {} for: {}", notRecentCounter, this.runners.size(), this.marketId);
+        }
+        return isRecent;
     }
 
     private synchronized boolean isVeryRecent() {
@@ -709,7 +735,7 @@ public class ManagedMarket
                 if (currentTime + almostLivePeriod >= timeGoesLive) {
                     this.marketAlmostLive = true;
                 }
-                logger.info("managed market {} is almost live: {} {} {} {}", this.marketId, this.marketAlmostLive, timeGoesLive, almostLivePeriod, currentTime);
+                logger.info("managed market {} is almost live: {} {} {} {} {}", this.marketId, this.marketAlmostLive, timeGoesLive, Generic.addCommas(almostLivePeriod), currentTime, Generic.addCommas(timeGoesLive - currentTime));
             }
             if (this.marketAlmostLive) {
                 logger.info("managed market is almost live: {} {}", this.marketId, this.marketName);
@@ -915,7 +941,8 @@ public class ManagedMarket
     @SuppressWarnings("OverlyNestedMethod")
     private synchronized int useTheNewLimit(@NotNull final ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread,
                                             @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final ListOfQueues listOfQueues, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck,
-                                            @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final AtomicBoolean marketsMapModified, @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, final long programStartTime) {
+                                            @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final AtomicBoolean marketsMapModified, @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck,
+                                            @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         int modifications = 0;
         if (Double.isNaN(this.marketTotalExposure)) {
             logger.error("marketTotalExposure not initialized in useTheNewLimit for: {}", Generic.objectToString(this));
@@ -1010,7 +1037,7 @@ public class ManagedMarket
                     }
                 }
                 if (modifications > 0) {
-                    calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck);
+                    calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck, orderCacheInitializedFromStreamStamp);
                     modifications = 0;
                 } else { // no need to calculateExposure
                 }
@@ -1253,10 +1280,29 @@ public class ManagedMarket
         return success;
     }
 
+    private synchronized boolean exposureCanBeCalculated(@NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck,
+                                                         @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final AtomicBoolean marketsMapModified, @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck,
+                                                         @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
+        final long orderCacheStamp = orderCacheInitializedFromStreamStamp.get();
+        final long currentTime = System.currentTimeMillis();
+        final boolean returnValue = this.market != null && orderCacheStamp > 0L && isSupported(listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck);
+        if (returnValue) { // no error, no message to print
+        } else {
+            if (Formulas.programHasRecentlyStarted(currentTime, programStartTime) || isVeryRecent() || !isEnabledMarket()) { // normal
+            } else if (orderCacheStamp <= 0) {
+                logger.info("trying to calculateExposure on orderCacheStamp {}, nothing will be done: {} {} - Market attached: {}", orderCacheStamp, this.marketId, this.marketName, this.market != null);
+            } else {
+                logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {} {} - Market attached: {}", this.marketId, this.marketName, this.market != null);
+            }
+        }
+        return returnValue;
+    }
+
     public synchronized void calculateExposure(@NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, final long programStartTime,
                                                @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck,
-                                               @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final AtomicBoolean marketsMapModified, @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck) {
-        if (this.market != null && isSupported(listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck)) {
+                                               @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final AtomicBoolean marketsMapModified, @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck,
+                                               @NotNull final AtomicLong orderCacheInitializedFromStreamStamp) {
+        if (exposureCanBeCalculated(listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck, orderCacheInitializedFromStreamStamp, programStartTime)) {
             final boolean success = updateRunnerExposure(pendingOrdersThread, orderCache);
             this.marketMatchedExposure = Double.NaN;
             this.marketTotalExposure = Double.NaN;
@@ -1275,12 +1321,8 @@ public class ManagedMarket
                 }
             } else { // nothing to do, default Double.NaN values will be retained
             }
-        } else { // for not supported I can't calculate the exposure
+        } else { // for not supported I can't calculate the exposure; potential log messages have been written already in the exposureCanBeCalculated method
 //            logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {}", Generic.objectToString(this));
-            if (Formulas.programHasRecentlyStarted(System.currentTimeMillis(), programStartTime) || isVeryRecent() || !isEnabledMarket()) { // normal
-            } else {
-                logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {} {} - Market attached: {}", this.marketId, this.marketName, this.market != null);
-            }
         }
     }
 
@@ -1443,65 +1485,94 @@ public class ManagedMarket
     // manage market timeStamp; recent is 5 seconds; some non urgent actions that add towards hourly order limit will only be done if non recent, and the stamp will only get updated on this branch
     // the solution I found was to set the manageMarketPeriod in the BetFrequencyLimit class, depending on how close to the hourly limit I am
     @SuppressWarnings("OverlyNestedMethod")
-    public synchronized void manage(@NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread,
-                                    @NotNull final AtomicDouble currencyRate, @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final ListOfQueues listOfQueues,
-                                    @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck, @NotNull final AtomicBoolean rulesHaveChanged,
-                                    @NotNull final AtomicBoolean marketsMapModified, @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> markets,
-                                    @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
+    public void manage(@NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final OrdersThreadInterface pendingOrdersThread,
+                       @NotNull final AtomicDouble currencyRate, @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits, @NotNull final ListOfQueues listOfQueues,
+                       @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck, @NotNull final AtomicBoolean rulesHaveChanged,
+                       @NotNull final AtomicBoolean marketsMapModified, @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> markets,
+                       @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean mustStop, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp,
+                       final long programStartTime) {
+        // intentionally not synchronized; isBeingManaged AtomicBoolean will be used to make sure it only runs once
         if (this.isEnabledMarket()) {
-            final long currentTime = System.currentTimeMillis();
-            final long timeSinceLastManageMarketStamp = currentTime - this.manageMarketStamp;
-            final long speedLimitPeriod = speedLimit.getManageMarketPeriod(this.calculatedLimit, safetyLimits);
-            logger.info("manage enabled: {} {} {}", this.marketId, timeSinceLastManageMarketStamp, speedLimitPeriod);
-            if (timeSinceLastManageMarketStamp >= speedLimitPeriod) {
-                attachMarket(marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime);
-//                logger.info("managedMarket has attached market: {} {}", this.id, this.market != null);
-                if (this.market != null) {
-                    manageMarketStamp(currentTime);
-                    attachOrderMarket(orderCache, marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime);
-                    if (isSupported(listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck)) {
-                        if (checkCancelAllUnmatchedBetsFlag(pendingOrdersThread)) { // all unmatched bets have been canceled already, not much more to be done
-                            logger.info("manage cancelAllUnmatchedBetsFlag: {} {}", this.marketId, this.marketName);
-                        } else {
+            final boolean previousValue = this.isBeingManaged.getAndSet(true);
+            if (previousValue) { // was already beingManaged, another thread manages the market right now, this one will exit
+            } else { // market was not being managed, I'll manage it now
+                if (exposureCanBeCalculated(listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck, orderCacheInitializedFromStreamStamp, programStartTime)) {
+                    long currentTime = System.currentTimeMillis();
+                    final long timeSinceLastManageMarketStamp = currentTime - this.manageMarketStamp;
+                    final long speedLimitPeriod = speedLimit.getManageMarketPeriod(this.calculatedLimit, safetyLimits);
+                    final long timeToSleep = speedLimitPeriod - timeSinceLastManageMarketStamp;
+                    logger.info("manage enabled: {} {} {}", this.marketId, timeSinceLastManageMarketStamp, Generic.addCommas(speedLimitPeriod));
+                    Generic.threadSleepSegmented(timeToSleep, 100L, mustStop);
+//                if (timeSinceLastManageMarketStamp >= speedLimitPeriod) {
+//                } else { // not enough time has passed since last manage, nothing to be done
+//                }
+                    if (mustStop.get()) { // program exiting, nothing to be done
+                    } else {
+                        if (timeToSleep > 0L) {
+                            currentTime = System.currentTimeMillis();
+                        } else { // have not slept, no need to update currentTime
+                        }
+
+                        if (timeToSleep > Exposure.recentPeriod - 1_000L) {
+                            calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck,
+                                              orderCacheInitializedFromStreamStamp);
+                        } else { // I didn't sleep that much , no need to recalculate exposure
+                        }
+
+                        if (exposureIsRecent(currentTime)) {
+//                        attachMarket(marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime);
+////                logger.info("managedMarket has attached market: {} {}", this.id, this.market != null);
+//                        if (this.market != null) {
+                            manageMarketStamp(currentTime);
+                            attachOrderMarket(orderCache, marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime);
+                            if (isSupported(listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck)) {
+                                if (checkCancelAllUnmatchedBetsFlag(pendingOrdersThread)) { // all unmatched bets have been canceled already, not much more to be done
+                                    logger.info("manage cancelAllUnmatchedBetsFlag: {} {}", this.marketId, this.marketName);
+                                } else {
 //                            logger.info("manage market is supported: {} {}", this.id, this.marketName);
 //                    final double calculatedLimit = this.getCalculatedLimit();
-                            int exposureHasBeenModified = 0;
-                            for (final ManagedRunner runner : this.runners.values()) {
-                                exposureHasBeenModified += runner.calculateOdds(this.calculatedLimit, pendingOrdersThread, currencyRate, orderCache, marketCache); // also removes unmatched orders at worse odds, and hardToReachOrders
-                            }
-                            if (exposureHasBeenModified > 0) {
-                                calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck);
-                                exposureHasBeenModified = 0;
-                            } else { // no need to calculateExposure
-                            }
+                                    int exposureHasBeenModified = 0;
+                                    for (final ManagedRunner runner : this.runners.values()) {
+                                        exposureHasBeenModified += runner.calculateOdds(this.calculatedLimit, pendingOrdersThread, currencyRate, orderCache, marketCache); // also removes unmatched orders at worse odds, and hardToReachOrders
+                                    }
+                                    if (exposureHasBeenModified > 0) {
+                                        calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck,
+                                                          orderCacheInitializedFromStreamStamp);
+                                        exposureHasBeenModified = 0;
+                                    } else { // no need to calculateExposure
+                                    }
 
-                            @NotNull final ArrayList<ManagedRunner> runnersOrderedList = createRunnersOrderedList(marketCache);
-                            if (isMarketAlmostLive(marketsToCheck)) {
-                                logger.info("manage market isMarketAlmostLive: {} {} {}", this.marketId, this.marketName, runnersOrderedList.size());
-                                //noinspection UnusedAssignment
-                                exposureHasBeenModified += removeExposure(runnersOrderedList, orderCache, pendingOrdersThread);
-                            } else {
-                                logger.info("manage market useTheNewLimit: {} {} {}", this.marketId, this.marketName, runnersOrderedList.size());
-                                for (final ManagedRunner runner : this.runners.values()) {
-                                    exposureHasBeenModified += runner.checkRunnerLimits(pendingOrdersThread, orderCache);
-                                }
-                                if (exposureHasBeenModified > 0) {
-                                    calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck);
-                                    exposureHasBeenModified = 0;
-                                } else { // no need to calculateExposure
-                                }
+                                    @NotNull final ArrayList<ManagedRunner> runnersOrderedList = createRunnersOrderedList(marketCache);
+                                    if (isMarketAlmostLive(marketsToCheck)) {
+                                        logger.info("manage market isMarketAlmostLive: {} {} {}", this.marketId, this.marketName, runnersOrderedList.size());
+                                        //noinspection UnusedAssignment
+                                        exposureHasBeenModified += removeExposure(runnersOrderedList, orderCache, pendingOrdersThread);
+                                    } else {
+                                        logger.info("manage market useTheNewLimit: {} {} {}", this.marketId, this.marketName, runnersOrderedList.size());
+                                        for (final ManagedRunner runner : this.runners.values()) {
+                                            exposureHasBeenModified += runner.checkRunnerLimits(pendingOrdersThread, orderCache);
+                                        }
+                                        if (exposureHasBeenModified > 0) {
+                                            calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck,
+                                                              orderCacheInitializedFromStreamStamp);
+                                            exposureHasBeenModified = 0;
+                                        } else { // no need to calculateExposure
+                                        }
 
-                                //noinspection UnusedAssignment
-                                exposureHasBeenModified += useTheNewLimit(runnersOrderedList, orderCache, pendingOrdersThread, marketsToCheck, listOfQueues, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck,
-                                                                          programStartTime);
+                                        //noinspection UnusedAssignment
+                                        exposureHasBeenModified += useTheNewLimit(runnersOrderedList, orderCache, pendingOrdersThread, marketsToCheck, listOfQueues, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified,
+                                                                                  newMarketsOrEventsForOutsideCheck, orderCacheInitializedFromStreamStamp, programStartTime);
+                                    }
+                                }
+                            } else { // for not supported I can't calculate the limit
+                                logger.error("trying to manage unSupported managedMarket, nothing will be done: {} {}", this.marketId, this.marketName);
                             }
+                        } else { // exposure not recent, error message was posted when isRecent was checked, nothing to be done
                         }
-                    } else { // for not supported I can't calculate the limit
-                        logger.error("trying to manage unSupported managedMarket, nothing will be done: {} {}", this.marketId, this.marketName);
                     }
-                } else { // error message was logged elsewhere, nothing to be done
+                } else { // exposure can't be calculated, nothing to be done, log messages have been printed already
                 }
-            } else { // not enough time has passed since last manage, nothing to be done
+                this.isBeingManaged.set(false);
             }
         } else { // not enabled, won't be managed
         }

@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings({"OverlyComplexClass", "UtilityClass"})
 public final class Utils {
@@ -39,7 +40,7 @@ public final class Utils {
                                              @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache,
                                              @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> markets,
                                              @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck, @NotNull final AtomicBoolean marketsMapModified,
-                                             @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, final long programStartTime) {
+                                             @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         @SuppressWarnings("unused") double totalMatchedExposure = 0d, totalExposure = 0d, sumOfMaxMarketLimits = 0d;
         final Collection<ManagedMarket> marketsWithErrorCalculatingExposure = new HashSet<>(1), marketsWithExposureHigherThanTheirMaxLimit = new HashSet<>(1);
         for (final ManagedMarket managedMarket : marketsSet) {
@@ -48,7 +49,8 @@ public final class Utils {
             } else {
                 if (shouldCalculateExposure && marketCache.containsKey(managedMarket.getMarketId())) {
                     managedMarket.attachMarket(marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime);
-                    managedMarket.calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck);
+                    managedMarket.calculateExposure(pendingOrdersThread, orderCache, programStartTime, listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck,
+                                                    orderCacheInitializedFromStreamStamp);
                 } else { // no need to calculate exposure, it was just calculated previously
                 }
                 final double maxMarketLimit = managedMarket.getMaxMarketLimit(safetyLimits);
@@ -83,7 +85,11 @@ public final class Utils {
 
         // todo it takes too long until market appears with all the values set in the GUI; it takes too long to add the managedRunners to the managedMarket
         // todo runners are not in proper order, plus I get a lot of extra runners
-        // todo some errors in both out.txt
+
+        // todo test scroll position restore, by using a bogus setting and seeing the error on screen
+        // todo status changed from STOP to Disconnected and from Disconnected back to stopped, when program ends; if happens if the thread was never used; check if it still happens
+        // todo there seems to be no support for accidental disconnect ... the stream should attempt to reconnect if it gets disconnected; maybe there is, I need to test
+        // todo make sure exposure can be updated, before it is used; if it can't be updated, then that market shouldn't be managed yet; done
 
 //        final double totalMarketLimit = Math.min(maxTotalLimit, sumOfMaxMarketLimits);
 //        @SuppressWarnings("unused") final double availableTotalExposure = totalMarketLimit - totalExposure; // can be positive or negative, not used for now, as I use the ConsideringOnlyMatched variant

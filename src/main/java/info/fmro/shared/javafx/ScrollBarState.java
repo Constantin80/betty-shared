@@ -13,6 +13,7 @@ public class ScrollBarState {
     private static final Logger logger = LoggerFactory.getLogger(ScrollBarState.class);
     private final TreeView<?> tree;
     private final Orientation orientation;
+    private final String logMessage;
     private @Nullable ScrollBar scrollBar;
 
     private double min;
@@ -21,9 +22,10 @@ public class ScrollBarState {
     private double blockIncrement;
     private double unitIncrement;
 
-    public ScrollBarState(@NotNull final TreeView<?> tree, @NotNull final Orientation orientation) {
+    public ScrollBarState(@NotNull final TreeView<?> tree, @NotNull final Orientation orientation, final String logMessage) {
         this.tree = tree;
         this.orientation = orientation;
+        this.logMessage = logMessage;
     }
 
     public void reset() {
@@ -33,7 +35,7 @@ public class ScrollBarState {
     public void save(final boolean isVisible) {
         if (isVisible) {
             if (this.scrollBar == null && !setScrollBar()) {
-                logger.error("unable to save scrollBar");
+                logger.error("unable to save scrollBar: {}", this.logMessage);
             } else {
                 this.min = this.scrollBar.getMin();
                 this.max = this.scrollBar.getMax();
@@ -48,7 +50,7 @@ public class ScrollBarState {
     public void restore(final boolean isVisible) {
         if (isVisible) {
             if (this.scrollBar == null) {
-                logger.error("trying to restore null scrollBar");
+                logger.error("trying to restore null scrollBar: {}", this.logMessage);
             } else {
                 this.scrollBar.setMin(this.min);
                 this.scrollBar.setMax(this.max);
@@ -72,7 +74,7 @@ public class ScrollBarState {
         }
         if (foundScrollBar) { // good, no error
         } else {
-            logger.error("unable to setScrollBar");
+            logger.error("unable to setScrollBar: {}", this.logMessage);
         }
         return foundScrollBar;
     }

@@ -5,7 +5,6 @@ import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.stream.cache.Utils;
 import info.fmro.shared.stream.cache.market.Market;
-import info.fmro.shared.stream.cache.order.OrderCache;
 import info.fmro.shared.stream.cache.order.OrderMarket;
 import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.OrdersThreadInterface;
@@ -22,6 +21,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings("WeakerAccess")
 public class ManagedEvent
@@ -61,8 +61,9 @@ public class ManagedEvent
     @SuppressWarnings("UnusedReturnValue")
     synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final SynchronizedMap<String, ManagedMarket> markets, @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck,
                                         @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck, @NotNull final AtomicBoolean marketsMapModified,
-                                        @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final ExistingFunds safetyLimits,
-                                        final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, final long programStartTime) {
+                                        @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
+                                        @NotNull final ExistingFunds safetyLimits, final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache,
+                                        @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         final boolean modified;
         if (Double.isNaN(newAmountLimit)) {
             modified = false;
@@ -78,7 +79,7 @@ public class ManagedEvent
             listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setEventAmountLimit, this.id, this.amountLimit));
             if (pendingOrdersThread != null && marketCataloguesMap != null) {
                 calculateMarketLimits(markets, listOfQueues, marketsToCheck, events, rulesHaveChanged, marketsForOutsideCheck, marketsMapModified, newMarketsOrEventsForOutsideCheck, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap,
-                                      marketCache, programStartTime);
+                                      marketCache, orderCacheInitializedFromStreamStamp, programStartTime);
             } else { // Statics variables don't exist, so I'm in a Client, and I won't calculate the limits here
             }
             rulesHaveChanged.set(true);
@@ -152,12 +153,13 @@ public class ManagedEvent
 
     synchronized void calculateMarketLimits(@NotNull final SynchronizedMap<String, ManagedMarket> markets, @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final ManagedEventsMap events,
                                             @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck, @NotNull final AtomicBoolean marketsMapModified,
-                                            @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, @NotNull final ExistingFunds safetyLimits,
-                                            @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, final long programStartTime) {
+                                            @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
+                                            @NotNull final ExistingFunds safetyLimits, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
+                                            @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
         final double maxEventLimit = getAmountLimit(safetyLimits);
         //noinspection NonPrivateFieldAccessedInSynchronizedContext
         Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(markets), true, true, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, listOfQueues,
-                                    marketsToCheck, events, markets, rulesHaveChanged, marketsForOutsideCheck, marketsMapModified, newMarketsOrEventsForOutsideCheck, programStartTime);
+                                    marketsToCheck, events, markets, rulesHaveChanged, marketsForOutsideCheck, marketsMapModified, newMarketsOrEventsForOutsideCheck, orderCacheInitializedFromStreamStamp, programStartTime);
     }
 
     @Contract(value = "null -> false", pure = true)

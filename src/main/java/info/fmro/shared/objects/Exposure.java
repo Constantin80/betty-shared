@@ -86,7 +86,7 @@ public class Exposure
         return isRecent(currentTime);
     }
 
-    private synchronized boolean isRecent(final long currentTime) {
+    public synchronized boolean isRecent(final long currentTime) {
         final long timeSinceUpdate = currentTime - this.timeStamp;
         final boolean isRecent = timeSinceUpdate <= recentPeriod;
         if (!isRecent) {
