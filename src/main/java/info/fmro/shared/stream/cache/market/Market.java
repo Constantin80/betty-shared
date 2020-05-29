@@ -2,7 +2,6 @@ package info.fmro.shared.stream.cache.market;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.enums.MarketStatus;
-import info.fmro.shared.logic.MarketsToCheckQueue;
 import info.fmro.shared.stream.definitions.MarketChange;
 import info.fmro.shared.stream.definitions.MarketDefinition;
 import info.fmro.shared.stream.definitions.RunnerChange;
@@ -32,10 +31,14 @@ public class Market
     private MarketDefinition marketDefinition;
     private double tv; // total value traded
 
-    public Market(final String marketId, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck) {
+    public Market(final String marketId) {
         this.marketId = marketId;
-        marketsToCheck.add(marketId);
     }
+
+//    public Market(final String marketId, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck) {
+//        this.marketId = marketId;
+//        marketsToCheck.add(marketId);
+//    }
 
     synchronized void onMarketChange(@NotNull final MarketChange marketChange, @NotNull final AtomicDouble currencyRate) {
         //initial image means we need to wipe our data

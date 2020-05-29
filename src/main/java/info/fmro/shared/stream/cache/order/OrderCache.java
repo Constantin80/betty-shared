@@ -109,18 +109,32 @@ public class OrderCache
                                                          @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> managedMarkets, @NotNull final AtomicBoolean rulesHaveChanged,
                                                          @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
         final String marketId = orderMarketChange.getId();
-        final boolean newMarketAdded = !this.markets.containsKey(marketId);
-        final OrderMarket orderMarket = this.markets.computeIfAbsent(marketId, k -> new OrderMarket(marketId, newOrderMarketCreated));
-        orderMarket.onOrderMarketChange(orderMarketChange, pendingOrdersThread, currencyRate);
+        final boolean newMarketIsBeingAdded = !this.markets.containsKey(marketId);
+        final OrderMarket orderMarket;
 
-        if (newMarketAdded) {
+        if (newMarketIsBeingAdded) {
+            orderMarket = addNewMarket(marketId, newOrderMarketCreated, pendingOrdersThread, orderMarketChange, currencyRate);
+
             final ManagedMarket managedMarket = managedMarkets.get(marketId);
             if (managedMarket == null) { // no managedMarket present, nothing to be done
             } else {
                 managedMarket.attachOrderMarket(this.markets, marketCache, rulesManagerListOfQueues, marketsToCheck, events, managedMarkets, rulesHaveChanged, marketCataloguesMap, programStartTime);
             }
         } else { // market was already present, nothing to be done
+            orderMarket = this.markets.get(marketId);
+            orderMarket.onOrderMarketChange(orderMarketChange, pendingOrdersThread, currencyRate);
         }
+        return orderMarket;
+    }
+
+    @NotNull
+    private synchronized OrderMarket addNewMarket(final String marketId, @NotNull final AtomicBoolean newOrderMarketCreated, final OrdersThreadInterface pendingOrdersThread, @NotNull final OrderMarketChange orderMarketChange,
+                                                  @NotNull final AtomicDouble currencyRate) {
+        final OrderMarket orderMarket = new OrderMarket(marketId);
+        orderMarket.onOrderMarketChange(orderMarketChange, pendingOrdersThread, currencyRate);
+        this.markets.put(marketId, orderMarket, true);
+        newOrderMarketCreated.set(true);
+
         return orderMarket;
     }
 

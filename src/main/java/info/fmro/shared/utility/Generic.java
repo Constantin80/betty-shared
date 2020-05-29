@@ -1137,17 +1137,37 @@ public final class Generic {
 
     @NotNull
     public static boolean[] closeObjects(@NotNull final Object... objects) {
-        final boolean[] closeSuccess = new boolean[objects.length];
         final int arrayLength = objects.length;
-        for (int i = 0; i < arrayLength; i++) {
-            closeSuccess[i] = closeObject(objects[i]);
+        final boolean[] closeSuccess;
+        if (arrayLength == 0) {
+            logger.error("arrayLength zero in closeObjects");
+            //noinspection ZeroLengthArrayAllocation
+            closeSuccess = new boolean[0];
+        } else {
+            final boolean invokeExceptionExpected;
+            final Object lastElement = objects[arrayLength - 1];
+            final int numberOfClosableObjects;
+            if (lastElement instanceof Boolean) {
+                invokeExceptionExpected = (boolean) lastElement;
+                numberOfClosableObjects = arrayLength - 1;
+            } else {
+                invokeExceptionExpected = false;
+                numberOfClosableObjects = arrayLength;
+            }
+            closeSuccess = new boolean[numberOfClosableObjects];
+            for (int i = 0; i < numberOfClosableObjects; i++) {
+                closeSuccess[i] = closeObject(objects[i], invokeExceptionExpected);
+            }
         }
-
         return closeSuccess;
     }
 
-    @SuppressWarnings("NestedTryStatement")
     public static boolean closeObject(final Object object) {
+        return closeObject(object, false);
+    }
+
+    @SuppressWarnings("NestedTryStatement")
+    public static boolean closeObject(final Object object, final boolean invokeExceptionExpected) {
         // closes an object and catches all exceptions
         // the object.setSoLinger (true, 0) is invoked if a setSoLinger method exists
         setSoLinger(object);
@@ -1213,8 +1233,11 @@ public final class Generic {
                         closeSuccess = false;
                     }
                 } catch (SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException exception) {
-                    logger.error("STRANGE ERROR inside closeObject() close: {}", new Object[]{objectClass, objectToString(object)}, exception);
-
+                    if (invokeExceptionExpected) {
+                        logger.warn("expected invoke exception inside closeObject() close: {} {}", objectClass, exception);
+                    } else {
+                        logger.error("STRANGE ERROR inside closeObject() close: {}", new Object[]{objectClass, objectToString(object)}, exception);
+                    }
                     closeSuccess = false;
                 }
             } catch (@SuppressWarnings("OverlyBroadCatchBlock") Exception exception) {

@@ -73,7 +73,7 @@ public class MarketCache
                                             @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
         if (changeMessage.isStartOfNewSubscription()) {
             // was it right to disable markets.clear() in isStartOfNewSubscription ?; maybe, it seems markets are properly updated, although some old no longer used markets are probably not removed, I'll see more with testing
-            //clear cache ... no clear anymore, because of multiple clients
+            // clear cache ... no clear anymore, because of multiple clients
 //            markets.clear();
         }
         if (changeMessage.getItems() != null) {
@@ -97,7 +97,7 @@ public class MarketCache
             this.conflatedCount++;
         }
         final String marketId = marketChange.getId();
-        final boolean newMarketAdded = !this.markets.containsKey(marketId);
+        final boolean newMarketIsBeingAdded = !this.markets.containsKey(marketId);
         //        final Market market;
 //        if (this.markets.containsKey(marketId)) {
 //            market = this.markets.get(marketId);
@@ -105,16 +105,30 @@ public class MarketCache
 //            market = new Market(marketId, marketsToCheck);
 //            this.markets.put(marketId, market);
 //        }
-        final Market market = this.markets.computeIfAbsent(marketId, k -> new Market(marketId, marketsToCheck));
-        market.onMarketChange(marketChange, currencyRate);
-        if (newMarketAdded) {
+
+        final Market market;
+        if (newMarketIsBeingAdded) {
+            market = addNewMarket(marketId, marketsToCheck, marketChange, currencyRate);
+
             final ManagedMarket managedMarket = managedMarkets.get(marketId);
             if (managedMarket == null) { // no managedMarket present, nothing to be done
             } else {
                 managedMarket.attachMarket(this.markets, rulesManagerListOfQueues, marketsToCheck, events, managedMarkets, rulesHaveChanged, marketCataloguesMap, programStartTime, true);
             }
         } else { // market was already present, nothing to be done
+            market = this.markets.get(marketId);
+            market.onMarketChange(marketChange, currencyRate);
         }
+        return market;
+    }
+
+    @NotNull
+    private synchronized Market addNewMarket(final String marketId, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final MarketChange marketChange, @NotNull final AtomicDouble currencyRate) {
+        final Market market = new Market(marketId);
+        market.onMarketChange(marketChange, currencyRate);
+        this.markets.put(marketId, market, true);
+        marketsToCheck.add(marketId);
+
         return market;
     }
 

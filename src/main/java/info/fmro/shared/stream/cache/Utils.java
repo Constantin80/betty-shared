@@ -86,11 +86,6 @@ public final class Utils {
         // todo it takes too long until market appears with all the values set in the GUI; it takes too long to add the managedRunners to the managedMarket
         // todo runners are not in proper order, plus I get a lot of extra runners
 
-        // todo test scroll position restore, by using a bogus setting and seeing the error on screen
-        // todo status changed from STOP to Disconnected and from Disconnected back to stopped, when program ends; if happens if the thread was never used; check if it still happens
-        // todo there seems to be no support for accidental disconnect ... the stream should attempt to reconnect if it gets disconnected; maybe there is, I need to test
-        // todo make sure exposure can be updated, before it is used; if it can't be updated, then that market shouldn't be managed yet; done
-
 //        final double totalMarketLimit = Math.min(maxTotalLimit, sumOfMaxMarketLimits);
 //        @SuppressWarnings("unused") final double availableTotalExposure = totalMarketLimit - totalExposure; // can be positive or negative, not used for now, as I use the ConsideringOnlyMatched variant
 //        final double availableExposureInTheMarkets = totalMarketLimit - totalExposure; // should be positive, else this might be an error, or maybe not error
@@ -346,10 +341,7 @@ public final class Utils {
 
     public static List<Double> getAmountsToBePlacedForTwoWayMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sideList, final double availableLimit) {
         final List<Double> existingUnmatchedExposures, existingNonMatchedExposures, availableLimitList, toBeUsedOdds, resultList;
-        if (sideList.size() != 2 || sideList.contains(null)) {
-            logger.error("bogus sideList for getAmountsToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit);
-            resultList = List.of(0d, 0d);
-        } else {
+        if (sideList.size() == 2) {
             @NotNull final Side firstSide = sideList.get(0), secondSide = sideList.get(1);
             if (firstSide == Side.B && secondSide == Side.L) {
                 existingUnmatchedExposures = List.of(firstRunner.getBackUnmatchedExposure(), secondRunner.getLayUnmatchedExposure());
@@ -369,6 +361,9 @@ public final class Utils {
                 logger.error("bogus sides for getAmountsToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit);
                 resultList = List.of(0d, 0d);
             }
+        } else {
+            logger.error("bogus sideList for getAmountsToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit);
+            resultList = List.of(0d, 0d);
         }
         return resultList;
     }

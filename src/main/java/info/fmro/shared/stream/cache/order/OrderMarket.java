@@ -15,21 +15,26 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class OrderMarket
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(OrderMarket.class);
     private static final long serialVersionUID = 6849187708144779801L;
     private final String marketId;
-    private @NotNull final Map<RunnerId, OrderMarketRunner> marketRunners = new ConcurrentHashMap<>(4); // only place where orderMarketRunners are stored
+    @NotNull
+    private final Map<RunnerId, OrderMarketRunner> marketRunners = new ConcurrentHashMap<>(4); // only place where orderMarketRunners are stored
     private boolean isClosed;
 
-    OrderMarket(final String marketId, @NotNull final AtomicBoolean newOrderMarketCreated) {
+    OrderMarket(final String marketId) {
         this.marketId = marketId;
-        newOrderMarketCreated.set(true);
         logger.info("newOrderMarketCreated: {}", marketId);
     }
+
+//    OrderMarket(final String marketId, @NotNull final AtomicBoolean newOrderMarketCreated) {
+//        this.marketId = marketId;
+//        newOrderMarketCreated.set(true);
+//        logger.info("newOrderMarketCreated: {}", marketId);
+//    }
 
     synchronized void onOrderMarketChange(@NotNull final OrderMarketChange orderMarketChange, final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate) {
         // update runners

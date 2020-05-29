@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-@SuppressWarnings({"WeakerAccess", "ClassWithTooManyMethods", "OverlyComplexClass", "NonPrivateFieldAccessedInSynchronizedContext"})
+@SuppressWarnings({"WeakerAccess", "ClassWithTooManyMethods", "OverlyComplexClass", "NonPrivateFieldAccessedInSynchronizedContext", "FieldAccessedSynchronizedAndUnsynchronized"})
 public class RulesManager
         implements Serializable, StreamObjectInterface {
     private static final Logger logger = LoggerFactory.getLogger(RulesManager.class);
@@ -291,6 +291,7 @@ public class RulesManager
                 removeManagedMarket(marketId, marketCataloguesMap);
             }
             this.rulesHaveChanged.set(true);
+            logger.info("removed managedEvent: {}", eventId);
         } else {
             logger.error("trying to removeManagedEvent that doesn't exist: {}", eventId); // this also covers the case where the removed element is null, but this should never happen
         }
@@ -380,7 +381,7 @@ public class RulesManager
                 this.newMarketsOrEventsForOutsideCheck.set(true);
             }
             if (Generic.programName.get() == ProgramName.SERVER) {
-                logger.info("created managedEvent: {}", eventId);
+                logger.info("added managedEvent: {}", eventId);
             } else { // only logging on server
             }
         }
@@ -429,6 +430,10 @@ public class RulesManager
                 this.newMarketsOrEventsForOutsideCheck.set(true);
             }
             this.marketsToCheck.add(marketId);
+            if (Generic.programName.get() == ProgramName.SERVER) {
+                logger.info("created managedMarket: {} {}", marketId, eventId);
+            } else { // only logging on server
+            }
         }
         return managedMarket;
     }
@@ -461,6 +466,10 @@ public class RulesManager
                 }
                 this.marketsToCheck.add(marketId);
                 success = true;
+                if (Generic.programName.get() == ProgramName.SERVER) {
+                    logger.info("added managedMarket: {} {}", marketId, eventId);
+                } else { // only logging on server
+                }
             }
         }
         return success;
@@ -596,6 +605,7 @@ public class RulesManager
             }
             this.rulesHaveChanged.set(true);
             this.marketsMapModified.set(true);
+            logger.info("removed managedMarket: {}", marketId);
         } else { // this actually normally happens in client, when I first remove the market locally and send command to the server to remove it, then the server send the command to remove the market back
             logger.info("trying to removeManagedMarket that doesn't exist: {}", marketId); // this also covers the case where the removed element is null, but this should never happen
         }
@@ -669,7 +679,7 @@ public class RulesManager
 
     private synchronized long timeSinceFullRun() {
         final long currentTime = System.currentTimeMillis();
-        return currentTime - this.getTimeLastFullCheck();
+        return Math.max(0L, currentTime - this.getTimeLastFullCheck());
     }
 
     public synchronized long timeTillNextFullRun() {
@@ -730,10 +740,11 @@ public class RulesManager
 //        }
 //    }
 
-    public synchronized void manageMarket(final ManagedMarket managedMarket, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
-                                          @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate, @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits,
-                                          @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean mustStop, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp,
-                                          final long programStartTime) {
+    public void manageMarket(final ManagedMarket managedMarket, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
+                             @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final AtomicDouble currencyRate, @NotNull final BetFrequencyLimit speedLimit, @NotNull final ExistingFunds safetyLimits,
+                             @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean mustStop, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp,
+                             final long programStartTime) {
+        // intentionally not synchronized; isBeingManaged AtomicBoolean in managedMarket.manage will be used to make sure it only runs once
         if (managedMarket == null) {
             logger.error("null managedMarket to check in RulesManager, marketsToCheck: {}", Generic.objectToString(this.marketsToCheck));
             this.markets.removeValueAll(null);

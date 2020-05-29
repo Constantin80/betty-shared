@@ -744,13 +744,17 @@ public class ManagedRunner
     public synchronized void getExposure(@NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache, final OrdersThreadInterface pendingOrdersThread) {
         final long currentTime = System.currentTimeMillis();
         this.getOrderMarketRunnerExposure(orderCache, currentTime); // updates matchedBackExposure and matchedLayExposure; updates unmatchedBackExposure/Profit and unmatchedLayExposure/Profit
+        getTempExposure(pendingOrdersThread);
+        this.timeStamp(); // it's fine to have the timeStamp before some chunk of the method, as this sequence is all synchronized; I need to timeStamp before the lines with getBack/LayUnmatchedProfit() & getBack/LayTempProfit()
+        this.setBackUnmatchedProfit(this.getBackUnmatchedProfit() + this.getBackTempProfit());
+        this.setLayUnmatchedProfit(this.getLayUnmatchedProfit() + this.getLayTempProfit());
+    }
+
+    synchronized void getTempExposure(final OrdersThreadInterface pendingOrdersThread) {
         if (pendingOrdersThread == null) { // I'm in the Client, I'm not using the pendingOrdersThread
         } else {
             pendingOrdersThread.checkTemporaryOrdersExposure(this.marketId, this.runnerId, this);
         }
-        this.timeStamp(); // it's fine to have the timeStamp before some chunk of the method, as this sequence is all synchronized; I need to timeStamp before the lines with getBack/LayUnmatchedProfit() & getBack/LayTempProfit()
-        this.setBackUnmatchedProfit(this.getBackUnmatchedProfit() + this.getBackTempProfit());
-        this.setLayUnmatchedProfit(this.getLayUnmatchedProfit() + this.getLayTempProfit());
     }
 
     @SuppressWarnings("unused")
