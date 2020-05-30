@@ -81,10 +81,8 @@ public final class Utils {
         } // end for
 
         // todo test order placing
-        // todo the program needs to have easy to understand output
 
-        // todo it takes too long until market appears with all the values set in the GUI; it takes too long to add the managedRunners to the managedMarket
-        // todo runners are not in proper order, plus I get a lot of extra runners
+        // todo runners are not in proper order, plus I get a lot of extra runners; complete mess in the USA presidential election market
 
 //        final double totalMarketLimit = Math.min(maxTotalLimit, sumOfMaxMarketLimits);
 //        @SuppressWarnings("unused") final double availableTotalExposure = totalMarketLimit - totalExposure; // can be positive or negative, not used for now, as I use the ConsideringOnlyMatched variant
@@ -406,7 +404,7 @@ public final class Utils {
         // I'm getting the raw availableLimit, without considering existing exposure and limits
         // the factors are the price of toBeUsedOdds, and which of the toBeUsedOdds is more profitable; those two should be enough for now; also lay bets should be given slight priority over back bets, as other gamblers like to back rather than lay
         final List<Double> resultList;
-        if (sideList.size() != 2 || toBeUsedOdds.size() != 2 || sideList.contains(null) || availableLimit == 0d) {
+        if (sideList.size() != 2 || toBeUsedOdds.size() != 2 || availableLimit == 0d) {
             logger.error("bogus arguments for getAmountsToBePlacedForTwoWayMarket: {} {} {} {} {}", Generic.objectToString(existingUnmatchedExposures), Generic.objectToString(existingNonMatchedExposures), Generic.objectToString(sideList),
                          Generic.objectToString(toBeUsedOdds), availableLimit);
             resultList = List.of(0d, 0d);

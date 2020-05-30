@@ -230,7 +230,10 @@ public class ManagedMarket
 
     public synchronized String getParentEventId(@NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final AtomicBoolean rulesHaveChanged) {
         if (this.parentEventId == null) {
-            this.parentEventId = Formulas.getEventIdOfMarketId(this.marketId, marketCataloguesMap);
+            if (marketCataloguesMap.containsKey(this.marketId)) {
+                this.parentEventId = Formulas.getEventIdOfMarketId(this.marketId, marketCataloguesMap);
+            } else { // no marketCatalogue available, I can't find parentEventId using getEventIdOfMarketId
+            }
             if (this.parentEventId == null) {
                 if (this.market != null) {
                     this.parentEventId = this.market.getEventId();
@@ -1303,14 +1306,15 @@ public class ManagedMarket
         final long orderCacheStamp = orderCacheInitializedFromStreamStamp.get();
         final long currentTime = System.currentTimeMillis();
         final boolean returnValue = this.market != null && orderCacheStamp > 0L && isSupported(listOfQueues, marketsToCheck, marketsForOutsideCheck, rulesHaveChanged, marketsMapModified, newMarketsOrEventsForOutsideCheck);
+
         if (returnValue) { // no error, no message to print
+        } else if (Formulas.programHasRecentlyStarted(currentTime, programStartTime) || isVeryRecent() || !isEnabledMarket()) { // normal
+        } else if (orderCacheStamp <= 0) {
+            logger.info("trying to calculateExposure on orderCacheStamp {}, nothing will be done: {} {} - Market attached: {}", orderCacheStamp, this.marketId, this.marketName, this.market != null);
+        } else if (this.market == null) {
+            logger.warn("trying to calculateExposure on managedMarket with no Market attached, nothing will be done: {} {}", this.marketId, this.marketName);
         } else {
-            if (Formulas.programHasRecentlyStarted(currentTime, programStartTime) || isVeryRecent() || !isEnabledMarket()) { // normal
-            } else if (orderCacheStamp <= 0) {
-                logger.info("trying to calculateExposure on orderCacheStamp {}, nothing will be done: {} {} - Market attached: {}", orderCacheStamp, this.marketId, this.marketName, this.market != null);
-            } else {
-                logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {} {} - Market attached: {}", this.marketId, this.marketName, this.market != null);
-            }
+            logger.error("trying to calculateExposure on unSupported managedMarket, nothing will be done: {} {}", this.marketId, this.marketName);
         }
         return returnValue;
     }

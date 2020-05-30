@@ -435,13 +435,13 @@ public final class Formulas {
         if (marketCatalogue != null) {
             final Event eventStump = marketCatalogue.getEventStump();
             if (eventStump == null) {
-                Formulas.logger.error("null event in marketCatalogue during getEventOfMarket: {}", Generic.objectToString(marketCatalogue));
+                logger.error("null event in marketCatalogue during getEventOfMarket: {}", Generic.objectToString(marketCatalogue));
                 result = null;
             } else {
                 result = eventStump.getId();
             }
         } else {
-            Formulas.logger.error("null marketCatalogue in Formulas.getEventIdOfMarketCatalogue");
+            logger.error("null marketCatalogue in Formulas.getEventIdOfMarketCatalogue");
             result = null;
         }
 
@@ -457,7 +457,7 @@ public final class Formulas {
         } else {
             if (marketCataloguesMap.isEmpty()) { // normal, before map got a chance to be updated
             } else {
-                Formulas.logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventIdOfMarketId", marketId);
+                logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventIdOfMarketId", marketId);
             }
             result = null;
         }

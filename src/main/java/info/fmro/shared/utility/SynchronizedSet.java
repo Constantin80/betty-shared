@@ -26,18 +26,15 @@ public class SynchronizedSet<E>
     }
 
     @Contract(pure = true)
-    @SuppressWarnings("WeakerAccess")
     public SynchronizedSet(final int initialSize) {
         this(initialSize, DEFAULT_LOAD_FACTOR);
     }
 
     @Contract(pure = true)
-    @SuppressWarnings("WeakerAccess")
     public SynchronizedSet(final int initialSize, final float loadFactor) {
         this.set = new HashSet<>(initialSize, loadFactor);
     }
 
-    @SuppressWarnings("WeakerAccess")
     public SynchronizedSet(final Collection<? extends E> collection) {
         this.set = new HashSet<>(collection);
     }
@@ -72,6 +69,12 @@ public class SynchronizedSet<E>
         return new HashSet<>(this.set);
     }
 
+    public synchronized HashSet<E> copyAndClear() {
+        final HashSet<E> returnValue = new HashSet<>(this.set);
+        clear();
+        return returnValue;
+    }
+
     public synchronized boolean add(final E element) {
         return this.set.add(element);
     }
@@ -86,7 +89,6 @@ public class SynchronizedSet<E>
         return copy;
     }
 
-    @SuppressWarnings("WeakerAccess")
     public synchronized E getEqualElement(final E elementToFind) {
         @Nullable E returnValue = null;
         if (this.set == null) {

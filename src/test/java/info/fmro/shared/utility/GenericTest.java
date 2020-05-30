@@ -1820,6 +1820,13 @@ class GenericTest {
         assertEquals(expResult, result);
     }
 
+    @Test
+    void removeNewLine() {
+        final String expResult = "test\\n test\\n test\\n test\\n test";
+        final String result = Generic.removeNewLine("test\r\ntest\n\rtest\ntest\rtest");
+        assertEquals(expResult, result);
+    }
+
     // Test of disableHTTPSValidation method, of class Generic.
     @Test
     void disableHTTPSValidation() {

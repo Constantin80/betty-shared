@@ -48,6 +48,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.net.IDN;
+import java.net.SocketException;
 import java.net.URLDecoder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
@@ -77,12 +78,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
@@ -169,6 +172,8 @@ public final class Generic {
     public static final TimeZone UTC_TIMEZONE = TimeZone.getTimeZone("UTC"), BUCHAREST_TIMEZONE = TimeZone.getTimeZone("Europe/Bucharest");
     public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
     public static final char[] ZERO_LENGTH_CHARS_ARRAY = new char[0];
+    @SuppressWarnings("RegExpAnonymousGroup")
+    private static final Pattern newLinePattern = Pattern.compile("(\r\n|\n\r|\r|\n)");
 
     private Generic() {
     }
@@ -1104,11 +1109,11 @@ public final class Generic {
                     } else {
                         setSoLingerSuccess = false;
                     }
-                } catch (java.lang.reflect.InvocationTargetException invocationTargetException) {
+                } catch (InvocationTargetException invocationTargetException) {
                     setSoLingerSuccess = false;
                     final Throwable exceptionCause = invocationTargetException.getCause();
 
-                    if (exceptionCause instanceof java.net.SocketException) {
+                    if (exceptionCause instanceof SocketException) {
                         // often setSoLinger is invoked on a closed socket, causing an exception, no output required
                     } else {
                         logger.error("Exception in setSoLinger invoke getCause: {}", new Object[]{objectClass, objectToString(object)}, invocationTargetException);
@@ -1210,7 +1215,7 @@ public final class Generic {
                 final String CLOSE = "close";
                 try {
                     objectCloseMethod = objectClass.getDeclaredMethod(CLOSE);
-                } catch (java.lang.NoSuchMethodException noSuchMethodException) {
+                } catch (NoSuchMethodException noSuchMethodException) {
                     try {
                         objectCloseMethod = objectClass.getMethod(CLOSE);
                     } catch (NoSuchMethodException | SecurityException exception) {
@@ -2057,14 +2062,14 @@ public final class Generic {
 
         areEqual = firstMap.equals(secondMap);
         if (areEqual) {
-            final List<Map.Entry<K, V>> firstList = new ArrayList<>(firstMap.entrySet());
-            final List<Map.Entry<K, V>> secondList = new ArrayList<>(secondMap.entrySet());
-            final Iterator<Map.Entry<K, V>> firstIterator = firstList.iterator();
-            final Iterator<Map.Entry<K, V>> secondIterator = secondList.iterator();
+            final List<Entry<K, V>> firstList = new ArrayList<>(firstMap.entrySet());
+            final List<Entry<K, V>> secondList = new ArrayList<>(secondMap.entrySet());
+            final Iterator<Entry<K, V>> firstIterator = firstList.iterator();
+            final Iterator<Entry<K, V>> secondIterator = secondList.iterator();
 
             while (areEqual && firstIterator.hasNext() && secondIterator.hasNext()) {
-                final Map.Entry<K, V> firstEntry = firstIterator.next();
-                final Map.Entry<K, V> secondEntry = secondIterator.next();
+                final Entry<K, V> firstEntry = firstIterator.next();
+                final Entry<K, V> secondEntry = secondIterator.next();
                 if (!firstEntry.getKey().equals(secondEntry.getKey()) || !firstEntry.getValue().equals(secondEntry.getValue())) {
                     areEqual = false; // no need for break, condition is checked by while
                 }
@@ -2092,7 +2097,7 @@ public final class Generic {
         // logger.info (list);
         @SuppressWarnings("NumericCastThatLosesPrecision") final LinkedHashMap<K, V> result = new LinkedHashMap<>((int) ceilingPowerOf(2, map.size() / 0.75), 0.75f);
 
-        for (final Map.Entry<K, V> entry : list) {
+        for (final Entry<K, V> entry : list) {
             result.put(entry.getKey(), entry.getValue());
         }
 
@@ -2117,7 +2122,7 @@ public final class Generic {
 
     @SuppressWarnings({"OverlyBroadThrowsClause", "resource", "IOResourceOpenedButNotSafelyClosed", "ChannelOpenedButNotSafelyClosed"})
     public static void copyFile(final File sourceFile, @NotNull final File destFile)
-            throws java.io.IOException {
+            throws IOException {
         if (!destFile.exists()) {
             //noinspection ResultOfMethodCallIgnored
             destFile.createNewFile();
@@ -2339,7 +2344,7 @@ public final class Generic {
 
         try {
             returnString = getSubstrings(inputString, inputString, firstDelimiter, secondDelimiter, false, 1).iterator().next();
-        } catch (java.util.NoSuchElementException noSuchElementException) {
+        } catch (NoSuchElementException noSuchElementException) {
             logger.error("STRANGE ERROR inside getSubstring: {}", new Object[]{inputString, firstDelimiter, secondDelimiter}, noSuchElementException);
         }
 
@@ -2888,7 +2893,18 @@ public final class Generic {
             }
         }
 
-        return returnStringBuilder == null ? null : returnStringBuilder.toString().trim();
+        final String returnValue = returnStringBuilder == null ? null : returnStringBuilder.toString().trim();
+        return removeNewLine(returnValue); // I'll keep all in one line
+    }
+
+    public static String removeNewLine(final String initialString) {
+        final String returnValue;
+        if (initialString != null && (initialString.contains("\r") || initialString.contains("\n"))) {
+            returnValue = newLinePattern.matcher(initialString).replaceAll("\\\\n ");
+        } else {
+            returnValue = initialString;
+        }
+        return returnValue;
     }
 
     @SuppressWarnings("unchecked")
@@ -3023,16 +3039,16 @@ public final class Generic {
                 new X509TrustManager() {
                     @Nullable
                     @Override
-                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                    public X509Certificate[] getAcceptedIssuers() {
                         return null;
                     }
 
                     @Override
-                    public void checkClientTrusted(final java.security.cert.X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType) {
+                    public void checkClientTrusted(final X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType) {
                     }
 
                     @Override
-                    public void checkServerTrusted(final java.security.cert.X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType) {
+                    public void checkServerTrusted(final X509Certificate[] x509Certificates, @SuppressWarnings("ParameterNameDiffersFromOverriddenParameter") final String authType) {
                     }
                 }
         };
@@ -3045,7 +3061,7 @@ public final class Generic {
         // Install the all-trusting trust manager
         try {
             final SSLContext sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(null, trustAllCertsManager, new java.security.SecureRandom());
+            sslContext.init(null, trustAllCertsManager, new SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
         } catch (NoSuchAlgorithmException | KeyManagementException exception) {
             logger.error("STRANGE ERROR inside disableHTTPSValidation()", exception);
@@ -3332,20 +3348,20 @@ public final class Generic {
 
     @SuppressWarnings("SpellCheckingInspection")
     public static void turnOffHtmlUnitLogger() {
-        java.util.logging.Logger.getLogger("com.gargoylesoftware").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.DefaultCssErrorHandler").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.html.InputElementFactory").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.dom.Document").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.background.DefaultJavaScriptExecutor").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.IncorrectnessListenerImpl").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.WebConsole").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.StrictErrorReporter").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.ActiveXObject").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.html.HTMLDocument").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.html.HtmlScript").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.xml.XMLHttpRequest").setLevel(java.util.logging.Level.OFF);
-        java.util.logging.Logger.getLogger("org.apache.http.client.protocol.ResponseProcessCookies").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.DefaultCssErrorHandler").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.html.InputElementFactory").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.dom.Document").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.background.DefaultJavaScriptExecutor").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.IncorrectnessListenerImpl").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.WebConsole").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.StrictErrorReporter").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.ActiveXObject").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.html.HTMLDocument").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.html.HtmlScript").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.host.xml.XMLHttpRequest").setLevel(Level.OFF);
+        java.util.logging.Logger.getLogger("org.apache.http.client.protocol.ResponseProcessCookies").setLevel(Level.OFF);
         final String NO_OP_LOG = "org.apache.commons.logging.impl.NoOpLog", DEFAULT_LOG = "org.apache.commons.logging.simplelog.defaultlog";
         System.setProperty("org.apache.commons.logging.Log", NO_OP_LOG);
         System.setProperty(DEFAULT_LOG, NO_OP_LOG);

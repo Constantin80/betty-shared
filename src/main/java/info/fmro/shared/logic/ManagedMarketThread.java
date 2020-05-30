@@ -144,7 +144,7 @@ public class ManagedMarketThread
                                 //noinspection UnusedAssignment
                                 exposureHasBeenModified += this.managedMarket.removeExposure(runnersOrderedList, this.orderCache, this.pendingOrdersThread);
                             } else {
-                                logger.info("manage market useTheNewLimit: {} {} {}", this.managedMarket.marketId, this.managedMarket.marketName, runnersOrderedList.size());
+                                logger.info("manage market useTheNewLimit: {} {} runners:{}", this.managedMarket.marketId, this.managedMarket.marketName, runnersOrderedList.size());
                                 for (final ManagedRunner runner : this.managedMarket.runners.values()) {
                                     exposureHasBeenModified += runner.checkRunnerLimits(this.pendingOrdersThread, this.orderCache);
                                 }
