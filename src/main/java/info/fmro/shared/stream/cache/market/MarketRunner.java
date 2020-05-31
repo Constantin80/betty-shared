@@ -12,6 +12,7 @@ import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +77,11 @@ public class MarketRunner
 
     synchronized void onRunnerDefinitionChange(final RunnerDefinition newRunnerDefinition) {
         this.runnerDefinition = newRunnerDefinition;
+    }
+
+    @Nullable
+    public synchronized Integer getSortPriority() {
+        return this.runnerDefinition == null ? null : this.runnerDefinition.getSortPriority();
     }
 
     public synchronized double getBestAvailableLayPrice(final Map<String, ? extends Order> unmatchedOrders, final double calculatedLimit, @NotNull final AtomicDouble currencyRate) {

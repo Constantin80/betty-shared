@@ -81,6 +81,16 @@ public class ManagedRunner
         return this.attachOrderMarketRunnerStamp + attachOrderMarketRunnerRecentPeriod > currentTime;
     }
 
+    private synchronized boolean isActive(@NotNull final SynchronizedMap<? super String, ? extends Market> marketCache) {
+        attachRunner(marketCache);
+        return this.marketRunner != null && this.marketRunner.isActive();
+    }
+
+    public synchronized boolean isActive(final Market market) { // this is faster than the varian with marketCache
+        attachRunner(market);
+        return this.marketRunner != null && this.marketRunner.isActive();
+    }
+
     private synchronized void attachRunner(@NotNull final SynchronizedMap<? super String, ? extends Market> marketCache) {
         if (this.marketRunner == null) {
             final Market market = Formulas.getMarket(this.marketId, marketCache);
@@ -309,41 +319,44 @@ public class ManagedRunner
         resetToBeUsedOdds();
         this.getMarketRunner(marketCache); // updates the marketRunner
         this.getOrderMarketRunner(orderCache); // updates the orderMarketRunner
-        if (this.marketRunner == null) {
-            logger.error("trying to calculateOdds with null marketRunner for: {}", Generic.objectToString(this));
-        } else {
-            final HashMap<String, Order> unmatchedOrders = this.orderMarketRunner == null ? null : this.orderMarketRunner.getUnmatchedOrders();
+        if (isActive(marketCache)) {
+            if (this.marketRunner == null) {
+                logger.error("trying to calculateOdds with null marketRunner for: {}", Generic.objectToString(this));
+            } else {
+                final HashMap<String, Order> unmatchedOrders = this.orderMarketRunner == null ? null : this.orderMarketRunner.getUnmatchedOrders();
 
-            final double existingBackOdds = this.marketRunner.getBestAvailableBackPrice(unmatchedOrders, this.getBackAmountLimit(marketCalculatedLimit), currencyRate);
-            final double existingLayOdds = this.marketRunner.getBestAvailableLayPrice(unmatchedOrders, this.getLayAmountLimit(marketCalculatedLimit), currencyRate);
+                final double existingBackOdds = this.marketRunner.getBestAvailableBackPrice(unmatchedOrders, this.getBackAmountLimit(marketCalculatedLimit), currencyRate);
+                final double existingLayOdds = this.marketRunner.getBestAvailableLayPrice(unmatchedOrders, this.getLayAmountLimit(marketCalculatedLimit), currencyRate);
 
-            final double layNStepDifferentOdds = existingLayOdds == 0 ? 1_000d : info.fmro.shared.utility.Formulas.getNStepDifferentOdds(existingLayOdds, -1);
-            final double backNStepDifferentOdds = existingBackOdds == 0 ? 1.01d : info.fmro.shared.utility.Formulas.getNStepDifferentOdds(existingBackOdds, 1);
+                final double layNStepDifferentOdds = existingLayOdds == 0 ? 1_000d : info.fmro.shared.utility.Formulas.getNStepDifferentOdds(existingLayOdds, -1);
+                final double backNStepDifferentOdds = existingBackOdds == 0 ? 1.01d : info.fmro.shared.utility.Formulas.getNStepDifferentOdds(existingBackOdds, 1);
 
-            this.toBeUsedBackOdds = Math.max(this.getMinBackOdds(), layNStepDifferentOdds);
-            this.toBeUsedLayOdds = Math.min(this.getMaxLayOdds(), backNStepDifferentOdds);
+                this.toBeUsedBackOdds = Math.max(this.getMinBackOdds(), layNStepDifferentOdds);
+                this.toBeUsedLayOdds = Math.min(this.getMaxLayOdds(), backNStepDifferentOdds);
 
-            // I'll allow unusable odds
+                // I'll allow unusable odds
 //            this.toBeUsedBackOdds = Math.min(Math.max(this.toBeUsedBackOdds, 1.01d), 1_000d);
 //            this.toBeUsedLayOdds = Math.min(Math.max(this.toBeUsedLayOdds, 1.01d), 1_000d);
-        }
-        if (this.orderMarketRunner != null) {
-            // send order to cancel all back bets at worse odds than to be used ones / send order to cancel all back bets
-            exposureHasBeenModified += info.fmro.shared.utility.Formulas.oddsAreUsable(this.toBeUsedBackOdds) ?
-                                       this.orderMarketRunner.cancelUnmatched(Side.B, this.toBeUsedBackOdds, pendingOrdersThread) : this.orderMarketRunner.cancelUnmatched(Side.B, pendingOrdersThread);
+            }
+            if (this.orderMarketRunner != null) {
+                // send order to cancel all back bets at worse odds than to be used ones / send order to cancel all back bets
+                exposureHasBeenModified += info.fmro.shared.utility.Formulas.oddsAreUsable(this.toBeUsedBackOdds) ?
+                                           this.orderMarketRunner.cancelUnmatched(Side.B, this.toBeUsedBackOdds, pendingOrdersThread) : this.orderMarketRunner.cancelUnmatched(Side.B, pendingOrdersThread);
 
-            // send order to cancel all lay bets at worse odds than to be used ones / send order to cancel all lay bets
-            exposureHasBeenModified += info.fmro.shared.utility.Formulas.oddsAreUsable(this.toBeUsedLayOdds) ?
-                                       this.orderMarketRunner.cancelUnmatched(Side.L, this.toBeUsedLayOdds, pendingOrdersThread) : this.orderMarketRunner.cancelUnmatched(Side.L, pendingOrdersThread);
-        } else { // this is actually normal if there are no orders on runner
+                // send order to cancel all lay bets at worse odds than to be used ones / send order to cancel all lay bets
+                exposureHasBeenModified += info.fmro.shared.utility.Formulas.oddsAreUsable(this.toBeUsedLayOdds) ?
+                                           this.orderMarketRunner.cancelUnmatched(Side.L, this.toBeUsedLayOdds, pendingOrdersThread) : this.orderMarketRunner.cancelUnmatched(Side.L, pendingOrdersThread);
+            } else { // this is actually normal if there are no orders on runner
 //            logger.error("null orderMarketRunner in calculateOdds: {}", Generic.objectToString(this));
 //            logger.info("null orderMarketRunner in calculateOdds: {} {}", this.marketId, Generic.objectToString(this.runnerId));
 //            Generic.alreadyPrintedMap.logOnce(Generic.DAY_LENGTH_MILLISECONDS, logger, LogLevel.INFO, "null orderMarketRunner in calculateOdds: {} {}", this.marketId, Generic.objectToString(this.runnerId));
-        }
+            }
 
-        if (this.marketRunner != null && this.orderMarketRunner != null) {
-            exposureHasBeenModified += this.cancelHardToReachOrders(pendingOrdersThread, currencyRate, orderCache, marketCache);
-        } else { // error messages were printed previously, nothing to be done
+            if (this.marketRunner != null && this.orderMarketRunner != null) {
+                exposureHasBeenModified += this.cancelHardToReachOrders(pendingOrdersThread, currencyRate, orderCache, marketCache);
+            } else { // error messages were printed previously, nothing to be done
+            }
+        } else { // won't manage inactive runners
         }
 
         return exposureHasBeenModified; // exposure will be recalculated outside the method, based on the return value indicating modifications have been made; but might be useless, as orders are just placed, not yet executed

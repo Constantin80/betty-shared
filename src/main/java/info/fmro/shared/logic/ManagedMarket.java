@@ -37,10 +37,13 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass", "WeakerAccess", "NonPrivateFieldAccessedInSynchronizedContext", "PackageVisibleField"})
 public class ManagedMarket
@@ -108,9 +111,27 @@ public class ManagedMarket
         return runnersOrderedList;
     }
 
+    private static int getSortPriorityForEntry(@NotNull final HashMap<RunnerId, Integer> sortPriorityMap, @NotNull final Map.Entry<RunnerId, ManagedRunner> entry) {
+        final Integer sortPriority = sortPriorityMap.get(entry.getKey());
+        return sortPriority == null ? Integer.MAX_VALUE : sortPriority;
+    }
+
     @NotNull
-    public synchronized HashMap<RunnerId, ManagedRunner> getRunners() {
-        return new HashMap<>(this.runners);
+    public synchronized LinkedHashMap<RunnerId, ManagedRunner> getRunners(@NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final ListOfQueues listOfQueues,
+                                                                          @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> markets,
+                                                                          @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
+        attachMarket(marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime);
+        final HashMap<RunnerId, Integer> sortPriorityMap = this.market == null ? null : this.market.getRunnerSortPriorityMap();
+        final LinkedHashMap<RunnerId, ManagedRunner> returnList;
+        if (sortPriorityMap == null) {
+            returnList = new LinkedHashMap<>(this.runners);
+        } else {
+            returnList = this.runners.entrySet()
+                                     .stream()
+                                     .sorted(Comparator.comparingInt(o -> getSortPriorityForEntry(sortPriorityMap, o)))
+                                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldValue, newValue) -> oldValue, LinkedHashMap::new));
+        }
+        return returnList;
     }
 
 //    private synchronized boolean exposureIsRecent() {
@@ -651,7 +672,8 @@ public class ManagedMarket
     public final synchronized boolean attachMarket(@NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck,
                                                    @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> markets, @NotNull final AtomicBoolean rulesHaveChanged,
                                                    @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
-        return attachMarket(marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime, true); // default sendRunnerThroughStream true
+        // default sendRunnerThroughStream true; it's false when the method is used in the constructor, so it doesn't send the runners before the market is created
+        return attachMarket(marketCache, listOfQueues, marketsToCheck, events, markets, rulesHaveChanged, marketCataloguesMap, programStartTime, true);
     }
 
     public final synchronized boolean attachMarket(@NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck,

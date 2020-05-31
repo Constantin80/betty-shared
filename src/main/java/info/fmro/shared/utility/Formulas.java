@@ -292,6 +292,10 @@ public final class Formulas {
         return odds <= 1_000d && odds >= 1.01d;
     }
 
+    public static boolean oddsAreDisabled(final double odds, @NotNull final Side side) {
+        return (side == Side.L && DoubleMath.fuzzyEquals(odds, 1d, ODDS_TOLERANCE)) || (side == Side.B && DoubleMath.fuzzyEquals(odds, 1_001d, ODDS_TOLERANCE));
+    }
+
     public static double inverseOdds(final double odds, @NotNull final Side side) {
         final double returnValue;
         if (oddsAreUsable(odds)) {
@@ -457,7 +461,7 @@ public final class Formulas {
         } else {
             if (marketCataloguesMap.isEmpty()) { // normal, before map got a chance to be updated
             } else {
-                logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventIdOfMarketId", marketId);
+                logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventIdOfMarketId, maybe market is expired", marketId);
             }
             result = null;
         }

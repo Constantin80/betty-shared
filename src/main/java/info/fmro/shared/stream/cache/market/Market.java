@@ -68,6 +68,18 @@ public class Market
         marketRunner.onRunnerDefinitionChange(runnerDefinition);
     }
 
+    @NotNull
+    public synchronized HashMap<RunnerId, Integer> getRunnerSortPriorityMap() {
+        final HashMap<RunnerId, Integer> returnMap = new HashMap<>(Generic.getCollectionCapacity(this.marketRunners.size()));
+        for (final Map.Entry<RunnerId, MarketRunner> entry : this.marketRunners.entrySet()) {
+            final RunnerId key = entry.getKey();
+            final MarketRunner value = entry.getValue();
+            final Integer sortPriority = value == null ? null : value.getSortPriority();
+            returnMap.put(key, sortPriority);
+        }
+        return returnMap;
+    }
+
     private synchronized MarketRunner getOrAdd(final RunnerId runnerId) {
         return this.marketRunners.computeIfAbsent(runnerId, k -> new MarketRunner(getMarketId(), k));
     }

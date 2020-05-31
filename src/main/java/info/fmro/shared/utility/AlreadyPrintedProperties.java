@@ -30,7 +30,7 @@ class AlreadyPrintedProperties
         this.nAppeared = 1;
         this.propertiesAreImportant = propertiesImportant;
 
-        logger.info("new AlreadyPrintedProperties created with id: {}", this.id);
+        logger.debug("new AlreadyPrintedProperties created with id: {}", this.id);
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -48,7 +48,7 @@ class AlreadyPrintedProperties
         if (this.nAppeared > 1) {
             logger.info("AlreadyPrintedProperties with id {} was seen {} times during a {} ms period: {}", this.id, Generic.addCommas(this.nAppeared), Generic.addCommas(this.lastTimeStamp - this.initialTimeStamp), printedString);
         } else {
-            logger.info("AlreadyPrintedProperties with id {} was seen {} times during a {} ms period", this.id, this.nAppeared, Generic.addCommas(this.lastTimeStamp - this.initialTimeStamp));
+            logger.debug("AlreadyPrintedProperties with id {} was seen {} times during a {} ms period", this.id, this.nAppeared, Generic.addCommas(this.lastTimeStamp - this.initialTimeStamp));
         }
     }
 }

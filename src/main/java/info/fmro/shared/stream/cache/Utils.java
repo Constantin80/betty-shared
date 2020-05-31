@@ -82,8 +82,6 @@ public final class Utils {
 
         // todo test order placing
 
-        // todo runners are not in proper order, plus I get a lot of extra runners; complete mess in the USA presidential election market
-
 //        final double totalMarketLimit = Math.min(maxTotalLimit, sumOfMaxMarketLimits);
 //        @SuppressWarnings("unused") final double availableTotalExposure = totalMarketLimit - totalExposure; // can be positive or negative, not used for now, as I use the ConsideringOnlyMatched variant
 //        final double availableExposureInTheMarkets = totalMarketLimit - totalExposure; // should be positive, else this might be an error, or maybe not error
@@ -308,7 +306,7 @@ public final class Utils {
         } else {
             final double firstToBeUsedOdds = toBeUsedOdds.get(0), secondToBeUsedOdds = toBeUsedOdds.get(1);
             final Side firstSide = sideList.get(0), secondSide = sideList.get(1);
-            if (!info.fmro.shared.utility.Formulas.oddsAreUsable(firstToBeUsedOdds) || !info.fmro.shared.utility.Formulas.oddsAreUsable(secondToBeUsedOdds) || firstSide == secondSide) {
+            if (!Formulas.oddsAreUsable(firstToBeUsedOdds) || !Formulas.oddsAreUsable(secondToBeUsedOdds) || firstSide == secondSide) {
                 logger.error("bogus internal arguments for getExposureToBePlacedForTwoWayMarket: {} {} {}", Generic.objectToString(sideList), Generic.objectToString(toBeUsedOdds), excessMatchedExposure);
                 resultList = List.of(0d, 0d);
             } else {
@@ -411,8 +409,11 @@ public final class Utils {
         } else {
             final double firstToBeUsedOdds = toBeUsedOdds.get(0), secondToBeUsedOdds = toBeUsedOdds.get(1);
             final Side firstSide = sideList.get(0), secondSide = sideList.get(1);
-            if (!info.fmro.shared.utility.Formulas.oddsAreUsable(firstToBeUsedOdds) || !Formulas.oddsAreUsable(secondToBeUsedOdds) || firstSide == secondSide) {
-                logger.error("bogus internal arguments for getAmountsToBePlacedForTwoWayMarket: {} {} {}", Generic.objectToString(sideList), Generic.objectToString(toBeUsedOdds), availableLimit);
+            if (!Formulas.oddsAreUsable(firstToBeUsedOdds) || !Formulas.oddsAreUsable(secondToBeUsedOdds) || firstSide == secondSide) {
+                if (Formulas.oddsAreDisabled(firstToBeUsedOdds, firstSide) || Formulas.oddsAreDisabled(secondToBeUsedOdds, secondSide)) { // normal branch, odds disabled, will place 0d amount, no need to print anything
+                } else {
+                    logger.error("bogus internal arguments for getAmountsToBePlacedForTwoWayMarket: {} {} {}", Generic.objectToString(sideList), Generic.objectToString(toBeUsedOdds), availableLimit);
+                }
                 resultList = List.of(0d, 0d);
             } else {
                 final double firstSmallerOddsBonus = Math.sqrt(Math.sqrt((secondToBeUsedOdds - 1d) / (firstToBeUsedOdds - 1d))); // double sqrt should be well balanced exposure, a limited advantage for the smaller odds

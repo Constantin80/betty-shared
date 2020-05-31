@@ -676,7 +676,7 @@ public final class Generic {
             //noinspection ConstantConditions
             closeObjects(outFileOutputStream, errFileOutputStream, outPrintStream, errPrintStream);
         }
-        logger.info("have replaced standard streams: out={} err={} logsFolder={}", outFileName, errFileName, logsFolderName);
+        logger.debug("have replaced standard streams: out={} err={} logsFolder={}", outFileName, errFileName, logsFolderName);
         if (closeExistingStreams) { // normal behaviour, nothing to be done
         } else {
             logger.error("not closing standardStreams in replaceStandardStreams, this is only OK during testing");
