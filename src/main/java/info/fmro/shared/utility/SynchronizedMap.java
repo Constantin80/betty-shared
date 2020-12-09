@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,12 +19,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
-@SuppressWarnings({"ClassWithTooManyMethods", "BooleanMethodIsAlwaysInverted"})
+@SuppressWarnings({"ClassWithTooManyMethods", "BooleanMethodIsAlwaysInverted", "WeakerAccess", "RedundantSuppression"})
 public class SynchronizedMap<K, V>
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedMap.class);
     public static final int DEFAULT_INITIAL_SIZE = 0;
     public static final float DEFAULT_LOAD_FACTOR = 0.75f;
+    @Serial
     private static final long serialVersionUID = -7460171730311386991L;
     private final HashMap<K, V> map;
     private transient Set<Entry<K, V>> mapEntries;
@@ -54,20 +56,23 @@ public class SynchronizedMap<K, V>
         this.mapValues = this.map.values();
     }
 
-    public synchronized boolean copyFrom(final SynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
+    public synchronized boolean copyFrom(final SynchronizedMap<? extends K, ? extends V> other) {
+        return copyFrom(other, false);
+    }
+
+    public synchronized boolean copyFrom(final SynchronizedMap<? extends K, ? extends V> other, final boolean mapAllowedToBeNotEmpty) { // doesn't copy static final or transient; does update the map
         final boolean readSuccessful;
-        if (!this.map.isEmpty()) {
-            logger.error("not empty map in SynchronizedMap copyFrom: {}", Generic.objectToString(this)); // this error might not be fatal, read can still be successful
+        if (!this.map.isEmpty() && !mapAllowedToBeNotEmpty) {
+            logger.error("not empty map in SynchronizedMap copyFrom: {}", this.map.keySet()); // this error might not be fatal, read can still be successful
         }
         if (other == null) {
-            logger.error("null other in copyFrom for: {}", Generic.objectToString(this));
+            logger.error("null other in copyFrom for: {}", this.map.keySet());
             readSuccessful = false;
         } else if (other.map == null) {
-            logger.error("null other.map in copyFrom for: {}", Generic.objectToString(other));
+            logger.error("null other.map in copyFrom for: {}", this.map.keySet());
             readSuccessful = false;
         } else {
 //            Generic.updateObject(this, other);
-
             this.timeStamp = other.timeStamp;
             this.timeStampRemoved = other.timeStampRemoved;
             this.timeClean = other.timeClean;
@@ -77,10 +82,10 @@ public class SynchronizedMap<K, V>
 
             readSuccessful = true;
         }
-
         return readSuccessful;
     }
 
+    @Serial
     private void readObject(@NotNull final ObjectInputStream objectInputStream)
             throws IOException, ClassNotFoundException {
         objectInputStream.defaultReadObject();
@@ -326,7 +331,7 @@ public class SynchronizedMap<K, V>
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -338,7 +343,7 @@ public class SynchronizedMap<K, V>
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.map);
     }
 }

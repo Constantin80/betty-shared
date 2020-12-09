@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.Collection;
@@ -22,6 +23,7 @@ public class StreamSynchronizedMap<K extends Serializable, V extends Serializabl
         extends SynchronizedMap<K, V>
         implements StreamObjectInterface, Serializable {
     private static final Logger logger = LoggerFactory.getLogger(StreamSynchronizedMap.class);
+    @Serial
     private static final long serialVersionUID = -4577933961359844025L;
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     private final Class<? super V> clazz;
@@ -41,14 +43,19 @@ public class StreamSynchronizedMap<K extends Serializable, V extends Serializabl
         this.clazz = clazz;
     }
 
+    @Serial
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         this.listOfQueues = new ListOfQueues();
     }
 
-    public synchronized boolean copyFrom(final StreamSynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
-        final boolean readSuccessful = super.copyFrom(other);
+    public synchronized boolean copyFrom(final StreamSynchronizedMap<? extends K, ? extends V> other) {
+        return copyFrom(other, false);
+    }
+
+    public synchronized boolean copyFrom(final StreamSynchronizedMap<? extends K, ? extends V> other, final boolean mapAllowedToBeNotEmpty) { // doesn't copy static final or transient; does update the map
+        final boolean readSuccessful = super.copyFrom(other, mapAllowedToBeNotEmpty);
 
         final int nQueues = this.listOfQueues.size();
         if (nQueues == 0) { // normal case, nothing to be done
@@ -56,13 +63,16 @@ public class StreamSynchronizedMap<K extends Serializable, V extends Serializabl
             logger.error("existing queues during StreamSynchronizedMap.copyFrom: {} {}", nQueues, Generic.objectToString(this));
             this.listOfQueues.send(this.getCopy());
         }
-
         return readSuccessful;
     }
 
-    public synchronized boolean copyFromStream(final StreamSynchronizedMap<? extends K, ? extends V> other) { // doesn't copy static final or transient; does update the map
+    public synchronized boolean copyFromStream(final StreamSynchronizedMap<? extends K, ? extends V> other) {
+        return copyFromStream(other, false);
+    }
+
+    public synchronized boolean copyFromStream(final StreamSynchronizedMap<? extends K, ? extends V> other, final boolean mapAllowedToBeNotEmpty) { // doesn't copy static final or transient; does update the map
         this.clear(); // to avoid error message if map not empty, because in this case it can actually have elements
-        return this.copyFrom(other);
+        return this.copyFrom(other, mapAllowedToBeNotEmpty);
 
 //        final int nQueues = this.listOfQueues.size();
 //        if (nQueues == 0) { // normal case, nothing to be done

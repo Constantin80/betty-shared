@@ -2,6 +2,7 @@ package info.fmro.shared.stream.definitions;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,9 +10,11 @@ import java.util.List;
 // objects of this class are read from the stream
 public class OrderMarketChange
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -4363278428265553269L;
     private Long accountId;
     private Boolean closed;
+    private Boolean fullImage;
     private String id; // Market Id - the id of the market the order is on
     @Nullable
     private List<OrderRunnerChange> orc; // Order Changes - a list of changes to orders on a selection
@@ -30,6 +33,14 @@ public class OrderMarketChange
 
     public synchronized void setClosed(final Boolean closed) {
         this.closed = closed;
+    }
+
+    public synchronized Boolean getFullImage() {
+        return this.fullImage;
+    }
+
+    public synchronized void setFullImage(final Boolean fullImage) {
+        this.fullImage = fullImage;
     }
 
     public synchronized String getId() {

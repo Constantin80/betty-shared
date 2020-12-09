@@ -2,12 +2,14 @@ package info.fmro.shared.logic;
 
 import info.fmro.shared.utility.SynchronizedMap;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 @SuppressWarnings("WeakerAccess")
 public class ManagedEventsMap
         extends SynchronizedMap<String, ManagedEvent>
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 3165547218025993674L;
 
     public ManagedEventsMap() {

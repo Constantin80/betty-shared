@@ -2,11 +2,13 @@ package info.fmro.shared.entities;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 
 public class ItemDescription
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -148182567572921589L;
     private String eventTypeDesc;
     private String eventDesc;

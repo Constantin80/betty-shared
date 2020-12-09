@@ -4,11 +4,13 @@ import info.fmro.shared.utility.Generic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class SessionTokenObject
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(SessionTokenObject.class);
+    @Serial
     private static final long serialVersionUID = -6100294880488404837L;
     public static final long defaultRecentPeriod = 1_000L;
     private String sessionToken;

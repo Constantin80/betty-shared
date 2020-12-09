@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -13,6 +14,7 @@ import java.util.Set;
 
 public class MarketDataFilter
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -1848801841041872639L;
     @Nullable
     private Set<FilterFlag> fields; // A set of field filter flags

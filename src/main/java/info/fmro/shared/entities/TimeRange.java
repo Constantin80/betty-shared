@@ -2,11 +2,13 @@ package info.fmro.shared.entities;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 
 public class TimeRange
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -2987284947265873972L;
     @Nullable
     private Date from;

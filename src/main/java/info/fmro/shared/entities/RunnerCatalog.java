@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,9 +13,12 @@ import java.util.Objects;
 
 public class RunnerCatalog
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 8076707042221620993L;
+    @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     private Long selectionId;
     private String runnerName;
+    @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     private Double handicap;
     private Integer sortPriority;
     private Map<String, String> metadata;
@@ -32,15 +36,16 @@ public class RunnerCatalog
         this.metadata = new HashMap<>(metadata);
     }
 
-    public synchronized Long getSelectionId() {
+    public Long getSelectionId() {
         return this.selectionId;
     }
 
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public synchronized String getRunnerName() {
         return this.runnerName;
     }
 
-    public synchronized Double getHandicap() {
+    public Double getHandicap() {
         return this.handicap;
     }
 
@@ -54,7 +59,7 @@ public class RunnerCatalog
     }
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
-    public synchronized boolean runnerIdEquals(final RunnerId runnerId) {
+    synchronized boolean runnerIdEquals(final RunnerId runnerId) {
         if (runnerId == null) {
             return false;
         }
@@ -62,31 +67,22 @@ public class RunnerCatalog
     }
 
     @SuppressWarnings("NonFinalFieldReferenceInEquals")
-    @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final RunnerCatalog other = (RunnerCatalog) obj;
-        if (!Objects.equals(this.selectionId, other.selectionId)) {
-            return false;
-        }
-        return Objects.equals(this.handicap, other.handicap);
+        final RunnerCatalog that = (RunnerCatalog) obj;
+        return Objects.equals(this.selectionId, that.selectionId) &&
+               Objects.equals(this.handicap, that.handicap);
     }
 
     @SuppressWarnings("NonFinalFieldReferencedInHashCode")
     @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 97 * hash + Objects.hashCode(this.selectionId);
-        hash = 97 * hash + Objects.hashCode(this.handicap);
-        return hash;
+    public int hashCode() {
+        return Objects.hash(this.selectionId, this.handicap);
     }
 }

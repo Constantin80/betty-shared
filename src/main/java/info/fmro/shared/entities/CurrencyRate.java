@@ -1,9 +1,11 @@
 package info.fmro.shared.entities;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class CurrencyRate
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 9014962168930839468L;
     private String currencyCode; // Three letter ISO 4217 code
     private Double rate; // Exchange rate for the currency specified in the request

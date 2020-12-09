@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -17,6 +18,7 @@ import java.text.DecimalFormat;
 public class LimitOrder
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(LimitOrder.class);
+    @Serial
     private static final long serialVersionUID = 4803372723542992243L;
     private static final DecimalFormat decimalFormat = new DecimalFormat("#0.0#");
     private static final RoundingMode roundingMode = RoundingMode.DOWN;

@@ -51,7 +51,7 @@ public class StampedDouble { // access to the value is stamped
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         int hash = 7;
         hash = 59 * hash + (int) (Double.doubleToLongBits(this.value) ^ (Double.doubleToLongBits(this.value) >>> 32));
         return hash;
@@ -59,7 +59,7 @@ public class StampedDouble { // access to the value is stamped
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == null) {
             return false;
         }

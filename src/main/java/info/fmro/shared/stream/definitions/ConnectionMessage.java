@@ -1,11 +1,13 @@
 package info.fmro.shared.stream.definitions;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 // objects of this class are read from the stream
 public class ConnectionMessage
         extends ResponseMessage
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 189022449161940813L;
     private String connectionId; // The connection id
 

@@ -2,11 +2,13 @@ package info.fmro.shared.objects;
 
 import org.jetbrains.annotations.Contract;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
 public class TwoDoubles
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -5306509572507853826L;
     private final double firstDouble, secondDouble;
 
@@ -15,17 +17,17 @@ public class TwoDoubles
         this.secondDouble = secondDouble;
     }
 
-    public synchronized double getFirstDouble() {
+    public double getFirstDouble() {
         return this.firstDouble;
     }
 
-    public synchronized double getSecondDouble() {
+    public double getSecondDouble() {
         return this.secondDouble;
     }
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -38,7 +40,7 @@ public class TwoDoubles
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.firstDouble, this.secondDouble);
     }
 }

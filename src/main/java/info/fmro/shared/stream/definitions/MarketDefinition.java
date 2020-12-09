@@ -4,6 +4,7 @@ import info.fmro.shared.enums.MarketBettingType;
 import info.fmro.shared.enums.MarketStatus;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
@@ -13,6 +14,7 @@ import java.util.List;
 @SuppressWarnings("OverlyComplexClass")
 public class MarketDefinition
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 5416387683049486627L;
     private Long betDelay;
     private MarketBettingType bettingType; // betting type of the market (i.e. Odds, Asian Handicap Singles, or Asian Handicap Doubles)

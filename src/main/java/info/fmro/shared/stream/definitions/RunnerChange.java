@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -15,6 +16,7 @@ import java.util.List;
 public class RunnerChange
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(RunnerChange.class);
+    @Serial
     private static final long serialVersionUID = -3034311716396095048L;
     @Nullable
     private List<List<Double>> atb; // Available To Back - PriceVol tuple delta of price changes (0 vol is remove)
@@ -43,7 +45,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getAtb() {
         @Nullable final List<List<Double>> result;
-
         if (this.atb == null) {
             result = null;
         } else {
@@ -51,13 +52,12 @@ public class RunnerChange
             for (final List<Double> list : this.atb) {
                 if (list == null) {
                     logger.error("null element found in atb during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -69,7 +69,7 @@ public class RunnerChange
             for (final List<Double> list : atb) {
                 if (list == null) {
                     logger.error("null element found in atb during set for: {}", Generic.objectToString(atb));
-                    this.atb.add(null);
+//                    this.atb.add(null);
                 } else {
                     this.atb.add(new ArrayList<>(list));
                 }
@@ -79,7 +79,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getAtl() {
         @Nullable final List<List<Double>> result;
-
         if (this.atl == null) {
             result = null;
         } else {
@@ -87,13 +86,12 @@ public class RunnerChange
             for (final List<Double> list : this.atl) {
                 if (list == null) {
                     logger.error("null element found in atl during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -105,7 +103,7 @@ public class RunnerChange
             for (final List<Double> list : atl) {
                 if (list == null) {
                     logger.error("null element found in atl during set for: {}", Generic.objectToString(atl));
-                    this.atl.add(null);
+//                    this.atl.add(null);
                 } else {
                     this.atl.add(new ArrayList<>(list));
                 }
@@ -115,7 +113,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getBatb() {
         @Nullable final List<List<Double>> result;
-
         if (this.batb == null) {
             result = null;
         } else {
@@ -123,13 +120,12 @@ public class RunnerChange
             for (final List<Double> list : this.batb) {
                 if (list == null) {
                     logger.error("null element found in batb during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -141,7 +137,7 @@ public class RunnerChange
             for (final List<Double> list : batb) {
                 if (list == null) {
                     logger.error("null element found in batb during set for: {}", Generic.objectToString(batb));
-                    this.batb.add(null);
+//                    this.batb.add(null);
                 } else {
                     this.batb.add(new ArrayList<>(list));
                 }
@@ -151,7 +147,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getBatl() {
         @Nullable final List<List<Double>> result;
-
         if (this.batl == null) {
             result = null;
         } else {
@@ -159,13 +154,12 @@ public class RunnerChange
             for (final List<Double> list : this.batl) {
                 if (list == null) {
                     logger.error("null element found in batl during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -177,7 +171,7 @@ public class RunnerChange
             for (final List<Double> list : batl) {
                 if (list == null) {
                     logger.error("null element found in batl during set for: {}", Generic.objectToString(batl));
-                    this.batl.add(null);
+//                    this.batl.add(null);
                 } else {
                     this.batl.add(new ArrayList<>(list));
                 }
@@ -187,7 +181,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getBdatb() {
         @Nullable final List<List<Double>> result;
-
         if (this.bdatb == null) {
             result = null;
         } else {
@@ -195,13 +188,12 @@ public class RunnerChange
             for (final List<Double> list : this.bdatb) {
                 if (list == null) {
                     logger.error("null element found in bdatb during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -213,7 +205,7 @@ public class RunnerChange
             for (final List<Double> list : bdatb) {
                 if (list == null) {
                     logger.error("null element found in bdatb during set for: {}", Generic.objectToString(bdatb));
-                    this.bdatb.add(null);
+//                    this.bdatb.add(null);
                 } else {
                     this.bdatb.add(new ArrayList<>(list));
                 }
@@ -223,7 +215,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getBdatl() {
         @Nullable final List<List<Double>> result;
-
         if (this.bdatl == null) {
             result = null;
         } else {
@@ -231,13 +222,12 @@ public class RunnerChange
             for (final List<Double> list : this.bdatl) {
                 if (list == null) {
                     logger.error("null element found in bdatl during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -249,7 +239,7 @@ public class RunnerChange
             for (final List<Double> list : bdatl) {
                 if (list == null) {
                     logger.error("null element found in bdatl during set for: {}", Generic.objectToString(bdatl));
-                    this.bdatl.add(null);
+//                    this.bdatl.add(null);
                 } else {
                     this.bdatl.add(new ArrayList<>(list));
                 }
@@ -283,7 +273,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getSpb() {
         @Nullable final List<List<Double>> result;
-
         if (this.spb == null) {
             result = null;
         } else {
@@ -291,13 +280,12 @@ public class RunnerChange
             for (final List<Double> list : this.spb) {
                 if (list == null) {
                     logger.error("null element found in spb during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -309,7 +297,7 @@ public class RunnerChange
             for (final List<Double> list : spb) {
                 if (list == null) {
                     logger.error("null element found in spb during set for: {}", Generic.objectToString(spb));
-                    this.spb.add(null);
+//                    this.spb.add(null);
                 } else {
                     this.spb.add(new ArrayList<>(list));
                 }
@@ -327,7 +315,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getSpl() {
         @Nullable final List<List<Double>> result;
-
         if (this.spl == null) {
             result = null;
         } else {
@@ -335,13 +322,12 @@ public class RunnerChange
             for (final List<Double> list : this.spl) {
                 if (list == null) {
                     logger.error("null element found in spl during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -353,7 +339,7 @@ public class RunnerChange
             for (final List<Double> list : spl) {
                 if (list == null) {
                     logger.error("null element found in spl during set for: {}", Generic.objectToString(spl));
-                    this.spl.add(null);
+//                    this.spl.add(null);
                 } else {
                     this.spl.add(new ArrayList<>(list));
                 }
@@ -371,7 +357,6 @@ public class RunnerChange
 
     public synchronized List<List<Double>> getTrd() {
         @Nullable final List<List<Double>> result;
-
         if (this.trd == null) {
             result = null;
         } else {
@@ -379,13 +364,12 @@ public class RunnerChange
             for (final List<Double> list : this.trd) {
                 if (list == null) {
                     logger.error("null element found in trd during get for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -397,7 +381,7 @@ public class RunnerChange
             for (final List<Double> list : trd) {
                 if (list == null) {
                     logger.error("null element found in trd during set for: {}", Generic.objectToString(trd));
-                    this.trd.add(null);
+//                    this.trd.add(null);
                 } else {
                     this.trd.add(new ArrayList<>(list));
                 }

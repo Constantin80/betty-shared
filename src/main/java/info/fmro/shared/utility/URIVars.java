@@ -4,6 +4,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.net.IDN;
 import java.net.URL;
@@ -14,6 +15,7 @@ import java.util.Locale;
 public class URIVars
         implements Serializable, Cloneable {
     private static final Logger logger = LoggerFactory.getLogger(URIVars.class);
+    @Serial
     private static final long serialVersionUID = 3895525534915953109L;
     // http://en.wikipedia.org/wiki/Uniform_Resource_Locator
     // it will work for http type URLs:

@@ -2,6 +2,7 @@ package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.CommandType;
 import info.fmro.shared.objects.LoggerThreadInterface;
+import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.objects.ScraperEventInterface;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import info.fmro.shared.utility.BlackList;
@@ -14,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -29,14 +31,14 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Executor;
 
-@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass", "WeakerAccess"})
+@SuppressWarnings({"OverlyComplexClass", "WeakerAccess"})
 public class Event
         extends Ignorable
         implements Serializable, Comparable<Event> {
     private static final Logger logger = LoggerFactory.getLogger(Event.class);
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
+    @Serial
     private static final long serialVersionUID = -6755870038911915452L;
     // ScraperEventInterface likely can't be used to send items from Server to Client; if I ever decide to reenable the scraper system, I need to fix this
     private LinkedHashMap<Class<? extends ScraperEventInterface>, Long> scraperEventIds; // <class, scraperId>; initialization doesn't work when using Gson
@@ -87,7 +89,7 @@ public class Event
         return modified;
     }
 
-    public synchronized int ignoredScrapersCheck(@NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated,
+    public synchronized int ignoredScrapersCheck(@NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated,
                                                  final int MIN_MATCHED, final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Method getScraperEventsMap,
                                                  @NotNull final Method getIgnorableMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
         final int modified;
@@ -115,8 +117,8 @@ public class Event
                         logger.error("notExist scraperEvent in getNValidScraperEventIds, timeSinceLastRemoved: {}ms for: {} {} {}", timeSinceLastRemoved, scraperClass, scraperId, Generic.objectToString(this));
                     }
                     iterator.remove();
-                    this.matchedTimeStamp(false, removeFromSecondaryMaps, threadPoolExecutor, constructorMarket, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD,
-                                          marketCataloguesMap, getScraperEventsMap, getIgnorableMap, constructorEvent); // removal of existing matchedScraper
+                    this.matchedTimeStamp(false, removeFromSecondaryMaps, constructorMarket, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap,
+                                          constructorEvent); // removal of existing matchedScraper
                 } else {
                     ignoredExpirations.add(scraperEvent.getIgnoredExpiration());
                 }
@@ -126,7 +128,7 @@ public class Event
             if (size >= MIN_MATCHED && size > 0) {
                 Collections.sort(ignoredExpirations);
                 final long newIgnoredExpiration = ignoredExpirations.get(size - 1);
-                modified = this.setIgnored(0L, newIgnoredExpiration, removeFromSecondaryMaps, threadPoolExecutor, constructorMarket, safeBetModuleActivated, marketCataloguesMap, constructorEvent);
+                modified = this.setIgnored(0L, newIgnoredExpiration, removeFromSecondaryMaps, constructorMarket, safeBetModuleActivated, marketCataloguesMap, constructorEvent);
             } else { // not enough matched scrapers, nothing to be done
                 modified = 0;
             }
@@ -138,15 +140,14 @@ public class Event
         return modified;
     }
 
-    public synchronized int setIgnored(final long period, @NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated,
+    public synchronized int setIgnored(final long period, @NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated,
                                        @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
         final long currentTime = System.currentTimeMillis();
-        return setIgnored(period, currentTime, removeFromSecondaryMaps, threadPoolExecutor, constructorMarket, safeBetModuleActivated, marketCataloguesMap, constructorEvent);
+        return setIgnored(period, currentTime, removeFromSecondaryMaps, constructorMarket, safeBetModuleActivated, marketCataloguesMap, constructorEvent);
     }
 
-    @SuppressWarnings("OverlyNestedMethod")
-    public synchronized int setIgnored(final long period, final long startTime, @NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructorMarket,
-                                       final boolean safeBetModuleActivated, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
+    public synchronized int setIgnored(final long period, final long startTime, @NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated,
+                                       @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
         final int modified = setIgnored(period, startTime);
 
         if (modified > 0) {
@@ -158,7 +159,7 @@ public class Event
                         final String eventId = event.getId();
                         if (eventId != null) {
                             if (eventId.equals(this.id)) {
-                                marketCatalogue.setIgnored(period, startTime, removeFromSecondaryMaps, threadPoolExecutor, constructorMarket, safeBetModuleActivated);
+                                marketCatalogue.setIgnored(period, startTime, removeFromSecondaryMaps, constructorMarket, safeBetModuleActivated);
                             } else { // nothing to be done
                             }
                         } else {
@@ -183,7 +184,7 @@ public class Event
 
             logger.info("ignoreEvent to check: {} delay: {} launch: findMarkets", this.id, realPeriod);
             try {
-                threadPoolExecutor.execute(constructorEvent.newInstance(CommandType.findMarkets, eventsSet, realPeriod));
+                SharedStatics.threadPoolExecutor.execute(constructorEvent.newInstance(CommandType.findMarkets, eventsSet, realPeriod));
             } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 logger.error("exception in setIgnored for: {} {} {}", realPeriod, Generic.objectToString(eventsSet), Generic.objectToString(this), e);
             }
@@ -195,7 +196,7 @@ public class Event
         return modified;
     }
 
-    public synchronized String getId() {
+    public String getId() {
         return this.id;
     }
 
@@ -414,7 +415,7 @@ public class Event
             final int awayModified = this.setAwayName(this.name.substring(this.name.indexOf(" @ ") + " @ ".length()));
             modified = homeModified + awayModified;
         } else { // creates clutter in the logs even if logging once
-            //            Generic.alreadyPrintedMap.logOnce(logger, LogLevel.INFO, "unknown event name home/away separator for: {}", name);
+            //            SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.INFO, "unknown event name home/away separator for: {}", name);
 
             // won't allow null to be set
             // homeName = null;
@@ -486,19 +487,17 @@ public class Event
     }
 
     @SuppressWarnings("UnusedReturnValue")
-    private synchronized int matchedTimeStamp(@NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructor, final boolean safeBetModuleActivated,
-                                              final int MIN_MATCHED, final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Method getScraperEventsMap,
+    private synchronized int matchedTimeStamp(@NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructor, final boolean safeBetModuleActivated, final int MIN_MATCHED,
+                                              final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Method getScraperEventsMap,
                                               @NotNull final Method getIgnorableMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
-        return matchedTimeStamp(true, removeFromSecondaryMaps, threadPoolExecutor, constructor, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap,
-                                constructorEvent); // default behavior is true
+        return matchedTimeStamp(true, removeFromSecondaryMaps, constructor, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap, constructorEvent); // default behavior is true
     }
 
-    private synchronized int matchedTimeStamp(final boolean runIgnoredScrapersCheck, @NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructorMarket,
-                                              final boolean safeBetModuleActivated, final int MIN_MATCHED, final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap,
-                                              @NotNull final Method getScraperEventsMap, @NotNull final Method getIgnorableMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
-        if (runIgnoredScrapersCheck) {
-            this.ignoredScrapersCheck(removeFromSecondaryMaps, threadPoolExecutor, constructorMarket, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap,
-                                      constructorEvent); // check at every modification
+    private synchronized int matchedTimeStamp(final boolean runIgnoredScrapersCheck, @NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated,
+                                              final int MIN_MATCHED, final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Method getScraperEventsMap,
+                                              @NotNull final Method getIgnorableMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
+        if (runIgnoredScrapersCheck) { // check at every modification
+            this.ignoredScrapersCheck(removeFromSecondaryMaps, constructorMarket, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap, constructorEvent);
         } else { // not running ignoredScrapersCheck, that's likely because this method was invoked from within ignoredScrapersCheck
         }
 
@@ -517,8 +516,8 @@ public class Event
         return this.scraperEventIds == null ? 0 : this.scraperEventIds.size();
     }
 
-    public synchronized int getNValidScraperEventIds(@NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated,
-                                                     final int MIN_MATCHED, final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Method getScraperEventsMap,
+    public synchronized int getNValidScraperEventIds(@NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated, final int MIN_MATCHED,
+                                                     final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Method getScraperEventsMap,
                                                      @NotNull final Method getIgnorableMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
         int nScraperEventIds;
 //        if (!this.isScraperEventsCached()) {
@@ -546,8 +545,8 @@ public class Event
                         logger.error("notExist scraperEvent in getNValidScraperEventIds, timeSinceLastRemoved: {}ms for: {} {} {}", timeSinceLastRemoved, scraperClazz, scraperId, Generic.objectToString(this));
 //                    }
                         iterator.remove();
-                        this.matchedTimeStamp(removeFromSecondaryMaps, threadPoolExecutor, constructorMarket, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap,
-                                              constructorEvent); // removal of existing matchedScraper
+                        // removal of existing matchedScraper
+                        this.matchedTimeStamp(removeFromSecondaryMaps, constructorMarket, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap, constructorEvent);
                     } else { // exists but ignored, normal and nothing to be done
                     }
                 } else {
@@ -598,10 +597,9 @@ public class Event
 //        return returnValue;
 //    }
 
-    public synchronized int setScraperEventId(final Class<? extends ScraperEventInterface> clazz, final long scraperEventId, @NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor,
-                                              @NotNull final Constructor<? extends Runnable> constructorMarket, final boolean safeBetModuleActivated, final int MIN_MATCHED, final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD,
-                                              @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap, @NotNull final Method getScraperEventsMap, @NotNull final Method getIgnorableMap,
-                                              @NotNull final Constructor<? extends Runnable> constructorEvent) {
+    public synchronized int setScraperEventId(final Class<? extends ScraperEventInterface> clazz, final long scraperEventId, @NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructorMarket,
+                                              final boolean safeBetModuleActivated, final int MIN_MATCHED, final long DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, @NotNull final StreamSynchronizedMap<String, MarketCatalogue> marketCataloguesMap,
+                                              @NotNull final Method getScraperEventsMap, @NotNull final Method getIgnorableMap, @NotNull final Constructor<? extends Runnable> constructorEvent) {
         final int modified;
         final long existingScraperEventId = this.scraperEventIds.containsKey(clazz) ? this.scraperEventIds.get(clazz) : -1;
 
@@ -625,7 +623,7 @@ public class Event
         }
 
         if (modified > 0) {
-            this.matchedTimeStamp(removeFromSecondaryMaps, threadPoolExecutor, constructorMarket, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap, constructorEvent);
+            this.matchedTimeStamp(removeFromSecondaryMaps, constructorMarket, safeBetModuleActivated, MIN_MATCHED, DEFAULT_REMOVE_OR_BAN_SAFETY_PERIOD, marketCataloguesMap, getScraperEventsMap, getIgnorableMap, constructorEvent);
         }
 
         return modified;
@@ -715,7 +713,7 @@ public class Event
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
     @Override
-    public synchronized int compareTo(@NotNull final Event o) {
+    public int compareTo(@NotNull final Event o) {
         //noinspection ConstantConditions
         if (o == null) {
             return AFTER;
@@ -741,25 +739,19 @@ public class Event
     }
 
     @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 47 * hash + Objects.hashCode(this.id);
-        return hash;
-    }
-
-    @Contract(value = "null -> false", pure = true)
-    @Override
-    public synchronized boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final Event other = (Event) obj;
-        return Objects.equals(this.id, other.id);
+        final Event event = (Event) obj;
+        return Objects.equals(this.id, event.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.id);
     }
 }

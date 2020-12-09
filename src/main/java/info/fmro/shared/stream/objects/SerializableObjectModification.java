@@ -5,11 +5,13 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class SerializableObjectModification<T extends Enum<T>>
         implements StreamObjectInterface, Serializable {
     private static final Logger logger = LoggerFactory.getLogger(SerializableObjectModification.class);
+    @Serial
     private static final long serialVersionUID = 140177397632319612L;
     private final T command;
     @Nullable
@@ -34,7 +36,7 @@ public class SerializableObjectModification<T extends Enum<T>>
     }
 
     @Nullable
-    public synchronized Serializable[] getArray() { // right now used for testing
+    public synchronized Serializable[] getArray() {
         @Nullable final Serializable[] returnValue;
         if (this.objectsToModify == null) {
             returnValue = null;

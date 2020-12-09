@@ -1,8 +1,10 @@
 package info.fmro.shared.logic;
 
+import com.google.common.math.DoubleMath;
 import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.entities.CurrencyRate;
 import info.fmro.shared.enums.ExistingFundsModificationCommand;
+import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
@@ -13,14 +15,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuppressWarnings({"NonPrivateFieldAccessedInSynchronizedContext", "WeakerAccess", "RedundantSuppression"})
 public class ExistingFunds
         implements Serializable, StreamObjectInterface {
     private static final Logger logger = LoggerFactory.getLogger(ExistingFunds.class);
+    @Serial
     private static final long serialVersionUID = 4629311467792245314L;
     private static final double eventLimitFraction = .1d; // max bet per regular event
     private static final double marketLimitFraction = .05d; // max bet per regular market
@@ -33,6 +36,7 @@ public class ExistingFunds
     private double availableFunds = -1d; // total amount available on the account; it includes the reserve
     private double exposure = -1d; // total exposure on the account; it's a negative number
 
+    @Serial
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
         in.defaultReadObject();
@@ -62,6 +66,10 @@ public class ExistingFunds
             logger.error("existing queues during ExistingFunds.copyFrom: {} {}", nQueues, Generic.objectToString(this));
             this.listOfQueues.send(this.getCopy());
         }
+    }
+
+    public synchronized boolean reserveBreached() {
+        return this.availableFunds + 0.1d < this.reserve;
     }
 
     public synchronized double getReserve() {
@@ -99,12 +107,14 @@ public class ExistingFunds
         final boolean modified;
 
         final double truncatedValue = Math.floor(newReserve);
-        if (truncatedValue > this.reserve) {
+        if (DoubleMath.fuzzyEquals(truncatedValue, this.reserve, 0.01d)) {
+            modified = false;
+        } else if (truncatedValue > this.reserve || (SharedStatics.reserveCanDecrease && SharedStatics.notPlacingOrders)) {
             logger.info("modifying reserve value {} to {}", this.reserve, truncatedValue);
             this.listOfQueues.send(new SerializableObjectModification<>(ExistingFundsModificationCommand.setReserve, truncatedValue));
             this.reserve = truncatedValue;
             modified = true;
-        } else {
+        } else { // new value is smaller
             modified = false;
         }
         return modified;
@@ -137,7 +147,7 @@ public class ExistingFunds
         }
     }
 
-    public synchronized void setCurrencyRate(final Iterable<? extends CurrencyRate> currencyRates, @NotNull final AtomicBoolean mustStop, @NotNull final AtomicBoolean needSessionToken) {
+    public synchronized void setCurrencyRate(final Iterable<? extends CurrencyRate> currencyRates) {
         // Market subscriptions - are always in underlying exchange currency - GBP
         // Orders subscriptions - are provided in the currency of the account that the orders are placed in
         if (currencyRates != null) {
@@ -156,7 +166,7 @@ public class ExistingFunds
                 }
             } // end for
         } else {
-            if (mustStop.get() && needSessionToken.get()) { // normal to happen during program stop, if not logged in
+            if (SharedStatics.mustStop.get() && SharedStatics.needSessionToken.get()) { // normal to happen during program stop, if not logged in
             } else {
                 logger.error("currencyRates null");
             }

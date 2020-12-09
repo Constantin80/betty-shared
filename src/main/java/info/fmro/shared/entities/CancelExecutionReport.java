@@ -2,9 +2,11 @@ package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.ExecutionReportErrorCode;
 import info.fmro.shared.enums.ExecutionReportStatus;
+import info.fmro.shared.enums.InstructionReportErrorCode;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class CancelExecutionReport {
@@ -14,6 +16,18 @@ public class CancelExecutionReport {
     private String marketId;
     @Nullable
     private List<CancelInstructionReport> instructionReports;
+
+    public synchronized HashSet<InstructionReportErrorCode> getInstructionErrorCodes() {
+        @SuppressWarnings("SetReplaceableByEnumSet") final HashSet<InstructionReportErrorCode> returnSet = new HashSet<>(2);
+        if (this.instructionReports == null) { // will return empty set
+        } else {
+            for (final CancelInstructionReport cancelInstructionReport : this.instructionReports) {
+                @Nullable final InstructionReportErrorCode instructionReportErrorCode = cancelInstructionReport.getErrorCode();
+                returnSet.add(instructionReportErrorCode);
+            }
+        }
+        return returnSet;
+    }
 
     public synchronized String getCustomerRef() {
         return this.customerRef;

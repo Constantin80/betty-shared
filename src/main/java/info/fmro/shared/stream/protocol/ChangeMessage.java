@@ -4,6 +4,7 @@ import info.fmro.shared.stream.enums.ChangeType;
 import info.fmro.shared.stream.enums.SegmentType;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
@@ -11,6 +12,7 @@ import java.util.List;
 
 public class ChangeMessage<T>
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -5486319357290474083L;
     @Nullable
     private Date arrivalTime;

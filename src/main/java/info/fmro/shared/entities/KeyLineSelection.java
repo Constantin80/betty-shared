@@ -1,10 +1,12 @@
 package info.fmro.shared.entities;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 @SuppressWarnings("unused")
 class KeyLineSelection
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -5313979741755803610L;
     private Long selectionId;
     private Double handicap;

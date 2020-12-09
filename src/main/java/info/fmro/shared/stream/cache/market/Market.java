@@ -15,19 +15,20 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class Market
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(Market.class);
+    @Serial
     private static final long serialVersionUID = -288902433432290477L;
     private final String marketId;
-    private final Map<RunnerId, MarketRunner> marketRunners = new ConcurrentHashMap<>(4); // the only place where MarketRunners are permanently stored
+    private final Map<RunnerId, MarketRunner> marketRunners = new HashMap<>(4); // the only place where MarketRunners are permanently stored
     private MarketDefinition marketDefinition;
     private double tv; // total value traded
 
@@ -40,21 +41,21 @@ public class Market
 //        marketsToCheck.add(marketId);
 //    }
 
-    synchronized void onMarketChange(@NotNull final MarketChange marketChange, @NotNull final AtomicDouble currencyRate) {
+    synchronized void onMarketChange(@NotNull final MarketChange marketChange) {
         //initial image means we need to wipe our data
         final boolean isImage = Boolean.TRUE.equals(marketChange.getImg());
         //market definition changed
         Optional.ofNullable(marketChange.getMarketDefinition()).ifPresent(this::onMarketDefinitionChange);
         //runners changed
-        Optional.ofNullable(marketChange.getRc()).ifPresent(l -> l.forEach(p -> onPriceChange(isImage, p, currencyRate)));
+        Optional.ofNullable(marketChange.getRc()).ifPresent(l -> l.forEach(p -> onPriceChange(isImage, p)));
 
-        this.tv = Formulas.selectPrice(isImage, this.tv, marketChange.getTv());
+        this.tv = Formulas.selectPrice(isImage, getTv(), marketChange.getTv());
     }
 
-    private synchronized void onPriceChange(final boolean isImage, @NotNull final RunnerChange runnerChange, @NotNull final AtomicDouble currencyRate) {
+    private synchronized void onPriceChange(final boolean isImage, @NotNull final RunnerChange runnerChange) {
         final MarketRunner marketRunner = getOrAdd(new RunnerId(runnerChange.getId(), runnerChange.getHc()));
         //update runner
-        marketRunner.onPriceChange(isImage, runnerChange, currencyRate);
+        marketRunner.onPriceChange(isImage, runnerChange);
     }
 
     private synchronized void onMarketDefinitionChange(@NotNull final MarketDefinition newMarketDefinition) {

@@ -1,10 +1,9 @@
 package info.fmro.shared.stream.cache.market;
 
-import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.entities.MarketCatalogue;
-import info.fmro.shared.logic.ManagedEventsMap;
 import info.fmro.shared.logic.ManagedMarket;
-import info.fmro.shared.logic.MarketsToCheckQueue;
+import info.fmro.shared.logic.MarketsToCheckMap;
+import info.fmro.shared.logic.RulesManager;
 import info.fmro.shared.stream.definitions.MarketChange;
 import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.StreamObjectInterface;
@@ -18,12 +17,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Collection;
+import java.util.HashSet;
 
 public class MarketCache
         implements Serializable, StreamObjectInterface {
     private static final Logger logger = LoggerFactory.getLogger(MarketCache.class);
+    @Serial
     private static final long serialVersionUID = -6721530926161875702L;
     public transient ListOfQueues listOfQueues = new ListOfQueues();
     public final SynchronizedMap<String, Market> markets = new SynchronizedMap<>(32); // only place where markets are permanently stored
@@ -32,6 +34,7 @@ public class MarketCache
     //conflation indicates slow consumption
     private int conflatedCount;
 
+    @Serial
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
         in.defaultReadObject();
@@ -68,31 +71,33 @@ public class MarketCache
         return readSuccessful;
     }
 
-    public synchronized void onMarketChange(@NotNull final ChangeMessage<? extends MarketChange> changeMessage, @NotNull final AtomicDouble currencyRate, @NotNull final ListOfQueues rulesManagerListOfQueues,
-                                            @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> managedMarkets,
-                                            @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
+    public synchronized void onMarketChange(@NotNull final ChangeMessage<? extends MarketChange> changeMessage, @NotNull final RulesManager rulesManager, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         if (changeMessage.isStartOfNewSubscription()) {
             // was it right to disable markets.clear() in isStartOfNewSubscription ?; maybe, it seems markets are properly updated, although some old no longer used markets are probably not removed, I'll see more with testing
             // clear cache ... no clear anymore, because of multiple clients
 //            markets.clear();
         }
         if (changeMessage.getItems() != null) {
+            final Collection<String> marketIds = new HashSet<>(2);
             for (final MarketChange marketChange : changeMessage.getItems()) {
-                final Market market = onMarketChange(marketChange, currencyRate, rulesManagerListOfQueues, marketsToCheck, events, managedMarkets, rulesHaveChanged, marketCataloguesMap, programStartTime);
-
-                if (this.isMarketRemovedOnClose && market.isClosed()) {
-                    //remove on close
-                    this.markets.remove(market.getMarketId());
+                if (marketChange == null) {
+                    logger.error("null change in onMarketChange for: {}", Generic.objectToString(changeMessage));
+                } else {
+                    marketIds.add(marketChange.getId());
+                    final Market market = onMarketChange(marketChange, rulesManager, marketCataloguesMap);
+                    if (this.isMarketRemovedOnClose && market.isClosed()) {
+                        //remove on close
+                        this.markets.remove(market.getMarketId());
+                    }
                 }
-                // dispatchMarketChanged(market, marketChange);
             } // end for
+            rulesManager.marketsToCheck.put(marketIds, System.currentTimeMillis());
+        } else { // maybe it's normal, nothing to be done
         }
     }
 
     @NotNull
-    private synchronized Market onMarketChange(@NotNull final MarketChange marketChange, @NotNull final AtomicDouble currencyRate, @NotNull final ListOfQueues rulesManagerListOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck,
-                                               @NotNull final ManagedEventsMap events, @NotNull final SynchronizedMap<String, ManagedMarket> managedMarkets, @NotNull final AtomicBoolean rulesHaveChanged,
-                                               @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, final long programStartTime) {
+    private synchronized Market onMarketChange(@NotNull final MarketChange marketChange, @NotNull final RulesManager rulesManager, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         if (Boolean.TRUE.equals(marketChange.getCon())) {
             this.conflatedCount++;
         }
@@ -108,26 +113,26 @@ public class MarketCache
 
         final Market market;
         if (newMarketIsBeingAdded) {
-            market = addNewMarket(marketId, marketsToCheck, marketChange, currencyRate);
+            market = addNewMarket(marketId, rulesManager.marketsToCheck, marketChange);
 
-            final ManagedMarket managedMarket = managedMarkets.get(marketId);
+            final ManagedMarket managedMarket = rulesManager.markets.get(marketId);
             if (managedMarket == null) { // no managedMarket present, nothing to be done
             } else {
-                managedMarket.attachMarket(this.markets, rulesManagerListOfQueues, marketsToCheck, events, managedMarkets, rulesHaveChanged, marketCataloguesMap, programStartTime, true);
+                managedMarket.attachMarket(rulesManager, marketCataloguesMap, true);
             }
         } else { // market was already present, nothing to be done
             market = this.markets.get(marketId);
-            market.onMarketChange(marketChange, currencyRate);
+            market.onMarketChange(marketChange);
         }
         return market;
     }
 
     @NotNull
-    private synchronized Market addNewMarket(final String marketId, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final MarketChange marketChange, @NotNull final AtomicDouble currencyRate) {
+    private synchronized Market addNewMarket(final String marketId, @NotNull final MarketsToCheckMap marketsToCheck, @NotNull final MarketChange marketChange) {
         final Market market = new Market(marketId);
-        market.onMarketChange(marketChange, currencyRate);
+        market.onMarketChange(marketChange);
         this.markets.put(marketId, market, true);
-        marketsToCheck.add(marketId);
+        marketsToCheck.put(marketId, System.currentTimeMillis());
 
         return market;
     }

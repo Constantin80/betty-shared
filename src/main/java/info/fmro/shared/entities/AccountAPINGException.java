@@ -2,11 +2,13 @@ package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.AccountAPINGExceptionErrorCode;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class AccountAPINGException
         extends Exception
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -7836726656077478149L;
     private final String errorDetails, requestUUID;
     private final AccountAPINGExceptionErrorCode errorCode;

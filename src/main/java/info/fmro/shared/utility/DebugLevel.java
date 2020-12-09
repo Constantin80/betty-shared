@@ -4,11 +4,13 @@ import gnu.trove.set.hash.TIntHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class DebugLevel
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(DebugLevel.class);
+    @Serial
     private static final long serialVersionUID = -2888763923758409582L;
     private int level;
     private final TIntHashSet codesSet = new TIntHashSet(0);

@@ -2,11 +2,13 @@ package info.fmro.shared.stream.definitions;
 
 import info.fmro.shared.stream.enums.ResponseOperationType;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 // objects of this class are read from the stream
 public class ResponseMessage
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -3489834279217007833L;
     private Integer id; // Client generated unique id to link request with response (like json rpc)
     private ResponseOperationType op; // The operation type

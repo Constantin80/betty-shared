@@ -1,13 +1,16 @@
 package info.fmro.shared.utility;
 
+import com.google.common.collect.Lists;
 import com.google.common.math.DoubleMath;
 import info.fmro.shared.entities.Event;
 import info.fmro.shared.entities.EventType;
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.entities.MarketDescription;
+import info.fmro.shared.logic.ManagedRunner;
+import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.cache.market.Market;
-import info.fmro.shared.stream.cache.order.OrderMarket;
 import info.fmro.shared.stream.enums.Side;
+import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -19,11 +22,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.NavigableSet;
 import java.util.Objects;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 @SuppressWarnings({"UtilityClass", "ClassWithTooManyMethods", "OverlyComplexClass"})
@@ -184,37 +191,73 @@ public final class Formulas {
         pricesList = List.copyOf(localPricesList);
     }
 
+    public static double getNextOddsDown(final String stringOdds, @NotNull final Side side) {
+        double odds;
+        try {
+            odds = Double.parseDouble(stringOdds);
+        } catch (final NumberFormatException e) {
+            odds = 1d;
+            logger.error("NumberFormatException in getNextOddsDown for: {} {}", stringOdds, side, e);
+        }
+        return getNextOddsDown(odds, side);
+    }
+
     public static double getNextOddsDown(final double odds, @NotNull final Side side) {
         final double result;
         final double closestOdds = getClosestOdds(odds, side);
-        if (odds > 1_000d) {
-            result = 1_000d;
-        } else if (odds <= 1.01d) {
-            result = 1d;
-        } else if (closestOdds < odds) {
-            result = closestOdds;
-        } else {
+        final boolean oddsAndClosestOddsAreEqual = oddsAreEqual(odds, closestOdds);
+        if (oddsAndClosestOddsAreEqual || odds < closestOdds) {
             result = getNStepDifferentOdds(closestOdds, -1);
+        } else { // odds > closestOdds
+            result = closestOdds;
         }
         return result;
+    }
+
+    public static double getNextOddsUp(final String stringOdds, @NotNull final Side side) {
+        double odds;
+        try {
+            odds = Double.parseDouble(stringOdds);
+        } catch (final NumberFormatException e) {
+            odds = 1_001d;
+            logger.error("NumberFormatException in getNextOddsUp for: {} {}", stringOdds, side, e);
+        }
+        return getNextOddsUp(odds, side);
     }
 
     public static double getNextOddsUp(final double odds, @NotNull final Side side) {
         final double result;
         final double closestOdds = getClosestOdds(odds, side);
-        if (odds >= 1_000d) {
-            result = 1_001d;
-        } else if (odds < 1.01d) {
-            result = 1.01d;
-        } else if (closestOdds > odds) {
-            result = closestOdds;
-        } else {
+        final boolean oddsAndClosestOddsAreEqual = oddsAreEqual(odds, closestOdds);
+        if (oddsAndClosestOddsAreEqual || odds > closestOdds) {
             result = getNStepDifferentOdds(closestOdds, 1);
+        } else { // odds < closestOdds
+            result = closestOdds;
         }
         return result;
     }
 
-    @SuppressWarnings({"OverloadedMethodsWithSameNumberOfParameters", "NumericCastThatLosesPrecision"})
+    public static double getClosestOdds(final String odds, @NotNull final Side side) {
+        double doubleValue;
+        //noinspection ProhibitedExceptionCaught
+        try {
+            doubleValue = Double.parseDouble(odds);
+        } catch (NumberFormatException | NullPointerException e) {
+            logger.warn("exception converting string in getClosestOdds: {} {}", odds, side);
+            if (side == Side.B) {
+                doubleValue = 1_001d;
+            } else if (side == Side.L) {
+                doubleValue = 1d;
+            } else {
+                logger.error("unknown side in getClosestOdds string: {} {}", side, odds);
+                doubleValue = 0d;
+            }
+        }
+
+        return getClosestOdds(doubleValue, side);
+    }
+
+    @SuppressWarnings("NumericCastThatLosesPrecision")
     public static double getClosestOdds(final double odds, @NotNull final Side side) {
         final double odds100 = odds * 100d;
         final double floor = Math.floor(odds100);
@@ -228,14 +271,14 @@ public final class Formulas {
         return getClosestOdds(intOdds, side);
     }
 
-    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
     public static double getClosestOdds(final int odds, @NotNull final Side side) {
         final double result;
         final int oddsPosition = pricesList.indexOf(odds);
         if (oddsPosition < 0) {
-            if (odds <= 100) {
+            final int listSize = pricesList.size();
+            if (odds < pricesList.get(0)) {
                 result = 1d;
-            } else if (odds >= 100_100) {
+            } else if (odds > pricesList.get(listSize - 1)) {
                 result = 1_001d;
             } else {
                 int smallerOdds = 100;
@@ -260,10 +303,10 @@ public final class Formulas {
         } else {
             result = odds / 100d;
         }
-        return result;
+        return Generic.roundDoubleAmount(result);
     }
 
-    @SuppressWarnings("OverloadedMethodsWithSameNumberOfParameters")
+    @SuppressWarnings({"OverloadedMethodsWithSameNumberOfParameters", "WeakerAccess", "RedundantSuppression"})
     public static double getNStepDifferentOdds(final double baseOdds, final int nSteps) {
         //noinspection NumericCastThatLosesPrecision
         final int intBaseOdds = (int) Math.round(baseOdds * 100d);
@@ -275,25 +318,38 @@ public final class Formulas {
     private static double getNStepDifferentOdds(final int baseOdds, final int nSteps) {
         final double result;
         final int baseOddsPosition = pricesList.indexOf(baseOdds);
+        final int listSize = pricesList.size();
         if (baseOddsPosition < 0) {
-            logger.error("baseOdds {} not found in pricesList during getNStepDifferentOdds {}: {}", baseOdds, nSteps, baseOddsPosition);
-            result = nSteps <= 0 ? 1.01d : 1_000d;
+            if (baseOdds < pricesList.get(0)) {
+                result = 1d;
+            } else if (baseOdds > pricesList.get(listSize - 1)) {
+                result = 1_001d;
+            } else {
+                logger.error("baseOdds {} not found in pricesList during getNStepDifferentOdds {}: {}", baseOdds, nSteps, baseOddsPosition);
+                result = nSteps <= 0 ? 1d : 1_001d;
+            }
         } else {
-            final int listSize = pricesList.size();
-            final int resultPosition = Math.max(Math.min(baseOddsPosition + nSteps, listSize - 1), 0);
-            result = (double) (pricesList.get(resultPosition)) / 100d;
+            final int resultPosition = baseOddsPosition + nSteps;
+            if (resultPosition < 0) {
+                result = 1d;
+            } else if (resultPosition >= listSize) {
+                result = 1_001d;
+            } else {
+                result = (double) (pricesList.get(resultPosition)) / 100d;
+            }
+//            final int resultPosition = Math.max(Math.min(baseOddsPosition + nSteps, listSize - 1), 0);
         }
-
-        return result;
+        return Generic.roundDoubleAmount(result);
     }
 
     @Contract(pure = true)
     public static boolean oddsAreUsable(final double odds) {
-        return odds <= 1_000d && odds >= 1.01d;
+//        return odds <= 1_000d && odds >= 1.01d;
+        return (DoubleMath.fuzzyCompare(odds, 1_000d, ODDS_TOLERANCE) <= 0 && DoubleMath.fuzzyCompare(odds, 1.01d, ODDS_TOLERANCE) >= 0);
     }
 
     public static boolean oddsAreDisabled(final double odds, @NotNull final Side side) {
-        return (side == Side.L && DoubleMath.fuzzyEquals(odds, 1d, ODDS_TOLERANCE)) || (side == Side.B && DoubleMath.fuzzyEquals(odds, 1_001d, ODDS_TOLERANCE));
+        return (side == Side.L && oddsAreEqual(odds, 1d)) || (side == Side.B && oddsAreEqual(odds, 1_001d));
     }
 
     public static double inverseOdds(final double odds, @NotNull final Side side) {
@@ -301,9 +357,9 @@ public final class Formulas {
         if (oddsAreUsable(odds)) {
             returnValue = getClosestOdds(Math.max(1.01d, 1d / (odds - 1d) + 1d), side == Side.B ? Side.L : Side.B);
         } else {
-            if (side == Side.L && DoubleMath.fuzzyEquals(odds, 1d, ODDS_TOLERANCE)) {
+            if (side == Side.L && oddsAreEqual(odds, 1d)) {
                 returnValue = 1_001d;
-            } else if (side == Side.B && DoubleMath.fuzzyEquals(odds, 1_001d, ODDS_TOLERANCE)) {
+            } else if (side == Side.B && oddsAreEqual(odds, 1_001d)) {
                 returnValue = 1d;
             } else {
                 logger.error("unusable odds in Formulas.inverseOdds for: {} {}", odds, side);
@@ -337,10 +393,9 @@ public final class Formulas {
         final boolean areInverse;
         if (oddsAreUsable(firstBackOdds) && oddsAreUsable(secondLayOdds)) {
             final double inverseFirstOdds = inverseOdds(firstBackOdds, Side.B), inverseSecondOdds = inverseOdds(secondLayOdds, Side.L);
-            areInverse = DoubleMath.fuzzyEquals(firstBackOdds, inverseSecondOdds, ODDS_TOLERANCE) || DoubleMath.fuzzyEquals(inverseFirstOdds, secondLayOdds, ODDS_TOLERANCE);
+            areInverse = oddsAreEqual(firstBackOdds, inverseSecondOdds) || oddsAreEqual(inverseFirstOdds, secondLayOdds);
         } else { // unusable odds in Formulas.oddsAreInverse for: 1001.0 1.0
-            if ((DoubleMath.fuzzyEquals(firstBackOdds, 1d, ODDS_TOLERANCE) && DoubleMath.fuzzyEquals(secondLayOdds, 1_001d, ODDS_TOLERANCE)) ||
-                (DoubleMath.fuzzyEquals(secondLayOdds, 1d, ODDS_TOLERANCE) && DoubleMath.fuzzyEquals(firstBackOdds, 1_001d, ODDS_TOLERANCE))) {
+            if ((oddsAreEqual(firstBackOdds, 1d) && oddsAreEqual(secondLayOdds, 1_001d)) || (oddsAreEqual(secondLayOdds, 1d) && oddsAreEqual(firstBackOdds, 1_001d))) {
                 areInverse = true;
             } else {
                 logger.error("unusable odds in Formulas.oddsAreInverse for: {} {}", firstBackOdds, secondLayOdds);
@@ -348,6 +403,76 @@ public final class Formulas {
             }
         }
         return areInverse;
+    }
+
+    public static boolean oddsAreEqual(final double firstOdds, final double secondOdds) {
+        return DoubleMath.fuzzyEquals(firstOdds, secondOdds, ODDS_TOLERANCE);
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public static int oddsCompare(final double firstOdds, final double secondOdds) {
+        return DoubleMath.fuzzyCompare(firstOdds, secondOdds, ODDS_TOLERANCE);
+//        final int result;
+//        if (DoubleMath.fuzzyEquals(firstOdds, secondOdds, ODDS_TOLERANCE)) {
+//            result = 0;
+//        } else if (firstOdds < secondOdds) {
+//            result = -1;
+//        } else {
+//            result = 1;
+//        }
+//        return result;
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public static int oddsCompare(final double firstOdds, final double secondOdds, final Side side) {
+        final int result;
+        if (side == Side.B) {
+            result = oddsCompare(firstOdds, secondOdds);
+        } else if (side == Side.L) {
+            result = oddsCompare(secondOdds, firstOdds);
+        } else {
+            logger.error("unknown side {} in oddsCompare for: {} {}", side, firstOdds, secondOdds);
+            result = oddsCompare(firstOdds, secondOdds); // I still return a result, no choice
+        }
+        return result;
+    }
+
+    public static double maxOdds(final double firstOdds, final double secondOdds, final Side side) {
+        final double result;
+        if (oddsCompare(firstOdds, secondOdds, side) < 0) {
+            result = secondOdds;
+        } else {
+            result = firstOdds;
+        }
+        return result;
+    }
+
+    public static double minOdds(final double firstOdds, final double secondOdds, final Side side) {
+        final double result;
+        if (oddsCompare(firstOdds, secondOdds, side) > 0) {
+            result = secondOdds;
+        } else {
+            result = firstOdds;
+        }
+        return result;
+    }
+
+    public static double getBetSizeFromExposure(final Side side, final double price, final double exposure) {
+        final double betSize;
+        if (side == null) {
+            logger.error("null side in Formulas.getBetSizeFromExposure for: {} {}", price, exposure);
+            betSize = 0d;
+        } else if (exposure <= 0d || !oddsAreUsable(price)) { // normal to happen, won't print any message
+            betSize = 0d;
+        } else if (side == Side.B) {
+            betSize = exposure;
+        } else if (side == Side.L) {
+            betSize = exposure / (price - 1d);
+        } else {
+            logger.error("bogus side {} in Formulas.getBetSizeFromExposure for: {} {}", side, price, exposure);
+            betSize = 0d;
+        }
+        return betSize;
     }
 
     public static double exposure(final Side side, final double price, final double size) {
@@ -370,25 +495,56 @@ public final class Formulas {
         return exposure(Side.L, price, size);
     }
 
+    public static boolean oddsAreAcceptable(final Side side, final double worstAcceptedOdds, final double price) {
+        final boolean areAcceptable;
+
+        if (side == null) {
+            logger.error("null side in oddsAreAcceptable for: {} {} {}", side, worstAcceptedOdds, price);
+            areAcceptable = false;
+        } else if (!oddsAreUsable(worstAcceptedOdds)) {
+            logger.error("unusable worstAcceptedOdds in oddsAreAcceptable for: {} {} {}", side, worstAcceptedOdds, price);
+            areAcceptable = false;
+        } else if (!oddsAreUsable(price)) { // acceptable error, won't print anything
+//            logger.error("unusable price in oddsAreAcceptable for: {} {} {}", side, worstAcceptedOdds, price);
+            areAcceptable = false;
+        } else if (side == Side.B) {
+            areAcceptable = DoubleMath.fuzzyCompare(price, worstAcceptedOdds, ODDS_TOLERANCE) >= 0;
+        } else if (side == Side.L) {
+            areAcceptable = DoubleMath.fuzzyCompare(price, worstAcceptedOdds, ODDS_TOLERANCE) <= 0;
+        } else {
+            logger.error("strange unsupported side in oddsAreAcceptable for: {} {} {}", side, worstAcceptedOdds, price);
+            areAcceptable = false;
+        }
+
+        return areAcceptable;
+    }
+
     public static boolean oddsAreWorse(final Side side, final double worstAcceptedOdds, final double price) {
+        return oddsAreWorse(side, worstAcceptedOdds, price, false);
+    }
+
+    private static boolean oddsAreWorse(final Side side, final double worstAcceptedOdds, final double price, final boolean unusablePriceIsAcceptable) {
         final boolean areWorse;
 
         if (side == null) {
             logger.error("null side in oddsAreWorse for: {} {} {}", side, worstAcceptedOdds, price);
-            areWorse = false;
+            areWorse = true;
         } else if (!oddsAreUsable(worstAcceptedOdds)) {
             logger.error("unusable worstAcceptedOdds in oddsAreWorse for: {} {} {}", side, worstAcceptedOdds, price);
             areWorse = false;
         } else if (!oddsAreUsable(price)) {
-            logger.error("unusable price in oddsAreWorse for: {} {} {}", side, worstAcceptedOdds, price);
+            if (unusablePriceIsAcceptable) { // acceptable, nothing to be done
+            } else {
+                logger.error("unusable price in oddsAreWorse for: {} {} {}", side, worstAcceptedOdds, price);
+            }
             areWorse = true;
         } else if (side == Side.B) {
-            areWorse = !(price >= worstAcceptedOdds);
+            areWorse = DoubleMath.fuzzyCompare(price, worstAcceptedOdds, ODDS_TOLERANCE) < 0;
         } else if (side == Side.L) {
-            areWorse = !(price <= worstAcceptedOdds);
+            areWorse = DoubleMath.fuzzyCompare(price, worstAcceptedOdds, ODDS_TOLERANCE) > 0;
         } else {
             logger.error("strange unsupported side in oddsAreWorse for: {} {} {}", side, worstAcceptedOdds, price);
-            areWorse = false;
+            areWorse = true;
         }
 
         return areWorse;
@@ -405,8 +561,10 @@ public final class Formulas {
         return returnValue;
     }
 
-    public static void removeOwnAmountsFromAvailableTreeMap(@NotNull final TreeMap<Double, Double> availableAmounts, @NotNull final TreeMap<Double, Double> amountsFromMyUnmatchedOrders) {
-        for (final Map.Entry<Double, Double> entry : availableAmounts.entrySet()) {
+    private static void removeOwnAmountsFromAvailableTreeMap(@NotNull final Map<Double, Double> availableAmounts, @NotNull final TreeMap<Double, Double> amountsFromMyUnmatchedOrders) {
+        //noinspection ForLoopWithMissingComponent
+        for (final Iterator<Map.Entry<Double, Double>> iterator = availableAmounts.entrySet().iterator(); iterator.hasNext(); ) {
+            final Map.Entry<Double, Double> entry = iterator.next();
             final Double price = entry.getKey();
             if (price == null) {
                 logger.error("null price in removeOwnAmountsFromAvailableTreeMap for: {} {}", Generic.objectToString(availableAmounts), Generic.objectToString(amountsFromMyUnmatchedOrders));
@@ -417,21 +575,28 @@ public final class Formulas {
                 final double myAmountPrimitive = myAmount == null ? 0d : myAmount;
                 final double amountFromOthers = availableAmountPrimitive - myAmountPrimitive;
                 if (amountFromOthers < 0.01d) {
-                    availableAmounts.replace(price, 0d);
+//                    availableAmounts.remove(price);
+                    iterator.remove();
+                    if (amountFromOthers <= -0.01d) {
+                        logger.error("negative amount from others {} in removeOwnAmountsFromAvailableTreeMap for: {} {} {} {} {}", amountFromOthers, price, myAmount, availableAmount, Generic.objectToString(amountsFromMyUnmatchedOrders),
+                                     Generic.objectToString(availableAmounts));
+                    } else { // no error, nothing to print
+                    }
                 } else {
-                    availableAmounts.replace(price, amountFromOthers);
+//                    availableAmounts.replace(price, amountFromOthers);
+                    entry.setValue(amountFromOthers);
                 }
             }
         }
     }
 
-    public static Market getMarket(final String marketId, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache) {
-        return marketCache.get(marketId);
+    public static Market getMarket(final String marketId) {
+        return SharedStatics.marketCache.markets.get(marketId);
     }
 
-    public static OrderMarket getOrderMarket(final String marketId, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache) {
-        return orderCache.get(marketId);
-    }
+//    public static OrderMarket getOrderMarket(final String marketId) {
+//        return SharedStatics.orderCache.markets.get(marketId);
+//    }
 
     public static String getEventIdOfMarketCatalogue(final MarketCatalogue marketCatalogue) {
         @Nullable final String result;
@@ -461,7 +626,7 @@ public final class Formulas {
         } else {
             if (marketCataloguesMap.isEmpty()) { // normal, before map got a chance to be updated
             } else {
-                logger.info("couldn't find marketId {} in Statics.marketCataloguesMap during getEventIdOfMarketId, maybe market is expired", marketId);
+                SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.DEBUG, "couldn't find marketId {} in Statics.marketCataloguesMap during getEventIdOfMarketId, maybe market is expired", marketId);
             }
             result = null;
         }
@@ -532,7 +697,198 @@ public final class Formulas {
         return result;
     }
 
-    public static boolean programHasRecentlyStarted(final long currentTime, final long PROGRAM_START_TIME) {
-        return currentTime - PROGRAM_START_TIME <= Generic.MINUTE_LENGTH_MILLISECONDS;
+    public static boolean programHasRecentlyStarted(final long currentTime) {
+        return currentTime - SharedStatics.PROGRAM_START_TIME <= Generic.MINUTE_LENGTH_MILLISECONDS;
+    }
+
+    public static double getBestOddsThatCanBeUsed(final String marketId, final RunnerId runnerId, @NotNull final Side side, final double exposureToBePlaced, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
+                                                  @NotNull final TreeMap<Double, Double> availableAmountsOnOppositeSide, final double totalValueMatched) {
+        return getBestOddsThatCanBeUsed(marketId, runnerId, side, exposureToBePlaced, myUnmatchedAmounts, availableAmountsOnOppositeSide, totalValueMatched, true);
+    }
+
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
+    public static double getBestOddsThatCanBeUsed(final String marketId, final RunnerId runnerId, @NotNull final Side side, final double exposureToBePlaced, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
+                                                  @NotNull final TreeMap<Double, Double> availableAmountsOnOppositeSide, final double totalValueMatched, final boolean collectionsNeedParsing) {
+        if (collectionsNeedParsing) {
+            removeOwnAmountsFromAvailableTreeMap(availableAmountsOnOppositeSide, myUnmatchedAmounts);
+            SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(marketId, runnerId, side, myUnmatchedAmounts);
+        } else { // collections are already parsed
+        }
+        final NavigableSet<Double> myUnmatchedPrices = myUnmatchedAmounts.descendingKeySet(); // results in descending order for back and ascending order for lay
+        final NavigableSet<Double> availableNotOwnedPrices = availableAmountsOnOppositeSide.descendingKeySet(); // results in descending order when side argument is back and ascending order when lay
+        final List<Integer> fullPricesList = side == Side.B ? Lists.reverse(pricesList) : pricesList;
+        double bestOddsThatCanBeUsed = 0d;
+        double myAmountsSum = exposureToBePlaced;
+        double otherAmountsSum = 0d;
+        for (@NotNull final Map.Entry<Double, Double> entry : availableAmountsOnOppositeSide.entrySet()) {
+//            final Double price = entry.getKey();
+//            final double pricePrimitive = price == null ? 1d : price;
+            final Double amount = entry.getValue();
+            final double amountPrimitive = amount == null ? 0d : amount;
+//            otherAmountsSum += amountPrimitive * (pricePrimitive - 1d);
+            otherAmountsSum += amountPrimitive;
+        }
+        final double myAmountsSumLimit = Math.max(10d, Math.min(totalValueMatched, otherAmountsSum / 4d));
+
+        final Iterator<Double> myPricesIterator = myUnmatchedPrices.iterator();
+        final Iterator<Double> otherPricesIterator = availableNotOwnedPrices.iterator();
+        double currentMyPrice = side == Side.B ? 1_001d : 1d, currentOtherPrice = side == Side.B ? 1_001d : 1d;
+        double previousDoublePrice = side == Side.B ? 1_001d : 1d;
+        for (final int intPrice : fullPricesList) { // I'll check each price, starting with the best possible, and I'll pick the first that can be used
+            final double doublePrice = intPrice / 100d;
+            while (myPricesIterator.hasNext() && ((side == Side.B && DoubleMath.fuzzyCompare(currentMyPrice, doublePrice, ODDS_TOLERANCE) >= 0) || (side == Side.L && DoubleMath.fuzzyCompare(currentMyPrice, doublePrice, ODDS_TOLERANCE) <= 0))) {
+                if (oddsAreEqual(currentMyPrice, doublePrice)) {
+                    final Double currentMyAmount = myUnmatchedAmounts.get(currentMyPrice);
+                    final double currentMyAmountPrimitive = currentMyAmount == null ? 0d : currentMyAmount;
+//                    myAmountsSum += (currentMyPrice - 1d) * currentMyAmountPrimitive;
+                    myAmountsSum += currentMyAmountPrimitive;
+                } else { // currentMyPrice > doublePrice, which means currentMyPrice might have been used in a previous loop iteration, and is not relevant for the current iteration
+                }
+                currentMyPrice = myPricesIterator.next();
+            }
+            if (oddsAreEqual(currentMyPrice, doublePrice)) { // the case where iterator finished the elements, and this is the last element
+                final Double currentMyAmount = myUnmatchedAmounts.get(currentMyPrice);
+                final double currentMyAmountPrimitive = currentMyAmount == null ? 0d : currentMyAmount;
+//                myAmountsSum += (currentMyPrice - 1d) * currentMyAmountPrimitive;
+                myAmountsSum += currentMyAmountPrimitive;
+            } else { // currentMyPrice != doublePrice, which means currentMyPrice is not relevant for the current iteration
+            }
+
+            while (otherPricesIterator.hasNext() &&
+                   ((side == Side.B && DoubleMath.fuzzyCompare(currentOtherPrice, previousDoublePrice, ODDS_TOLERANCE) >= 0) || (side == Side.L && DoubleMath.fuzzyCompare(currentOtherPrice, previousDoublePrice, ODDS_TOLERANCE) <= 0))) {
+                if (oddsAreEqual(currentOtherPrice, previousDoublePrice)) {
+                    final Double currentOtherAmount = availableAmountsOnOppositeSide.get(currentOtherPrice);
+                    final double currentOtherAmountPrimitive = currentOtherAmount == null ? 0d : currentOtherAmount;
+//                    otherAmountsSum -= (currentOtherPrice - 1d) * currentOtherAmountPrimitive;
+                    otherAmountsSum -= currentOtherAmountPrimitive;
+                } else { // currentMyPrice > doublePrice, which means currentMyPrice might have been used in a previous loop iteration, and is not relevant for the current iteration
+                }
+                currentOtherPrice = otherPricesIterator.next();
+            }
+            if (oddsAreEqual(currentOtherPrice, previousDoublePrice)) { // the case where iterator finished the elements, and this is the last element
+                final Double currentOtherAmount = availableAmountsOnOppositeSide.get(currentOtherPrice);
+                final double currentOtherAmountPrimitive = currentOtherAmount == null ? 0d : currentOtherAmount;
+//                otherAmountsSum -= (currentOtherPrice - 1d) * currentOtherAmountPrimitive;
+                otherAmountsSum -= currentOtherAmountPrimitive;
+            } else { // currentMyPrice != doublePrice, which means currentMyPrice is not relevant for the current iteration
+            }
+
+            if (otherAmountsSum <= ManagedRunner.PLACE_BET_THRESHOLD * Math.min(myAmountsSum, myAmountsSumLimit)) {
+                // myAmountsSum always increases, otherAmountsSum always decreases, so when this branch is entered once, it would be entered on all next loop iterations
+                bestOddsThatCanBeUsed = Generic.roundDoubleAmount(doublePrice);
+                SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.INFO, "bestOddsThatCanBeUsed {} for: {} {} {} {}", bestOddsThatCanBeUsed, marketId, runnerId, side, exposureToBePlaced);
+                break;
+            } else { // I'll keep iterating, nothing to be done
+            }
+
+            previousDoublePrice = doublePrice;
+        }
+        return bestOddsThatCanBeUsed;
+    }
+
+    public static double getWorstOddsThatCantBeReached(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
+                                                       @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide) { // this form is used when checking if existing orders needs to be canceled
+        return getWorstOddsThatCantBeReached(marketId, runnerId, side, myUnmatchedAmounts, availableAmountsOnOppositeSide, false, true);
+    }
+
+    public static double getWorstOddsThatCantBeReached(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
+                                                       @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide, final boolean placingNewOrder, final boolean collectionsNeedParsing) {
+        return getWorstOddsThatCantBeReached(marketId, runnerId, side, myUnmatchedAmounts, availableAmountsOnOppositeSide, placingNewOrder, collectionsNeedParsing, side == Side.L ? 1_001d : 1d);
+    }
+
+    public static double getWorstOddsThatCantBeReached(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
+                                                       @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide, final boolean placingNewOrder, final boolean collectionsNeedParsing, final double worstOddsLimit) {
+        // boolean placingNewOrder or canceling an existing order
+        if (collectionsNeedParsing) {
+            removeOwnAmountsFromAvailableTreeMap(availableAmountsOnOppositeSide, myUnmatchedAmounts);
+            SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(marketId, runnerId, side, myUnmatchedAmounts);
+        } else { // collections are already parsed
+        }
+        final NavigableSet<Double> myUnmatchedPrices = myUnmatchedAmounts.descendingKeySet(); // results in descending order for back and ascending order for lay
+        double worstOddsThatCantBeReached = 0d;
+        double myAmountsSum = 0d;
+        for (final Double unmatchedPrice : myUnmatchedPrices) {
+//            if (unmatchedPrice == null) {
+//                logger.error("null unmatchedPrice in getWorstOddsThatCantBeReached for: {} {} {} {} {}", marketId, runnerId, side, Generic.objectToString(myUnmatchedAmounts), Generic.objectToString(availableAmountsOnOppositeSide));
+//            } else {
+            final Double unmatchedAmount = myUnmatchedAmounts.get(unmatchedPrice);
+            final double unmatchedAmountPrimitive = unmatchedAmount == null ? 0d : unmatchedAmount;
+//            myAmountsSum += unmatchedAmountPrimitive * (unmatchedPrice - 1d);
+            myAmountsSum += unmatchedAmountPrimitive;
+//            final SortedMap<Double, Double> worsePriceAvailableAmounts = side == Side.B ? availableAmountsOnOppositeSide.headMap(unmatchedPrice, placingNewOrder) : availableAmountsOnOppositeSide.tailMap(unmatchedPrice, placingNewOrder);
+            final SortedMap<Double, Double> worsePriceAvailableAmounts = availableAmountsOnOppositeSide.headMap(unmatchedPrice, placingNewOrder); // headMap works for both, because the comparator of the map is used, and it's reversed between back and lay
+
+            double worsePriceSum = 0d;
+            for (final Map.Entry<Double, Double> worsePriceEntry : worsePriceAvailableAmounts.entrySet()) {
+                final Double worsePriceAmount = worsePriceEntry.getValue();
+                final double worseAmountPrimitive = worsePriceAmount == null ? 0d : worsePriceAmount;
+//                final double worsePricePrimitive = worsePriceEntry.getKey();
+//                worsePriceSum += worseAmountPrimitive * (worsePricePrimitive - 1d);
+                worsePriceSum += worseAmountPrimitive;
+            }
+
+            // simple condition for deciding that my amount can't be reached
+            if (worsePriceSum > ManagedRunner.HARD_TO_REACH_THRESHOLD * myAmountsSum) {
+                if (oddsCompare(worstOddsLimit, unmatchedPrice, side) <= 0) {
+                    worstOddsThatCantBeReached = unmatchedPrice; // only the last price will matter, all odds that are better or same will get canceled
+                    logger.info("oddsThatCantBeReached {} for: {} {} {} {}", worstOddsThatCantBeReached, marketId, runnerId, side, placingNewOrder);
+                } else { // case of mandatoryPlace with odds equal to the limit being protected; worse odds than the limit will be canceled later; nothing to be done on this branch
+                }
+            } else { // myAmountsSum always increases, worsePriceSum always decreases, so when this branch is entered once, it will be entered on all next loop iterations
+                break; // breaks when 1 amount is not removed, and the next ones won't be removed
+            }
+//            }
+        } // end for
+        return worstOddsThatCantBeReached;
+    }
+
+    public static double getBestOddsWhereICanMoveAmountsToBetterOdds(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
+                                                                     @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide) {
+        return getBestOddsWhereICanMoveAmountsToBetterOdds(marketId, runnerId, side, myUnmatchedAmounts, availableAmountsOnOppositeSide, true);
+    }
+
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
+    public static double getBestOddsWhereICanMoveAmountsToBetterOdds(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
+                                                                     @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide, final boolean collectionsNeedParsing) {
+        if (collectionsNeedParsing) {
+            removeOwnAmountsFromAvailableTreeMap(availableAmountsOnOppositeSide, myUnmatchedAmounts);
+//            SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(marketId, runnerId, side, myUnmatchedAmounts);
+        } else { // collections are already parsed
+        }
+        final NavigableSet<Double> myUnmatchedPrices = myUnmatchedAmounts.descendingKeySet(); // results in descending order for back and ascending order for lay
+        double bestOddsWhereICanMoveAmountsToBetterOdds = 0d;
+        double myAmountsSum = 0d;
+        for (final Double unmatchedPrice : myUnmatchedPrices) {
+            final Double unmatchedAmount = myUnmatchedAmounts.get(unmatchedPrice);
+            final double unmatchedAmountPrimitive = unmatchedAmount == null ? 0d : unmatchedAmount;
+//            myAmountsSum += unmatchedAmountPrimitive * (unmatchedPrice - 1d);
+            myAmountsSum += unmatchedAmountPrimitive;
+
+            if ((oddsAreEqual(unmatchedPrice, 1_000d) && side == Side.B) || (oddsAreEqual(unmatchedPrice, 1.01d) && side == Side.L)) {
+                continue;
+            } else { // odds are not at maximum limit, so I'll see if they can be improved
+            }
+            // headMap works for both, because the comparator of the map is used, and it's reversed between back and lay
+            final SortedMap<Double, Double> worsePriceAvailableAmounts =
+                    side == Side.B ? availableAmountsOnOppositeSide.headMap(getNextOddsUp(unmatchedPrice, side), true) : availableAmountsOnOppositeSide.headMap(getNextOddsDown(unmatchedPrice, side), true);
+            double worsePriceSum = 0d;
+            for (final Map.Entry<Double, Double> worsePriceEntry : worsePriceAvailableAmounts.entrySet()) {
+                final Double worsePriceAmount = worsePriceEntry.getValue();
+                final double worseAmountPrimitive = worsePriceAmount == null ? 0d : worsePriceAmount;
+//                final double worsePricePrimitive = worsePriceEntry.getKey();
+//                worsePriceSum += worseAmountPrimitive * (worsePricePrimitive - 1d);
+                worsePriceSum += worseAmountPrimitive;
+            }
+
+            // simple condition for deciding that my amount can't be reached
+            if (worsePriceSum <= ManagedRunner.TINY_AMOUNTS_THRESHOLD * myAmountsSum) { // myAmountsSum always increases, worsePriceSum always decreases, so when this branch is entered once, it will be entered on all next loop iterations
+                bestOddsWhereICanMoveAmountsToBetterOdds = unmatchedPrice; // only the last price will matter, all odds that are better or same will get canceled
+                logger.info("getBestOddsWhereICanMoveAmountsToBetterOdds {} for: {} {} {}", bestOddsWhereICanMoveAmountsToBetterOdds, marketId, runnerId, side);
+                break;
+            } else { // odds I seek not found yet
+            }
+//            }
+        } // end for
+        return bestOddsWhereICanMoveAmountsToBetterOdds;
     }
 }

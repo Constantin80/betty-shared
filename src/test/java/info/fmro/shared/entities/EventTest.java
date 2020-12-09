@@ -4,8 +4,6 @@ import info.fmro.shared.objects.LoggerThreadInterface;
 import info.fmro.shared.utility.Generic;
 import org.jmock.auto.Mock;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -15,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
-@ExtendWith(MockitoExtension.class)
 class EventTest {
     @SuppressWarnings("unused")
     @Mock

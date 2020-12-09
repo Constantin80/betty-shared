@@ -3,12 +3,14 @@ package info.fmro.shared.stream.definitions;
 import info.fmro.shared.stream.enums.ErrorCode;
 import info.fmro.shared.stream.enums.StatusCode;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 // objects of this class are read from the stream
 public class StatusMessage
         extends ResponseMessage
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 7917124223046297484L;
     private Boolean connectionClosed; // Is the connection now closed
     private String connectionId; // The connection id

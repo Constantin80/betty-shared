@@ -16,5 +16,11 @@ public enum RulesManagerModificationCommand {
     setMarketName,
     setEventName,
     setMarketEnabled,
-    setMarketCalculatedLimit
+    setMarketCalculatedLimit,
+    addTempOrder,
+    removeTempOrder,
+    setMarketMandatoryPlace,
+    setRunnerMandatoryPlace,
+    setMarketKeepAtInPlay,
+    setRunnerPrefSide
 }

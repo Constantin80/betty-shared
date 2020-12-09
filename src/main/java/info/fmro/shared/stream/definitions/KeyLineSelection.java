@@ -1,11 +1,13 @@
 package info.fmro.shared.stream.definitions;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 // objects of this class are read from the stream
 @SuppressWarnings("unused")
 class KeyLineSelection
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 3971286653165540247L;
     private Double hc;
     private Long id;

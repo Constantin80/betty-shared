@@ -1,24 +1,31 @@
 package info.fmro.shared.stream.definitions;
 
+import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.objects.Exposure;
+import info.fmro.shared.objects.SharedStatics;
+import info.fmro.shared.stream.enums.LapseStatusReasonCode;
 import info.fmro.shared.stream.enums.OrderStatus;
 import info.fmro.shared.stream.enums.OrderType;
 import info.fmro.shared.stream.enums.PersistenceType;
 import info.fmro.shared.stream.enums.Side;
-import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.Date;
 
 // objects of this class are read from the stream
 @SuppressWarnings("OverlyComplexClass")
 public class Order
         implements Serializable { // amounts are in account currency (EUR)
+    @Serial
     private static final long serialVersionUID = 3021807768896649660L;
     private static final Logger logger = LoggerFactory.getLogger(Order.class);
     private Double avp; // Average Price Matched - the average price the order was matched at (null if the order is not matched).
@@ -30,7 +37,7 @@ public class Order
     @Nullable
     private Date md; //  Matched Date - the date the order was matched (null if the order is not matched)
     private OrderType ot; // Order Type - the type of the order (L = LIMIT, MOC = MARKET_ON_CLOSE, LOC = LIMIT_ON_CLOSE)
-    private String lsrc; // Lapse Status Reason Code - the reason that some or all of this order has been lapsed (null if no portion of the order is lapsed
+    private LapseStatusReasonCode lsrc; // Lapse Status Reason Code - the reason that some or all of this order has been lapsed (null if no portion of the order is lapsed
     private Double p; // Price - the original placed price of the order. Line markets operate at even-money odds of 2.0. However, price for these markets refers to the line positions available as defined by the markets min-max range and interval steps
     @Nullable
     private Date pd; // Placed Date - the date the order was placed
@@ -47,125 +54,95 @@ public class Order
     private Double sr; // Size Remaining - the amount of the order that is remaining unmatched
     private OrderStatus status; // Status - the status of the order (E = EXECUTABLE, EC = EXECUTION_COMPLETE)
     private Double sv; // Size Voided - the amount of the order that has been voided
-    private double backExposure, layExposure, backProfit, layProfit;
+    //    private double backExposure, layExposure, backProfit, layProfit;
+    private transient double sizeTempCanceled;
 
-    public synchronized void calculateExposureAndProfit() {
+    public synchronized void calculateExposureAndProfit(@NotNull final Exposure exposure) {
         if (this.p == null || this.p <= 1d || this.sr == null || this.status == null || this.side == null) {
             logger.error("null or bogus fields in Order calculateExposureAndProfit: {} {} {} {} {}", this.p, this.sr, this.status, this.side, Generic.objectToString(this));
-            this.backExposure = 0d;
-            this.layExposure = 0d;
-            this.backProfit = 0d;
-            this.layProfit = 0d;
         } else if (this.status == OrderStatus.EC) { // execution complete, nothing should be remaining
-            this.backExposure = 0d;
-            this.layExposure = 0d;
-            this.backProfit = 0d;
-            this.layProfit = 0d;
         } else {
-            //noinspection SwitchStatementDensity
             switch (this.side) {
-                case B -> {
-                    this.backExposure = this.sr;
-                    this.backProfit = Formulas.layExposure(this.p, this.sr);
-                    this.layExposure = 0d;
-                    this.layProfit = 0d;
-                }
-                case L -> {
-                    this.backExposure = 0d;
-                    this.backProfit = 0d;
-                    this.layExposure = Formulas.layExposure(this.p, this.sr);
-                    this.layProfit = this.sr;
-                }
-                default -> {
-                    logger.error("strange side in Order calculateExposureAndProfit: {} {}", this.side, Generic.objectToString(this));
-                    this.backExposure = 0d;
-                    this.layExposure = 0d;
-                    this.backProfit = 0d;
-                    this.layProfit = 0d;
-                }
+                case B -> exposure.addBackUnmatchedExposure(this.sr);
+                case L -> exposure.addLayUnmatchedExposure(Formulas.layExposure(this.p, this.sr));
+                default -> logger.error("strange side in Order calculateExposureAndProfit: {} {}", this.side, Generic.objectToString(this));
             }
         }
-        if (this.backExposure != 0d && this.layExposure != 0d) { // this condition should always be false, only one type of exposure should exist
-            logger.error("strange exposure in Order calculateExposureAndProfit: {} {} {}", this.backExposure, this.layExposure, Generic.objectToString(this));
-        }
+//        if (this.backExposure != 0d && this.layExposure != 0d) { // this condition should always be false, only one type of exposure should exist
+//            logger.error("strange exposure in Order calculateExposureAndProfit: {} {} {}", this.backExposure, this.layExposure, Generic.objectToString(this));
+//        }
     }
 
-    public synchronized boolean cancelOrder(final String marketId, final RunnerId runnerId, final OrdersThreadInterface pendingOrdersThread) { // full cancel
-        return cancelOrder(marketId, runnerId, null, pendingOrdersThread);
+    public synchronized double cancelOrder(final String marketId, final RunnerId runnerId, final AtomicDouble removedExposureDuringThisManageIteration, @NotNull final Method sendPostRequestRescriptMethod, final String reason) { // full cancel
+        return cancelOrder(marketId, runnerId, null, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
     }
 
-    public synchronized boolean cancelOrder(final String marketId, final RunnerId runnerId, final Double sizeReduction, final OrdersThreadInterface pendingOrdersThread) {
+    public synchronized double cancelOrder(final String marketId, final RunnerId runnerId, final Double sizeReduction, final AtomicDouble removedExposureDuringThisManageIteration, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         if (this.p == null || this.side == null || this.id == null) {
-            logger.error("null variables during cancelOrder for: {} {} {} {}", this.p, this.side, this.id, Generic.objectToString(this));
+            logger.error("null variables during cancelOrder for: {} {} {} {} {}", this.p, this.side, this.id, reason, Generic.objectToString(this));
             if (this.p == null) { // avoids exception when converting to primitive
                 this.p = 1.01d;
             } else { // proper price exists, nothing to be done
             }
         } else { // no error, nothing to be done, method will continue
         }
-
         final double sizeRemaining = this.sr == null ? 0d : this.sr;
-        return pendingOrdersThread.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.id, sizeReduction);
+        return SharedStatics.orderCache.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.getSRMinusTempCanceled(), this.id, sizeReduction, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
     }
 
-    public synchronized double removeBackExposure(final String marketId, final RunnerId runnerId, final double excessExposure, final OrdersThreadInterface pendingOrdersThread) {
+    public synchronized double removeExposure(final String marketId, final RunnerId runnerId, final Side sideToRemove, final double excessExposure, final AtomicDouble removedExposureDuringThisManageIteration,
+                                              @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         final double exposureReduction;
-        if (this.p == null || this.side == null || this.id == null) {
-            logger.error("null variables during removeBackExposure for: {} {} {} {}", this.p, this.side, this.id, Generic.objectToString(this));
+        if (this.p == null || this.side == null || this.id == null || !Formulas.oddsAreUsable(this.p)) {
+            logger.error("null variables or bad odds during removeExposure for: {} {} {} {} {} {} {} {} {}", marketId, runnerId, sideToRemove, excessExposure, this.p, this.side, this.id, reason, Generic.objectToString(this));
             exposureReduction = 0d;
-        } else if (this.side == Side.B) {
+        } else if (Generic.roundDoubleAmount(excessExposure) == 0d) {
+            exposureReduction = 0d;
+        } else if (sideToRemove == this.side && (sideToRemove == Side.B || sideToRemove == Side.L)) {
             final double sizeRemaining = this.sr == null ? 0d : this.sr;
             @Nullable final Double sizeReduction;
-            if (excessExposure >= sizeRemaining) {
-                sizeReduction = null;
-                exposureReduction = pendingOrdersThread.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.id, sizeReduction) ? sizeRemaining : 0d;
+            if (this.side == Side.B) {
+                if (excessExposure > sizeRemaining) {
+                    sizeReduction = null;
+                } else {
+                    sizeReduction = excessExposure;
+                }
             } else {
-                sizeReduction = excessExposure;
-                exposureReduction = pendingOrdersThread.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.id, sizeReduction) ? excessExposure : 0d;
+                if (excessExposure > Formulas.layExposure(this.p, sizeRemaining)) {
+                    sizeReduction = null;
+                } else {
+                    sizeReduction = excessExposure / (this.p - 1d);
+                }
             }
+            exposureReduction = SharedStatics.orderCache.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.getSRMinusTempCanceled(), this.id, sizeReduction, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod,
+                                                                        reason);
         } else {
-            logger.error("wrong side in removeBackExposure for: {} {} {} {}", marketId, runnerId, excessExposure, Generic.objectToString(this));
+            logger.error("wrong side in removeExposure for: {} {} {} {} {} {} {}", sideToRemove, this.side, marketId, runnerId, excessExposure, reason, Generic.objectToString(this));
             exposureReduction = 0d;
         }
-        return excessExposure - exposureReduction;
+        return exposureReduction;
     }
 
-    public synchronized double removeLayExposure(final String marketId, final RunnerId runnerId, final double excessExposure, final OrdersThreadInterface pendingOrdersThread) {
-        final double exposureReduction;
-        if (this.p == null || this.side == null || this.id == null) {
-            logger.error("null variables during removeLayExposure for: {} {} {} {}", this.p, this.side, this.id, Generic.objectToString(this));
-            exposureReduction = 0d;
-        } else if (this.side == Side.L) {
-            final double sizeRemaining = this.sr == null ? 0d : this.sr;
-            @Nullable final Double sizeReduction;
-            if (excessExposure >= info.fmro.shared.utility.Formulas.layExposure(this.p, sizeRemaining)) {
-                sizeReduction = null;
-                exposureReduction = pendingOrdersThread.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.id, sizeReduction) ? Formulas.layExposure(this.p, sizeRemaining) : 0d;
-            } else {
-                sizeReduction = excessExposure / (this.p - 1d);
-                exposureReduction = pendingOrdersThread.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.id, sizeReduction) ? excessExposure : 0d;
-            }
-        } else {
-            logger.error("wrong side in removeLayExposure for: {} {} {} {}", marketId, runnerId, excessExposure, Generic.objectToString(this));
-            exposureReduction = 0d;
-        }
-        return excessExposure - exposureReduction;
+    synchronized double getSRMinusTempCanceled() {
+        return this.sr == null ? 0d : this.sr - getSizeTempCanceled();
     }
 
-    public synchronized double getBackExposure() {
-        return this.backExposure;
+    @SuppressWarnings("WeakerAccess")
+    public synchronized double getSizeTempCanceled() {
+        final double sizeRemaining = this.sr == null ? 0d : this.sr;
+        return Math.max(0d, Math.min(this.sizeTempCanceled, sizeRemaining));
     }
 
-    public synchronized double getLayExposure() {
-        return this.layExposure;
+    public synchronized void resetSizeTempCanceled() {
+        this.sizeTempCanceled = 0d;
     }
 
-    public synchronized double getBackProfit() {
-        return this.backProfit;
+    public synchronized void addSizeTempCanceled(final Double size) {
+        this.sizeTempCanceled += size == null ? Exposure.HUGE_AMOUNT : size;
     }
 
-    public synchronized double getLayProfit() {
-        return this.layProfit;
+    public synchronized void removeSizeTempCanceled(final Double size) {
+        this.sizeTempCanceled -= size == null ? Exposure.HUGE_AMOUNT : size;
     }
 
     @Nullable
@@ -258,11 +235,11 @@ public class Order
         this.side = side;
     }
 
-    public synchronized String getLsrc() {
+    public synchronized LapseStatusReasonCode getLsrc() {
         return this.lsrc;
     }
 
-    public synchronized void setLsrc(final String lsrc) {
+    public synchronized void setLsrc(final LapseStatusReasonCode lsrc) {
         this.lsrc = lsrc;
     }
 

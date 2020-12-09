@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -12,6 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class ListOfQueues
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ListOfQueues.class);
+    @Serial
     private static final long serialVersionUID = 8246293410799290222L;
     private final ArrayList<LinkedBlockingQueue<StreamObjectInterface>> list = new ArrayList<>(1);
 

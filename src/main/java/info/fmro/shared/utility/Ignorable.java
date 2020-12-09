@@ -1,14 +1,17 @@
 package info.fmro.shared.utility;
 
+import info.fmro.shared.objects.SharedStatics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class Ignorable
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(Ignorable.class);
     public static final long RECENT_PERIOD = 4_000L;
+    @Serial
     private static final long serialVersionUID = 1721002836563166854L;
     private long ignoredExpiration;
     private boolean ignored;
@@ -102,7 +105,7 @@ public class Ignorable
 
             final long currentTime = System.currentTimeMillis();
             if (this.ignoredExpiration > currentTime) { // normal behaviour
-                Generic.alreadyPrintedMap.logOnce(1L, logger, LogLevel.INFO, AlreadyPrintedMap.NOT_IMPORTANT_PREFIX + "ignored set: {}", this.ignoredExpiration);
+                SharedStatics.alreadyPrintedMap.logOnce(1L, logger, LogLevel.INFO, AlreadyPrintedMap.NOT_IMPORTANT_PREFIX + "ignored set: {}", this.ignoredExpiration);
 //                logger.info("ignored set: {}", this.ignoredExpirationStamp);
                 this.ignored = true;
             } else {

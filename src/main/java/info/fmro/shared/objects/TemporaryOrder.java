@@ -3,17 +3,25 @@ package info.fmro.shared.objects;
 import info.fmro.shared.enums.TemporaryOrderType;
 import info.fmro.shared.stream.enums.Side;
 import info.fmro.shared.stream.objects.RunnerId;
+import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
 import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
 public class TemporaryOrder
         implements Serializable {
-    public static final long defaultTooOldPeriod = Generic.MINUTE_LENGTH_MILLISECONDS * 10L;
+    //    public static final long defaultTooOldPeriod = Generic.MINUTE_LENGTH_MILLISECONDS * 10L;
+    @Serial
     private static final long serialVersionUID = -6977868264246613172L;
+    private static final Logger logger = LoggerFactory.getLogger(TemporaryOrder.class);
+    @NotNull
     private final TemporaryOrderType type;
     private final String marketId;
     private final RunnerId runnerId;
@@ -23,63 +31,107 @@ public class TemporaryOrder
     private final Double sizeReduction;
     private final long creationTime;
     private String betId;
+    private final String reasonId; // id for identifying where in my program the order originated
     private long expirationTime;
 
-    public TemporaryOrder(final String marketId, final RunnerId runnerId, final Side side, final double price, final double size) {
+    @SuppressWarnings("ConstructorWithTooManyParameters")
+    public TemporaryOrder(final String marketId, final RunnerId runnerId, final Side side, final double price, final double size, final boolean bettingDisabled, final String reasonId) {
         this.type = TemporaryOrderType.PLACE;
         this.marketId = marketId;
         this.runnerId = runnerId;
         this.side = side;
         this.price = price;
-        this.size = size;
+        this.size = Generic.roundDoubleAmount(size);
         this.sizeReduction = null;
+        this.reasonId = reasonId;
         this.creationTime = System.currentTimeMillis();
+        this.expirationTime = this.creationTime + (bettingDisabled ? Generic.DAY_LENGTH_MILLISECONDS : (Generic.MINUTE_LENGTH_MILLISECONDS << 1)); // default, I can't let the default be 0
     }
 
     @SuppressWarnings("ConstructorWithTooManyParameters")
-    public TemporaryOrder(final String marketId, final RunnerId runnerId, final Side side, final double price, final double size, final String betId, @Nullable final Double sizeReduction) {
+    public TemporaryOrder(final String marketId, final RunnerId runnerId, final Side side, final double price, final double size, final String betId, @Nullable final Double sizeReduction, final boolean bettingDisabled, final String reasonId) {
         this.type = TemporaryOrderType.CANCEL;
         this.marketId = marketId;
         this.betId = betId;
         this.runnerId = runnerId;
         this.side = side;
         this.price = price;
-        this.size = size;
-        this.sizeReduction = sizeReduction;
+        this.size = Generic.roundDoubleAmount(size);
+        this.reasonId = reasonId;
         this.creationTime = System.currentTimeMillis();
+        this.expirationTime = this.creationTime + (bettingDisabled ? Generic.DAY_LENGTH_MILLISECONDS : (Generic.MINUTE_LENGTH_MILLISECONDS << 1)); // default, I can't let the default be 0
+
+        if (sizeReduction != null && sizeReduction > size) {
+            this.sizeReduction = null;
+            //noinspection ThisEscapedInObjectConstruction
+            logger.error("temporaryOrder sizeReduction {} larger than size {} for: {}", sizeReduction, size, Generic.objectToString(this));
+        } else {
+            this.sizeReduction = sizeReduction == null ? null : Generic.roundDoubleAmount(sizeReduction);
+        }
+    }
+
+    public synchronized boolean placePriceEquals(final String marketIdToCheck, final RunnerId runnerIdToCheck, final Side sideToCheck, final double priceToCheck) {
+        return this.type == TemporaryOrderType.PLACE && runnerEquals(marketIdToCheck, runnerIdToCheck) && sideToCheck == this.side && Double.compare(priceToCheck, this.price) == 0;
     }
 
     public synchronized boolean runnerEquals(final String marketIdToCheck, final RunnerId runnerIdToCheck) {
         return marketIdToCheck != null && marketIdToCheck.equals(this.marketId) && runnerIdToCheck != null && runnerIdToCheck.equals(this.runnerId);
     }
 
-    public synchronized TemporaryOrderType getType() {
+    public synchronized void updateExposure(@NotNull final Exposure exposure) {
+        if (this.type == TemporaryOrderType.CANCEL) { // no exposure update from cancel order, as the possible result of cancel is not well determined
+            if (this.side == Side.B) {
+                exposure.addBackTempCancelExposure(this.sizeReduction == null ? Exposure.HUGE_AMOUNT : this.sizeReduction);
+            } else if (this.side == Side.L) {
+                exposure.addLayTempCancelExposure(Formulas.layExposure(this.price, this.sizeReduction == null ? Exposure.HUGE_AMOUNT : this.sizeReduction));
+            } else {
+                logger.error("unknown side in temporaryOrder updateExposure for: {} {}", this.side, Generic.objectToString(this));
+            }
+        } else if (this.type == TemporaryOrderType.PLACE) {
+            if (this.side == Side.B) {
+                exposure.addBackTempExposure(this.size);
+            } else if (this.side == Side.L) {
+                exposure.addLayTempExposure(Formulas.layExposure(this.price, this.size));
+            } else {
+                logger.error("unknown side in temporaryOrder updateExposure for: {} {}", this.side, Generic.objectToString(this));
+            }
+        } else {
+            logger.error("unknown temporaryOrder type: {} {}", this.type, Generic.objectToString(this));
+        }
+    }
+
+    @NotNull
+    public TemporaryOrderType getType() {
         return this.type;
     }
 
-    public synchronized String getMarketId() {
+    public String getMarketId() {
         return this.marketId;
     }
 
-    public synchronized RunnerId getRunnerId() {
+    public RunnerId getRunnerId() {
         return this.runnerId;
     }
 
-    public synchronized Side getSide() {
+    public Side getSide() {
         return this.side;
     }
 
-    public synchronized double getPrice() {
+    public double getPrice() {
         return this.price;
     }
 
-    public synchronized double getSize() {
+    public double getSize() {
         return this.size;
     }
 
     @Nullable
-    public synchronized Double getSizeReduction() {
+    public Double getSizeReduction() {
         return this.sizeReduction;
+    }
+
+    public String getReasonId() {
+        return this.reasonId;
     }
 
     public synchronized long getCreationTime() {
@@ -112,19 +164,9 @@ public class TemporaryOrder
         return this.expirationTime > 0L && currentTime >= this.expirationTime;
     }
 
-    public synchronized boolean isTooOld() {
-        final long currentTime = System.currentTimeMillis();
-        return isTooOld(currentTime);
-    }
-
-    @SuppressWarnings("WeakerAccess")
-    public synchronized boolean isTooOld(final long currentTime) {
-        return currentTime >= this.creationTime + TemporaryOrder.defaultTooOldPeriod;
-    }
-
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -143,7 +185,7 @@ public class TemporaryOrder
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.type, this.marketId, this.runnerId, this.side, this.price, this.size, this.sizeReduction); // , this.betId
     }
 }

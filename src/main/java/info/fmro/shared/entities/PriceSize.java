@@ -2,29 +2,31 @@ package info.fmro.shared.entities;
 
 import org.jetbrains.annotations.Contract;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
 public class PriceSize
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 6795917492745798841L;
     @SuppressWarnings("unused")
     private Double price;
     @SuppressWarnings("unused")
     private Double size; // info.fmro.betty.entities.PriceSize has size in EUR
 
-    public synchronized Double getPrice() {
+    public Double getPrice() {
         return this.price;
     }
 
-    public synchronized Double getSize() {
+    public Double getSize() {
         return this.size;
     }
 
     @SuppressWarnings("NonFinalFieldReferenceInEquals")
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -38,7 +40,7 @@ public class PriceSize
 
     @SuppressWarnings("NonFinalFieldReferencedInHashCode")
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.price, this.size);
     }
 }

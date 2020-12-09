@@ -2,11 +2,13 @@ package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.APINGExceptionErrorCode;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class APINGException
         extends Exception
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -4176578382637642300L;
     private final String errorDetails, requestUUID;
     private final APINGExceptionErrorCode errorCode;

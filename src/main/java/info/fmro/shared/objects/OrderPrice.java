@@ -8,6 +8,7 @@ import java.util.Objects;
 
 public class OrderPrice
         implements Comparable<OrderPrice> {
+    // old class, probably need to include handicap as well
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
     private final String marketId;
     private final long selectionId;
@@ -22,25 +23,25 @@ public class OrderPrice
         this.price = price;
     }
 
-    public synchronized String getMarketId() {
+    public String getMarketId() {
         return this.marketId;
     }
 
-    public synchronized long getSelectionId() {
+    public long getSelectionId() {
         return this.selectionId;
     }
 
-    public synchronized Side getSide() {
+    public Side getSide() {
         return this.side;
     }
 
-    public synchronized double getPrice() {
+    public double getPrice() {
         return this.price;
     }
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -55,13 +56,13 @@ public class OrderPrice
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.marketId, this.selectionId, this.side, this.price);
     }
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
     @Override
-    public synchronized int compareTo(@NotNull final OrderPrice o) {
+    public int compareTo(@NotNull final OrderPrice o) {
         //noinspection ConstantConditions
         if (o == null) {
             return AFTER;

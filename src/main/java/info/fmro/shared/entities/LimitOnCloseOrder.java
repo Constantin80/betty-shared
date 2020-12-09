@@ -1,9 +1,11 @@
 package info.fmro.shared.entities;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class LimitOnCloseOrder
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 6616031776518338843L;
     private Double liability;
     private Double price;

@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
@@ -21,6 +22,7 @@ public final class CurrentOrderSummary
         implements Serializable, Comparable<CurrentOrderSummary> {
     private static final Logger logger = LoggerFactory.getLogger(CurrentOrderSummary.class);
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
+    @Serial
     private static final long serialVersionUID = -2498492858943069726L;
     private final String betId;
     private final String marketId;
@@ -103,7 +105,7 @@ public final class CurrentOrderSummary
         }
     }
 
-    public synchronized String getBetId() {
+    public String getBetId() {
         return this.betId;
     }
 
@@ -271,7 +273,7 @@ public final class CurrentOrderSummary
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
     @Override
-    public synchronized int compareTo(@NotNull final CurrentOrderSummary o) {
+    public int compareTo(@NotNull final CurrentOrderSummary o) {
         //noinspection ConstantConditions
         if (o == null) {
             return AFTER;
@@ -293,56 +295,24 @@ public final class CurrentOrderSummary
             }
             return this.betId.compareTo(o.betId);
         }
-        if (!Objects.equals(this.marketId, o.marketId)) {
-            if (this.marketId == null) {
-                return BEFORE;
-            }
-            if (o.marketId == null) {
-                return AFTER;
-            }
-            return this.marketId.compareTo(o.marketId);
-        }
-        if (!Objects.equals(this.selectionId, o.selectionId)) {
-            if (this.selectionId == null) {
-                return BEFORE;
-            }
-            if (o.selectionId == null) {
-                return AFTER;
-            }
-            return this.selectionId.compareTo(o.selectionId);
-        }
 
         return EQUAL;
     }
 
     @Override
-    public synchronized int hashCode() {
-        int hash = 3;
-        hash = 73 * hash + Objects.hashCode(this.betId);
-        hash = 73 * hash + Objects.hashCode(this.marketId);
-        hash = 73 * hash + Objects.hashCode(this.selectionId);
-        return hash;
-    }
-
-    @Contract(value = "null -> false", pure = true)
-    @Override
-    public synchronized boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final CurrentOrderSummary other = (CurrentOrderSummary) obj;
-        if (!Objects.equals(this.betId, other.betId)) {
-            return false;
-        }
-        if (!Objects.equals(this.marketId, other.marketId)) {
-            return false;
-        }
-        return Objects.equals(this.selectionId, other.selectionId);
+        final CurrentOrderSummary that = (CurrentOrderSummary) obj;
+        return Objects.equals(this.betId, that.betId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.betId);
     }
 }

@@ -1,8 +1,8 @@
 package info.fmro.shared.entities;
 
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +10,7 @@ import java.util.Objects;
 
 public class ExchangePrices
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -5031011635000589001L;
     private final ArrayList<PriceSize> availableToBack;
     private final ArrayList<PriceSize> availableToLay;
@@ -34,33 +35,21 @@ public class ExchangePrices
     }
 
     @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 37 * hash + Objects.hashCode(this.availableToBack);
-        hash = 37 * hash + Objects.hashCode(this.availableToLay);
-        hash = 37 * hash + Objects.hashCode(this.tradedVolume);
-        return hash;
-    }
-
-    @Contract(value = "null -> false", pure = true)
-    @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final ExchangePrices other = (ExchangePrices) obj;
-        if (!Objects.equals(this.availableToBack, other.availableToBack)) {
-            return false;
-        }
-        if (!Objects.equals(this.availableToLay, other.availableToLay)) {
-            return false;
-        }
-        return Objects.equals(this.tradedVolume, other.tradedVolume);
+        final ExchangePrices that = (ExchangePrices) obj;
+        return Objects.equals(this.availableToBack, that.availableToBack) &&
+               Objects.equals(this.availableToLay, that.availableToLay) &&
+               Objects.equals(this.tradedVolume, that.tradedVolume);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.availableToBack, this.availableToLay, this.tradedVolume);
     }
 }

@@ -2,6 +2,7 @@ package info.fmro.shared.entities;
 
 import org.jetbrains.annotations.Contract;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -9,13 +10,14 @@ import java.util.Objects;
 @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
 public class KeyLineDescription
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -7685044775812063409L;
     @SuppressWarnings("unused")
     private List<KeyLineSelection> keyLine;
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -28,7 +30,7 @@ public class KeyLineDescription
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         //noinspection NonFinalFieldReferencedInHashCode
         return Objects.hash(this.keyLine);
     }

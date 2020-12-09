@@ -6,6 +6,7 @@ import info.fmro.shared.enums.OrderStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -16,6 +17,7 @@ import java.util.Set;
 @SuppressWarnings("ClassWithTooManyMethods")
 public class MarketFilter
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 6993130569488828844L;
     @Nullable
     private Set<String> marketIds; // If no marketIds passed user will be subscribed to all markets

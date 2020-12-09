@@ -4,12 +4,14 @@ import info.fmro.shared.enums.ParsedRunnerType;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
 public class ParsedRunner
         implements Serializable, Comparable<ParsedRunner> {
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
+    @Serial
     private static final long serialVersionUID = 1449977052034070871L;
     private final Long selectionId;
     private final Double handicap;
@@ -29,11 +31,11 @@ public class ParsedRunner
         this.parsedRunnerType = parsedRunnerType;
     }
 
-    public synchronized Double getHandicap() {
+    public Double getHandicap() {
         return this.handicap;
     }
 
-    public synchronized Long getSelectionId() {
+    public Long getSelectionId() {
         return this.selectionId;
     }
 
@@ -47,7 +49,7 @@ public class ParsedRunner
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
     @Override
-    public synchronized int compareTo(@NotNull final ParsedRunner o) {
+    public int compareTo(@NotNull final ParsedRunner o) {
         //noinspection ConstantConditions
         if (o == null) {
             return AFTER;
@@ -82,7 +84,7 @@ public class ParsedRunner
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -95,7 +97,7 @@ public class ParsedRunner
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.selectionId, this.handicap);
     }
 }

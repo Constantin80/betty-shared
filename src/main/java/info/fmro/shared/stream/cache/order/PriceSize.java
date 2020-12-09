@@ -1,7 +1,6 @@
-package info.fmro.shared.stream.definitions;
+package info.fmro.shared.stream.cache.order;
 
-import com.google.common.util.concurrent.AtomicDouble;
-import info.fmro.shared.objects.TwoDoubles;
+import info.fmro.shared.objects.Exposure;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
 import org.jetbrains.annotations.Contract;
@@ -9,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -16,9 +16,10 @@ import java.util.Objects;
 public class PriceSize
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(PriceSize.class);
-    private static final long serialVersionUID = 6795917492745798841L;
+    @Serial
+    private static final long serialVersionUID = -3286453082383433322L;
     private final double price;
-    private double size; // info.fmro.betty.stream.cache.util.PriceSize has size in GBP
+    private double size; // my orders stream has amounts in EUR
 
     public PriceSize(final List<Double> priceSize) {
         if (priceSize != null) {
@@ -45,37 +46,53 @@ public class PriceSize
         }
     }
 
-    public synchronized double getPrice() {
+    public double getPrice() {
         return this.price;
     }
 
-    @Contract(pure = true)
-    private synchronized double getSize() {
+    synchronized double getSize() {
         return this.size;
     }
 
-    synchronized double getSizeEUR(@NotNull final AtomicDouble currencyRate) {
-        return getSize() * currencyRate.get();
-    }
-
-    synchronized TwoDoubles getBackProfitExposurePair() { // this works for back; for lay profit and exposure are reversed
-        final double profit, exposure;
-
+    synchronized void updateBackProfitExposure(@NotNull final Exposure exposure) {
         if (this.price == 0d || this.size == 0d) { // error message was probably printed during creation
-            profit = 0d;
-            exposure = 0d;
         } else if (this.price <= 1d) {
             logger.error("bogus price {} in PriceSize for: {}", this.price, Generic.objectToString(this));
             this.size = 0d;
-            profit = 0d;
-            exposure = 0d;
         } else {
-            profit = Formulas.layExposure(this.price, this.size);
-            exposure = this.size;
+            exposure.addBackMatchedProfit(Formulas.layExposure(this.price, getSize()));
+            exposure.addBackMatchedExposure(getSize());
         }
-
-        return new TwoDoubles(profit, exposure);
     }
+
+    synchronized void updateLayProfitExposure(@NotNull final Exposure exposure) {
+        if (this.price == 0d || this.size == 0d) { // error message was probably printed during creation
+        } else if (this.price <= 1d) {
+            logger.error("bogus price {} in PriceSize for: {}", this.price, Generic.objectToString(this));
+            this.size = 0d;
+        } else {
+            exposure.addLayMatchedProfit(getSize());
+            exposure.addLayMatchedExposure(Formulas.layExposure(this.price, getSize()));
+        }
+    }
+//    synchronized TwoDoubles getBackProfitExposurePair() { // this works for back; for lay profit and exposure are reversed
+//        final double profit, exposure;
+//
+//        if (this.price == 0d || this.size == 0d) { // error message was probably printed during creation
+//            profit = 0d;
+//            exposure = 0d;
+//        } else if (this.price <= 1d) {
+//            logger.error("bogus price {} in PriceSize for: {}", this.price, Generic.objectToString(this));
+//            this.size = 0d;
+//            profit = 0d;
+//            exposure = 0d;
+//        } else {
+//            profit = Formulas.layExposure(this.price, this.size);
+//            exposure = this.size;
+//        }
+//
+//        return new TwoDoubles(profit, exposure);
+//    }
 
     synchronized void removeAmountGBP(final double sizeToRemove) { // package private method
         if (this.size < 0d) {
@@ -93,7 +110,7 @@ public class PriceSize
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -105,7 +122,7 @@ public class PriceSize
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.price);
     }
 }

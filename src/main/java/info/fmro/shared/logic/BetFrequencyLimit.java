@@ -6,15 +6,17 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class BetFrequencyLimit
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(BetFrequencyLimit.class);
+    @Serial
     private static final long serialVersionUID = 1110075859608214163L;
     public static final long maxManageMarketPeriod = Generic.MINUTE_LENGTH_MILLISECONDS * 10L; // manage once every 5 minutes, maximum period possible
     public static final long minManageMarketPeriod = 1_000L; // throttle protection
-    public static final long regularManageMarketPeriod = 30_000L; // regular period, which formulas then modify to ger the calculated period
+    public static final long regularManageMarketPeriod = 30_000L; // regular period, which formulas then modify to get the calculated period
     public static final int limitPerHour = 1_000;
     private long lastOrderStamp;
     private int nOrdersSinceReset;
@@ -69,7 +71,7 @@ public class BetFrequencyLimit
 //                //noinspection NumericCastThatLosesPrecision
 //                manageMarketPeriod = Math.min(maxManageMarketPeriod, Math.max(minManageMarketPeriod, (long) (regularManageMarketPeriod / proportionOfAccountLimitAllocatedToMarket)));
 //            } else { // proportionOfLimitReached < proportionThatHasPassedFromCurrentHour
-            final double proportionOfLimitReachedFromCurrentHourSegment = Math.max(1d, proportionOfLimitReached / proportionThatHasPassedFromCurrentHour);
+            final double proportionOfLimitReachedFromCurrentHourSegment = Math.min(1d, proportionOfLimitReached / proportionThatHasPassedFromCurrentHour);
             //noinspection FloatingPointEquality
             if (proportionOfLimitReachedFromCurrentHourSegment == 1d) {
                 checkNeedsReset();

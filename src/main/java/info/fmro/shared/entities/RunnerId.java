@@ -2,11 +2,13 @@ package info.fmro.shared.entities;
 
 import org.jetbrains.annotations.Contract;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
 public class RunnerId
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -8081544562430144958L;
     @SuppressWarnings("unused")
     private String marketId; // The id of the market bet on
@@ -15,22 +17,22 @@ public class RunnerId
     @SuppressWarnings("unused")
     private Double handicap; // The handicap associated with the runner in case of asian handicap markets, otherwise returns '0.0'.
 
-    public synchronized String getMarketId() {
+    public String getMarketId() {
         return this.marketId;
     }
 
-    public synchronized Long getSelectionId() {
+    public Long getSelectionId() {
         return this.selectionId;
     }
 
-    public synchronized Double getHandicap() {
+    public Double getHandicap() {
         return this.handicap;
     }
 
     @SuppressWarnings("NonFinalFieldReferenceInEquals")
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -45,7 +47,12 @@ public class RunnerId
 
     @SuppressWarnings("NonFinalFieldReferencedInHashCode")
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.marketId, this.selectionId, this.handicap);
+    }
+
+    @Override
+    public String toString() {
+        return "RunnerId{marketId=" + this.marketId + ", selectionId=" + this.selectionId + ", handicap=" + this.handicap + '}';
     }
 }

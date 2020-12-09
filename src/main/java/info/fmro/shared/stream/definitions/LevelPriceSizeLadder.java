@@ -1,5 +1,6 @@
 package info.fmro.shared.stream.definitions;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +8,7 @@ import java.util.TreeMap;
 
 public class LevelPriceSizeLadder
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 990070832400710390L;
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final Map<Integer, LevelPriceSize> levelToPriceSize = new TreeMap<>();
@@ -19,8 +21,8 @@ public class LevelPriceSizeLadder
 
         if (prices != null) {
             //changes to apply
-            for (final List<Double> price : prices) {
-                final LevelPriceSize levelPriceSize = new LevelPriceSize(price);
+            for (final List<Double> priceAndSize : prices) {
+                final LevelPriceSize levelPriceSize = new LevelPriceSize(priceAndSize);
                 this.levelToPriceSize.put(levelPriceSize.getLevel(), levelPriceSize);
             }
         }

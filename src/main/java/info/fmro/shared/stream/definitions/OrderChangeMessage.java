@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
@@ -20,6 +21,7 @@ public class OrderChangeMessage
         extends ResponseMessage
         implements Serializable, StreamObjectInterface {
     private static final Logger logger = LoggerFactory.getLogger(OrderChangeMessage.class);
+    @Serial
     private static final long serialVersionUID = 5357844283995226019L;
     private String clk; // Token value (non-null) should be stored and passed in a MarketSubscriptionMessage to resume subscription (in case of disconnect)
     private Long conflateMs; // Conflate Milliseconds - the conflation rate (may differ from that requested if subscription is delayed)

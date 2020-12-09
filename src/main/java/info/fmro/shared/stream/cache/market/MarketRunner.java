@@ -1,34 +1,41 @@
 package info.fmro.shared.stream.cache.market;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.objects.SharedStatics;
+import info.fmro.shared.stream.cache.OrdersList;
+import info.fmro.shared.stream.cache.RunnerOrderModification;
 import info.fmro.shared.stream.definitions.LevelPriceSizeLadder;
-import info.fmro.shared.stream.definitions.Order;
-import info.fmro.shared.stream.definitions.PriceSizeLadder;
 import info.fmro.shared.stream.definitions.RunnerChange;
 import info.fmro.shared.stream.definitions.RunnerDefinition;
 import info.fmro.shared.stream.enums.Side;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
+import info.fmro.shared.utility.LogLevel;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
-import java.util.Map;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.TreeMap;
 
 @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
 public class MarketRunner
         implements Serializable { // amounts are in underlying currency (GBP), but the only way to get amounts from PriceSize object is with getSizeEUR method
-    private static final Logger logger = LoggerFactory.getLogger(MarketRunner.class);
+    @Serial
     private static final long serialVersionUID = -7071355306184374342L;
+    private static final long recentModificationPeriod = 1_000L; // milliseconds for a modification to be recent
+    private static final Logger logger = LoggerFactory.getLogger(MarketRunner.class);
     //    private final Market market;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final String marketId;
     private final RunnerId runnerId;
+    private final LinkedList<RunnerOrderModification> recentModifications = new LinkedList<>(); // will contain sizes in GBP, and will only be extracted after conversion to EUR
 
     // Level / Depth Based Ladders
 //    private MarketRunnerPrices marketRunnerPrices = new MarketRunnerPrices();
@@ -57,12 +64,47 @@ public class MarketRunner
         this.runnerId = runnerId;
     }
 
-    synchronized void onPriceChange(final boolean isImage, @NotNull final RunnerChange runnerChange, @NotNull final AtomicDouble currencyRate) {
-        this.atlPrices.onPriceChange(isImage, runnerChange.getAtl(), currencyRate);
-        this.atbPrices.onPriceChange(isImage, runnerChange.getAtb(), currencyRate);
-        this.trdPrices.onPriceChange(isImage, runnerChange.getTrd(), currencyRate);
-        this.spbPrices.onPriceChange(isImage, runnerChange.getSpb(), currencyRate);
-        this.splPrices.onPriceChange(isImage, runnerChange.getSpl(), currencyRate);
+    private synchronized void removeExpiredModifications() {
+        final long currentTime = System.currentTimeMillis();
+        if (this.recentModifications.isEmpty()) { // nothing to remove
+        } else {
+            boolean removingFirstElement;
+            do {
+                final RunnerOrderModification modification = this.recentModifications.peek();
+                if (modification == null) {
+                    logger.error("null modification in removeExpiredModifications for: {}", Generic.objectToString(this.recentModifications));
+                    removingFirstElement = true;
+                } else {
+                    final long stamp = modification.getTimeStamp();
+                    removingFirstElement = stamp + recentModificationPeriod < currentTime;
+                }
+                if (removingFirstElement) {
+                    this.recentModifications.remove();
+                } else { // not expired, won't remove
+                }
+            } while (!this.recentModifications.isEmpty() && removingFirstElement);
+        }
+    }
+
+//    private synchronized void addRecentModification(@NotNull final RunnerOrderModification modification) {
+//        this.recentModifications.add(modification);
+//        removeExpiredModifications();
+//    }
+
+    private synchronized void addRecentModifications(final Collection<RunnerOrderModification> modifications) {
+        if (modifications == null) { // nothing to be done
+        } else {
+            this.recentModifications.addAll(modifications);
+        }
+        removeExpiredModifications();
+    }
+
+    synchronized void onPriceChange(final boolean isImage, @NotNull final RunnerChange runnerChange) {
+        addRecentModifications(this.atlPrices.onPriceChangeGetModifications(isImage, runnerChange.getAtl()));
+        addRecentModifications(this.atbPrices.onPriceChangeGetModifications(isImage, runnerChange.getAtb()));
+        this.trdPrices.onPriceChange(isImage, runnerChange.getTrd());
+        this.spbPrices.onPriceChange(isImage, runnerChange.getSpb());
+        this.splPrices.onPriceChange(isImage, runnerChange.getSpl());
 
         this.batbPrices.onPriceChange(isImage, runnerChange.getBatb());
         this.batlPrices.onPriceChange(isImage, runnerChange.getBatl());
@@ -84,43 +126,43 @@ public class MarketRunner
         return this.runnerDefinition == null ? null : this.runnerDefinition.getSortPriority();
     }
 
-    public synchronized double getBestAvailableLayPrice(final Map<String, ? extends Order> unmatchedOrders, final double calculatedLimit, @NotNull final AtomicDouble currencyRate) {
-        final PriceSizeLadder modifiedPrices = this.atlPrices.copy();
-        if (unmatchedOrders == null) { // normal case, and nothing to be done
-        } else {
-            for (final Order order : unmatchedOrders.values()) {
-                final Side side = order.getSide();
-                if (side == null) {
-                    logger.error("null side in getBestAvailableLayPrice for order: {}", Generic.objectToString(order));
-                } else if (side == Side.B) {
-                    final Double price = order.getP(), sizeRemaining = order.getSr();
-                    final double sizeRemainingPrimitive = sizeRemaining == null ? 0d : sizeRemaining;
-                    modifiedPrices.removeAmountEUR(price, sizeRemainingPrimitive, currencyRate);
-                } else { // uninteresting side, nothing to be done
-                }
-            }
-        }
-        return modifiedPrices.getBestPrice(calculatedLimit, currencyRate);
-    }
-
-    public synchronized double getBestAvailableBackPrice(final Map<String, ? extends Order> unmatchedOrders, final double calculatedLimit, @NotNull final AtomicDouble currencyRate) {
-        final PriceSizeLadder modifiedPrices = this.atbPrices.copy();
-        if (unmatchedOrders == null) { // normal case, and nothing to be done
-        } else {
-            for (final Order order : unmatchedOrders.values()) {
-                final Side side = order.getSide();
-                if (side == null) {
-                    logger.error("null side in getBestAvailableBackPrice for order: {}", Generic.objectToString(order));
-                } else if (side == Side.L) {
-                    final Double price = order.getP(), sizeRemaining = order.getSr();
-                    final double sizeRemainingPrimitive = sizeRemaining == null ? 0d : sizeRemaining;
-                    modifiedPrices.removeAmountEUR(price, sizeRemainingPrimitive, currencyRate);
-                } else { // uninteresting side, nothing to be done
-                }
-            }
-        }
-        return modifiedPrices.getBestPrice(calculatedLimit, currencyRate);
-    }
+//    public synchronized double getBestAvailableLayPrice(final Map<String, ? extends Order> unmatchedOrders, final double calculatedLimit, @NotNull final AtomicDouble currencyRate) {
+//        final PriceSizeLadder modifiedPrices = this.atlPrices.copy();
+//        if (unmatchedOrders == null) { // normal case, and nothing to be done
+//        } else {
+//            for (final Order order : unmatchedOrders.values()) {
+//                final Side side = order.getSide();
+//                if (side == null) {
+//                    logger.error("null side in getBestAvailableLayPrice for order: {}", Generic.objectToString(order));
+//                } else if (side == Side.B) {
+//                    final Double price = order.getP(), sizeRemaining = order.getSr();
+//                    final double sizeRemainingPrimitive = sizeRemaining == null ? 0d : sizeRemaining;
+//                    modifiedPrices.removeAmountEUR(price, sizeRemainingPrimitive, currencyRate);
+//                } else { // uninteresting side, nothing to be done
+//                }
+//            }
+//        }
+//        return modifiedPrices.getBestPrice(calculatedLimit, currencyRate);
+//    }
+//
+//    public synchronized double getBestAvailableBackPrice(final Map<String, ? extends Order> unmatchedOrders, final double calculatedLimit, @NotNull final AtomicDouble currencyRate) {
+//        final PriceSizeLadder modifiedPrices = this.atbPrices.copy();
+//        if (unmatchedOrders == null) { // normal case, and nothing to be done
+//        } else {
+//            for (final Order order : unmatchedOrders.values()) {
+//                final Side side = order.getSide();
+//                if (side == null) {
+//                    logger.error("null side in getBestAvailableBackPrice for order: {}", Generic.objectToString(order));
+//                } else if (side == Side.L) {
+//                    final Double price = order.getP(), sizeRemaining = order.getSr();
+//                    final double sizeRemainingPrimitive = sizeRemaining == null ? 0d : sizeRemaining;
+//                    modifiedPrices.removeAmountEUR(price, sizeRemainingPrimitive, currencyRate);
+//                } else { // uninteresting side, nothing to be done
+//                }
+//            }
+//        }
+//        return modifiedPrices.getBestPrice(calculatedLimit, currencyRate);
+//    }
 
     public synchronized boolean isActive() {
         return this.runnerDefinition != null && this.runnerDefinition.isActive();
@@ -135,6 +177,10 @@ public class MarketRunner
         return this.spn;
     }
 
+    public synchronized double getSpnEUR(@NotNull final AtomicDouble currencyRate) {
+        return getSpn() * currencyRate.get();
+    }
+
     private synchronized void setSpn(final double spn) {
         this.spn = spn;
     }
@@ -142,6 +188,10 @@ public class MarketRunner
     @Contract(pure = true)
     private synchronized double getSpf() {
         return this.spf;
+    }
+
+    public synchronized double getSpfEUR(@NotNull final AtomicDouble currencyRate) {
+        return getSpf() * currencyRate.get();
     }
 
     private synchronized void setSpf(final double spf) {
@@ -170,12 +220,44 @@ public class MarketRunner
     }
 
     @NotNull
-    public synchronized TreeMap<Double, Double> getAvailableToLay(@NotNull final AtomicDouble currencyRate) {
-        return this.atlPrices.getSimpleTreeMap(currencyRate);
+    public synchronized OrdersList getAvailableToLay(@NotNull final AtomicDouble currencyRate) {
+        removeExpiredModifications();
+        final double currencyRatePrimitive = currencyRate.get();
+        final TreeMap<Double, Double> orders = this.atlPrices.getSimpleTreeMap(currencyRatePrimitive);
+        final LinkedList<RunnerOrderModification> layRecentModifications = new LinkedList<>();
+        for (final RunnerOrderModification runnerOrderModification : this.recentModifications) {
+            if (runnerOrderModification == null) {
+                SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.ERROR, "null runnerOrderModification in getAvailableToLay");
+            } else {
+                final Side side = runnerOrderModification.getSide();
+                if (side == Side.L) {
+                    final RunnerOrderModification runnerOrderModificationEUR = new RunnerOrderModification(side, runnerOrderModification.getPrice(), runnerOrderModification.getSize() * currencyRatePrimitive);
+                    layRecentModifications.add(runnerOrderModificationEUR);
+                } else { // not the side I want
+                }
+            }
+        }
+        return new OrdersList(orders, layRecentModifications);
     }
 
     @NotNull
-    public synchronized TreeMap<Double, Double> getAvailableToBack(@NotNull final AtomicDouble currencyRate) {
-        return this.atbPrices.getSimpleTreeMap(currencyRate);
+    public synchronized OrdersList getAvailableToBack(@NotNull final AtomicDouble currencyRate) {
+        removeExpiredModifications();
+        final double currencyRatePrimitive = currencyRate.get();
+        final TreeMap<Double, Double> orders = this.atbPrices.getSimpleTreeMap(currencyRatePrimitive);
+        final LinkedList<RunnerOrderModification> backRecentModifications = new LinkedList<>();
+        for (final RunnerOrderModification runnerOrderModification : this.recentModifications) {
+            if (runnerOrderModification == null) {
+                SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.ERROR, "null runnerOrderModification in getAvailableToBack");
+            } else {
+                final Side side = runnerOrderModification.getSide();
+                if (side == Side.B) {
+                    final RunnerOrderModification runnerOrderModificationEUR = new RunnerOrderModification(side, runnerOrderModification.getPrice(), runnerOrderModification.getSize() * currencyRatePrimitive);
+                    backRecentModifications.add(runnerOrderModificationEUR);
+                } else { // not the side I want
+                }
+            }
+        }
+        return new OrdersList(orders, backRecentModifications);
     }
 }

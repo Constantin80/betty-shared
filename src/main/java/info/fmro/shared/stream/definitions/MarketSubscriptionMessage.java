@@ -1,10 +1,12 @@
 package info.fmro.shared.stream.definitions;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class MarketSubscriptionMessage
         extends RequestMessage
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -5514747219419338428L;
     private String clk; // Token value (non-null) should be stored and passed in a MarketSubscriptionMessage to resume subscription (in case of disconnect)
     private Long conflateMs; // Conflate Milliseconds - the conflation rate (may differ from that requested if subscription is delayed)

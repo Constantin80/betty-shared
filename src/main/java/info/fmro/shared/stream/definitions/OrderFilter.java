@@ -2,12 +2,14 @@ package info.fmro.shared.stream.definitions;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
 public class OrderFilter
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 2933689998723721000L;
     @Nullable
     private Set<Integer> accountIds; // This is for internal use only & should not be set on your filter (your subscription is already locked to your account).

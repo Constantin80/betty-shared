@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -15,11 +16,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
+@SuppressWarnings("OverlyComplexClass")
 public class ManagedMarketsMap
         extends SynchronizedMap<String, ManagedMarket>
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ManagedMarketsMap.class);
+    @Serial
     private static final long serialVersionUID = -8982542372821302647L;
     private boolean isInitialized;
     @Nullable
@@ -35,6 +37,7 @@ public class ManagedMarketsMap
         initializeMap(markets);
     }
 
+    @Serial
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
         in.defaultReadObject();
@@ -148,6 +151,7 @@ public class ManagedMarketsMap
         return returnValue;
     }
 
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public synchronized Collection<ManagedMarket> valuesCopy(@NotNull final SynchronizedMap<String, ManagedMarket> markets) {
         initializeMap(markets);
         return super.valuesCopy();
@@ -289,6 +293,7 @@ public class ManagedMarketsMap
         return returnValue;
     }
 
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public synchronized ManagedMarket putIfAbsent(final String key, final ManagedMarket value, @NotNull final SynchronizedMap<String, ManagedMarket> markets) {
         initializeMap(markets);
         return super.putIfAbsent(key, value);
@@ -580,17 +585,4 @@ public class ManagedMarketsMap
         initializeMap(markets);
         return super.retainAllValues(c);
     }
-
-//    @Override
-//    public synchronized int hashCode() {
-//        initializeMap();
-//        return super.hashCode();
-//    }
-//
-//    @Contract(value = "null -> false", pure = true)
-//    @Override
-//    public synchronized boolean equals(final Object obj) {
-//        initializeMap();
-//        return super.equals(obj);
-//    }
 }

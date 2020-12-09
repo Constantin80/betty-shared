@@ -1,9 +1,9 @@
 package info.fmro.shared.objects;
 
 import info.fmro.shared.enums.ParsedMarketType;
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Objects;
@@ -11,6 +11,7 @@ import java.util.Objects;
 public class ParsedMarket
         implements Serializable, Comparable<ParsedMarket> {
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
+    @Serial
     private static final long serialVersionUID = -2616558897137266131L;
     private final String marketId;
     private final ParsedMarketType parsedMarketType;
@@ -22,11 +23,11 @@ public class ParsedMarket
         this.parsedRunnersSet = new HashSet<>(parsedRunnersSet);
     }
 
-    public synchronized String getMarketId() {
+    public String getMarketId() {
         return this.marketId;
     }
 
-    public synchronized ParsedMarketType getParsedMarketType() {
+    public ParsedMarketType getParsedMarketType() {
         return this.parsedMarketType;
     }
 
@@ -36,7 +37,7 @@ public class ParsedMarket
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
     @Override
-    public synchronized int compareTo(@NotNull final ParsedMarket o) {
+    public int compareTo(@NotNull final ParsedMarket o) {
         //noinspection ConstantConditions
         if (o == null) {
             return AFTER;
@@ -82,34 +83,22 @@ public class ParsedMarket
         return EQUAL;
     }
 
-    @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final ParsedMarket other = (ParsedMarket) obj;
-        if (!Objects.equals(this.marketId, other.marketId)) {
-            return false;
-        }
-        if (this.parsedMarketType != other.parsedMarketType) {
-            return false;
-        }
-        return Objects.equals(this.parsedRunnersSet, other.parsedRunnersSet);
+        final ParsedMarket that = (ParsedMarket) obj;
+        return Objects.equals(this.marketId, that.marketId) &&
+               this.parsedMarketType == that.parsedMarketType &&
+               Objects.equals(this.parsedRunnersSet, that.parsedRunnersSet);
     }
 
     @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 97 * hash + Objects.hashCode(this.marketId);
-        hash = 97 * hash + Objects.hashCode(this.parsedMarketType);
-        hash = 97 * hash + Objects.hashCode(this.parsedRunnersSet);
-        return hash;
+    public int hashCode() {
+        return Objects.hash(this.marketId, this.parsedMarketType, this.parsedRunnersSet);
     }
 }

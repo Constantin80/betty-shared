@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
@@ -14,6 +15,7 @@ import java.util.Objects;
 
 public class Runner
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -8538359656490442656L;
     private Long selectionId;
     private Double handicap;
@@ -50,11 +52,11 @@ public class Runner
         this.matches = new ArrayList<>(matches);
     }
 
-    public synchronized Long getSelectionId() {
+    public Long getSelectionId() {
         return this.selectionId;
     }
 
-    public synchronized Double getHandicap() {
+    public Double getHandicap() {
         return this.handicap;
     }
 
@@ -97,32 +99,23 @@ public class Runner
         return this.matches == null ? null : new ArrayList<>(this.matches);
     }
 
-    @SuppressWarnings("NonFinalFieldReferencedInHashCode")
-    @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 73 * hash + Objects.hashCode(this.selectionId);
-        hash = 73 * hash + Objects.hashCode(this.handicap);
-        return hash;
-    }
-
     @SuppressWarnings("NonFinalFieldReferenceInEquals")
-    @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final Runner other = (Runner) obj;
-        if (!Objects.equals(this.selectionId, other.selectionId)) {
-            return false;
-        }
-        return Objects.equals(this.handicap, other.handicap);
+        final Runner runner = (Runner) obj;
+        return Objects.equals(this.selectionId, runner.selectionId) &&
+               Objects.equals(this.handicap, runner.handicap);
+    }
+
+    @SuppressWarnings("NonFinalFieldReferencedInHashCode")
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.selectionId, this.handicap);
     }
 }

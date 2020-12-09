@@ -2,6 +2,7 @@ package info.fmro.shared.stream.definitions;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.List;
 // objects of this class are read from the stream
 public class KeyLineDefinition
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 3111037495464828868L;
     @Nullable
     private List<KeyLineSelection> kl;

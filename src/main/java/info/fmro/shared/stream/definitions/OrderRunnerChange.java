@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class OrderRunnerChange
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(OrderRunnerChange.class);
+    @Serial
     private static final long serialVersionUID = -7515170337276827530L;
     private Boolean fullImage;
     private Double hc; // Handicap - the handicap of the runner (selection) (null if not applicable)
@@ -30,7 +32,19 @@ public class OrderRunnerChange
     @Nullable
     private List<Order> uo; // Unmatched Orders - orders on this runner (selection) that are not fully matched
 
-    @SuppressWarnings("OverlyNestedMethod")
+    public synchronized List<List<Double>> getMatchedList(final Side side) {
+        @Nullable final List<List<Double>> chosenList;
+        if (side == Side.B) {
+            chosenList = this.mb;
+        } else if (side == Side.L) {
+            chosenList = this.ml;
+        } else {
+            logger.error("unknown Side in getMatchedSize for: {}", side);
+            chosenList = null;
+        }
+        return chosenList;
+    }
+
     public synchronized double getMatchedSize(final Side side, final double price) {
         double matchedSize = 0d;
         @Nullable final List<List<Double>> chosenList;
@@ -98,7 +112,11 @@ public class OrderRunnerChange
         return returnValue;
     }
 
-    public synchronized Boolean getFullImage() {
+    public synchronized boolean isImage() {
+        return Boolean.TRUE.equals(getFullImage());
+    }
+
+    private synchronized Boolean getFullImage() {
         return this.fullImage;
     }
 
@@ -124,7 +142,6 @@ public class OrderRunnerChange
 
     public synchronized List<List<Double>> getMb() {
         @Nullable final List<List<Double>> result;
-
         if (this.mb == null) {
             result = null;
         } else {
@@ -132,13 +149,12 @@ public class OrderRunnerChange
             for (final List<Double> list : this.mb) {
                 if (list == null) {
                     logger.error("null element found in mb during getMb for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -150,7 +166,7 @@ public class OrderRunnerChange
             for (final List<Double> list : mb) {
                 if (list == null) {
                     logger.error("null element found in mb during setMb for: {}", Generic.objectToString(mb));
-                    this.mb.add(null);
+//                    this.mb.add(null);
                 } else {
                     this.mb.add(new ArrayList<>(list));
                 }
@@ -160,7 +176,6 @@ public class OrderRunnerChange
 
     public synchronized List<List<Double>> getMl() {
         @Nullable final List<List<Double>> result;
-
         if (this.ml == null) {
             result = null;
         } else {
@@ -168,13 +183,12 @@ public class OrderRunnerChange
             for (final List<Double> list : this.ml) {
                 if (list == null) {
                     logger.error("null element found in ml during getMl for: {}", Generic.objectToString(this));
-                    result.add(null);
+//                    result.add(null);
                 } else {
                     result.add(new ArrayList<>(list));
                 }
             }
         }
-
         return result;
     }
 
@@ -186,7 +200,7 @@ public class OrderRunnerChange
             for (final List<Double> list : ml) {
                 if (list == null) {
                     logger.error("null element found in ml during setMl for: {}", Generic.objectToString(ml));
-                    this.ml.add(null);
+//                    this.ml.add(null);
                 } else {
                     this.ml.add(new ArrayList<>(list));
                 }

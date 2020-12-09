@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,6 +15,7 @@ import java.util.List;
 class StrategyMatchChange
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(StrategyMatchChange.class);
+    @Serial
     private static final long serialVersionUID = -3731593485034448217L;
     @Nullable
     private List<List<Double>> mb; // Matched Backs - matched amounts by distinct matched price on the Back side for this strategy

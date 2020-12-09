@@ -3,12 +3,14 @@ package info.fmro.shared.stream.definitions;
 import info.fmro.shared.enums.RunnerStatus;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 
 // objects of this class are read from the stream
 public class RunnerDefinition
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -6127210092733234930L;
     private Double adjustmentFactor;
     private Double bsp; // Betfair Starting Price

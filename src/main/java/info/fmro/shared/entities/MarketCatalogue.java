@@ -3,6 +3,7 @@ package info.fmro.shared.entities;
 import info.fmro.shared.enums.CommandType;
 import info.fmro.shared.objects.LoggerThreadInterface;
 import info.fmro.shared.objects.ParsedMarket;
+import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.objects.RunnerId;
 import info.fmro.shared.utility.Formulas;
 import info.fmro.shared.utility.Generic;
@@ -13,6 +14,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -25,7 +27,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.concurrent.Executor;
 
 @SuppressWarnings({"OverlyComplexClass", "WeakerAccess"})
 public class MarketCatalogue
@@ -33,6 +34,7 @@ public class MarketCatalogue
         implements Serializable, Comparable<MarketCatalogue> {
     private static final Logger logger = LoggerFactory.getLogger(MarketCatalogue.class);
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
+    @Serial
     private static final long serialVersionUID = 1172556202262757207L;
     private final String marketId;
     private String marketName;
@@ -77,13 +79,12 @@ public class MarketCatalogue
         return runnerCatalog == null ? null : runnerCatalog.getRunnerName();
     }
 
-    public synchronized int setIgnored(final long period, @NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructor, final boolean safeBetModuleActivated) {
+    public synchronized int setIgnored(final long period, @NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructor, final boolean safeBetModuleActivated) {
         final long currentTime = System.currentTimeMillis();
-        return setIgnored(period, currentTime, removeFromSecondaryMaps, threadPoolExecutor, constructor, safeBetModuleActivated);
+        return setIgnored(period, currentTime, removeFromSecondaryMaps, constructor, safeBetModuleActivated);
     }
 
-    public synchronized int setIgnored(final long period, final long startTime, @NotNull final Method removeFromSecondaryMaps, @NotNull final Executor threadPoolExecutor, @NotNull final Constructor<? extends Runnable> constructor,
-                                       final boolean safeBetModuleActivated) {
+    public synchronized int setIgnored(final long period, final long startTime, @NotNull final Method removeFromSecondaryMaps, @NotNull final Constructor<? extends Runnable> constructor, final boolean safeBetModuleActivated) {
         final int modified = setIgnored(period, startTime);
 
         if (modified > 0 && this.isIgnored()) {
@@ -103,7 +104,7 @@ public class MarketCatalogue
                 logger.info("ignoreMarketCatalogue to check: {} delay: {} launch: findSafeRunners", this.marketId, realPeriod);
 //                Statics.threadPoolExecutor.execute(new LaunchCommandThread(CommandType.findSafeRunners, marketCatalogueEntriesSet, realPeriod));
                 try {
-                    threadPoolExecutor.execute(constructor.newInstance(CommandType.findSafeRunners, marketCatalogueEntriesSet, realPeriod));
+                    SharedStatics.threadPoolExecutor.execute(constructor.newInstance(CommandType.findSafeRunners, marketCatalogueEntriesSet, realPeriod));
                 } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                     logger.error("exception in setIgnored for: {} {} {}", period, startTime, Generic.objectToString(this), e);
                 }
@@ -114,7 +115,7 @@ public class MarketCatalogue
         return modified;
     }
 
-    public synchronized String getMarketId() {
+    public String getMarketId() {
         return this.marketId;
     }
 
@@ -335,7 +336,7 @@ public class MarketCatalogue
         if (newParsedMarket == null) {
             if (this.parsedMarket == null) {
                 if (Formulas.isMarketType(this, supportedEventTypes)) { // happens often enough that it can clutter my logs, won't print
-//                    Generic.alreadyPrintedMap.logOnce(Generic.HOUR_LENGTH_MILLISECONDS, logger, LogLevel.INFO, "trying to set null over null value for parsedMarket in MarketCatalogue: {}", this.marketId);
+//                    SharedStatics.alreadyPrintedMap.logOnce(Generic.HOUR_LENGTH_MILLISECONDS, logger, LogLevel.INFO, "trying to set null over null value for parsedMarket in MarketCatalogue: {}", this.marketId);
                 } else { // normal that market is not parsed and setting null is attempted
                 }
             } else {
@@ -439,7 +440,7 @@ public class MarketCatalogue
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
     @Override
-    public synchronized int compareTo(@NotNull final MarketCatalogue o) {
+    public int compareTo(@NotNull final MarketCatalogue o) {
         //noinspection ConstantConditions
         if (o == null) {
             return AFTER;
@@ -465,25 +466,19 @@ public class MarketCatalogue
     }
 
     @Override
-    public synchronized int hashCode() {
-        int hash = 5;
-        hash = 53 * hash + Objects.hashCode(this.marketId);
-        return hash;
-    }
-
-    @Contract(value = "null -> false", pure = true)
-    @Override
-    public synchronized boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final MarketCatalogue other = (MarketCatalogue) obj;
-        return Objects.equals(this.marketId, other.marketId);
+        final MarketCatalogue that = (MarketCatalogue) obj;
+        return Objects.equals(this.marketId, that.marketId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.marketId);
     }
 }

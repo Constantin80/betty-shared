@@ -4,16 +4,17 @@ import info.fmro.shared.enums.OrderStatus;
 import info.fmro.shared.enums.OrderType;
 import info.fmro.shared.enums.PersistenceType;
 import info.fmro.shared.enums.Side;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
 
+@SuppressWarnings("unused")
 class Order
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 3021807768896649660L;
     private String betId;
     private OrderType orderType;
@@ -23,6 +24,7 @@ class Order
     private Double price;
     private Double size;
     private Double bspLiability;
+    @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     private Date placedDate;
     private Double avgPriceMatched;
     private Double sizeMatched;
@@ -30,66 +32,64 @@ class Order
     private Double sizeLapsed;
     private Double sizeCancelled;
     private Double sizeVoided;
-    @SuppressWarnings("unused")
     private String customerOrderRef; // The customer order reference sent for this bet
-    @SuppressWarnings("unused")
     private String customerStrategyRef; // The customer strategy reference sent for this bet
 
-    @SuppressWarnings("unused")
-    @Contract(pure = true)
-    private Order() {
-    }
+//    @SuppressWarnings("unused")
+//    @Contract(pure = true)
+//    private Order() {
+//    }
+//
+//    @SuppressWarnings({"ConstructorWithTooManyParameters", "unused"})
+//    @Contract(pure = true)
+//    Order(final String betId, final OrderType orderType, final OrderStatus status, final PersistenceType persistenceType, final Side side, final Double price, final Double size, final Double bspLiability, @NotNull final Date placedDate,
+//          final Double avgPriceMatched, final Double sizeMatched, final Double sizeRemaining, final Double sizeLapsed, final Double sizeCancelled, final Double sizeVoided) {
+//        this.betId = betId;
+//        this.orderType = orderType;
+//        this.status = status;
+//        this.persistenceType = persistenceType;
+//        this.side = side;
+//        this.price = price;
+//        this.size = size;
+//        this.bspLiability = bspLiability;
+//        this.placedDate = (Date) placedDate.clone();
+//        this.avgPriceMatched = avgPriceMatched;
+//        this.sizeMatched = sizeMatched;
+//        this.sizeRemaining = sizeRemaining;
+//        this.sizeLapsed = sizeLapsed;
+//        this.sizeCancelled = sizeCancelled;
+//        this.sizeVoided = sizeVoided;
+//    }
 
-    @SuppressWarnings({"ConstructorWithTooManyParameters", "unused"})
-    @Contract(pure = true)
-    Order(final String betId, final OrderType orderType, final OrderStatus status, final PersistenceType persistenceType, final Side side, final Double price, final Double size, final Double bspLiability, @NotNull final Date placedDate,
-          final Double avgPriceMatched, final Double sizeMatched, final Double sizeRemaining, final Double sizeLapsed, final Double sizeCancelled, final Double sizeVoided) {
-        this.betId = betId;
-        this.orderType = orderType;
-        this.status = status;
-        this.persistenceType = persistenceType;
-        this.side = side;
-        this.price = price;
-        this.size = size;
-        this.bspLiability = bspLiability;
-        this.placedDate = (Date) placedDate.clone();
-        this.avgPriceMatched = avgPriceMatched;
-        this.sizeMatched = sizeMatched;
-        this.sizeRemaining = sizeRemaining;
-        this.sizeLapsed = sizeLapsed;
-        this.sizeCancelled = sizeCancelled;
-        this.sizeVoided = sizeVoided;
-    }
-
-    public synchronized String getBetId() {
+    public String getBetId() {
         return this.betId;
     }
 
-    public synchronized OrderType getOrderType() {
+    public OrderType getOrderType() {
         return this.orderType;
     }
 
-    public synchronized OrderStatus getStatus() {
+    public OrderStatus getStatus() {
         return this.status;
     }
 
-    public synchronized PersistenceType getPersistenceType() {
+    public PersistenceType getPersistenceType() {
         return this.persistenceType;
     }
 
-    public synchronized Side getSide() {
+    public Side getSide() {
         return this.side;
     }
 
-    public synchronized Double getPrice() {
+    public Double getPrice() {
         return this.price;
     }
 
-    public synchronized Double getSize() {
+    public Double getSize() {
         return this.size;
     }
 
-    public synchronized Double getBspLiability() {
+    public Double getBspLiability() {
         return this.bspLiability;
     }
 
@@ -98,108 +98,63 @@ class Order
         return this.placedDate == null ? null : (Date) this.placedDate.clone();
     }
 
-    public synchronized Double getAvgPriceMatched() {
+    public Double getAvgPriceMatched() {
         return this.avgPriceMatched;
     }
 
-    public synchronized Double getSizeMatched() {
+    public Double getSizeMatched() {
         return this.sizeMatched;
     }
 
-    public synchronized Double getSizeRemaining() {
+    public Double getSizeRemaining() {
         return this.sizeRemaining;
     }
 
-    public synchronized Double getSizeLapsed() {
+    public Double getSizeLapsed() {
         return this.sizeLapsed;
     }
 
-    public synchronized Double getSizeCancelled() {
+    public Double getSizeCancelled() {
         return this.sizeCancelled;
     }
 
-    public synchronized Double getSizeVoided() {
+    public Double getSizeVoided() {
         return this.sizeVoided;
+    }
+
+    @SuppressWarnings("NonFinalFieldReferenceInEquals")
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        final Order order = (Order) obj;
+        return Objects.equals(this.betId, order.betId) &&
+               this.orderType == order.orderType &&
+               this.status == order.status &&
+               this.persistenceType == order.persistenceType &&
+               this.side == order.side &&
+               Objects.equals(this.price, order.price) &&
+               Objects.equals(this.size, order.size) &&
+               Objects.equals(this.bspLiability, order.bspLiability) &&
+               Objects.equals(this.placedDate, order.placedDate) &&
+               Objects.equals(this.avgPriceMatched, order.avgPriceMatched) &&
+               Objects.equals(this.sizeMatched, order.sizeMatched) &&
+               Objects.equals(this.sizeRemaining, order.sizeRemaining) &&
+               Objects.equals(this.sizeLapsed, order.sizeLapsed) &&
+               Objects.equals(this.sizeCancelled, order.sizeCancelled) &&
+               Objects.equals(this.sizeVoided, order.sizeVoided) &&
+               Objects.equals(this.customerOrderRef, order.customerOrderRef) &&
+               Objects.equals(this.customerStrategyRef, order.customerStrategyRef);
     }
 
     @SuppressWarnings("NonFinalFieldReferencedInHashCode")
     @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 73 * hash + Objects.hashCode(this.betId);
-        hash = 73 * hash + Objects.hashCode(this.orderType);
-        hash = 73 * hash + Objects.hashCode(this.status);
-        hash = 73 * hash + Objects.hashCode(this.persistenceType);
-        hash = 73 * hash + Objects.hashCode(this.side);
-        hash = 73 * hash + Objects.hashCode(this.price);
-        hash = 73 * hash + Objects.hashCode(this.size);
-        hash = 73 * hash + Objects.hashCode(this.bspLiability);
-        hash = 73 * hash + Objects.hashCode(this.placedDate);
-        hash = 73 * hash + Objects.hashCode(this.avgPriceMatched);
-        hash = 73 * hash + Objects.hashCode(this.sizeMatched);
-        hash = 73 * hash + Objects.hashCode(this.sizeRemaining);
-        hash = 73 * hash + Objects.hashCode(this.sizeLapsed);
-        hash = 73 * hash + Objects.hashCode(this.sizeCancelled);
-        hash = 73 * hash + Objects.hashCode(this.sizeVoided);
-        return hash;
-    }
-
-    @SuppressWarnings("NonFinalFieldReferenceInEquals")
-    @Contract(value = "null -> false", pure = true)
-    @Override
-    public synchronized boolean equals(final Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final Order other = (Order) obj;
-        if (!Objects.equals(this.betId, other.betId)) {
-            return false;
-        }
-        if (this.orderType != other.orderType) {
-            return false;
-        }
-        if (this.status != other.status) {
-            return false;
-        }
-        if (this.persistenceType != other.persistenceType) {
-            return false;
-        }
-        if (this.side != other.side) {
-            return false;
-        }
-        if (!Objects.equals(this.price, other.price)) {
-            return false;
-        }
-        if (!Objects.equals(this.size, other.size)) {
-            return false;
-        }
-        if (!Objects.equals(this.bspLiability, other.bspLiability)) {
-            return false;
-        }
-        if (!Objects.equals(this.placedDate, other.placedDate)) {
-            return false;
-        }
-        if (!Objects.equals(this.avgPriceMatched, other.avgPriceMatched)) {
-            return false;
-        }
-        if (!Objects.equals(this.sizeMatched, other.sizeMatched)) {
-            return false;
-        }
-        if (!Objects.equals(this.sizeRemaining, other.sizeRemaining)) {
-            return false;
-        }
-        if (!Objects.equals(this.sizeLapsed, other.sizeLapsed)) {
-            return false;
-        }
-        if (!Objects.equals(this.sizeCancelled, other.sizeCancelled)) {
-            return false;
-        }
-        return Objects.equals(this.sizeVoided, other.sizeVoided);
+    public int hashCode() {
+        return Objects.hash(this.betId, this.orderType, this.status, this.persistenceType, this.side, this.price, this.size, this.bspLiability, this.placedDate, this.avgPriceMatched, this.sizeMatched, this.sizeRemaining, this.sizeLapsed,
+                            this.sizeCancelled, this.sizeVoided, this.customerOrderRef, this.customerStrategyRef);
     }
 }

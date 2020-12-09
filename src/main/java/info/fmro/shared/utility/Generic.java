@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import info.fmro.shared.enums.ProgramName;
+import com.google.common.util.concurrent.AtomicDouble;
 import javafx.scene.control.TreeItem;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Contract;
@@ -64,6 +64,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.sql.Timestamp;
 import java.text.DateFormat;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -164,18 +165,44 @@ public final class Generic {
                    "XN--ROVU88B", "XN--RVC1E0AM3E", "XN--S9BRJ9C", "XN--SES554G", "XN--T60B56A", "XN--TCKWE", "XN--TIQ49XQYJ", "XN--UNUP4Y", "XN--VERMGENSBERATER-CTB", "XN--VERMGENSBERATUNG-PWB", "XN--VHQUV", "XN--VUQ861B", "XN--W4R85EL8FHU5DNRA",
                    "XN--W4RS40L", "XN--WGBH1C", "XN--WGBL6A", "XN--XHQ521B", "XN--XKC2AL3HYE2A", "XN--XKC2DL3A5EE0H", "XN--Y9A3AQ", "XN--YFRO4I67O", "XN--YGBI2AMMX", "XN--ZFR164B", "XXX", "XYZ", "YACHTS", "YAHOO", "YAMAXUN", "YANDEX", "YE",
                    "YODOBASHI", "YOGA", "YOKOHAMA", "YOU", "YOUTUBE", "YT", "YUN", "ZA", "ZAPPOS", "ZARA", "ZERO", "ZIP", "ZM", "ZONE", "ZUERICH", "ZW");
-    public static final AtomicReference<ProgramName> programName = new AtomicReference<>();
     public static final Pattern SPACE_PATTERN_COMPILE = Pattern.compile("\\s+");
     public static final String[] EMPTY_STRING_ARRAY = {};
     public static final String US_ASCII_CHARSET = "US-ASCII", UTF8_CHARSET = "UTF-8", UTF16_CHARSET = "UTF-16";
     public static final long DAY_LENGTH_MILLISECONDS = 24L * 60L * 60L * 1_000L, HOUR_LENGTH_MILLISECONDS = 60L * 60L * 1_000L, MINUTE_LENGTH_MILLISECONDS = 60L * 1_000L, MEGABYTE = 1_024L << 10; // 1_024L * 1_024L
     public static final TimeZone UTC_TIMEZONE = TimeZone.getTimeZone("UTC"), BUCHAREST_TIMEZONE = TimeZone.getTimeZone("Europe/Bucharest");
-    public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
     public static final char[] ZERO_LENGTH_CHARS_ARRAY = new char[0];
     @SuppressWarnings("RegExpAnonymousGroup")
     private static final Pattern newLinePattern = Pattern.compile("(\r\n|\n\r|\r|\n)");
 
     private Generic() {
+    }
+
+    public static boolean addToAtomicDouble(final AtomicDouble atomicDouble, final double amountToAdd) {
+        final boolean success;
+        if (atomicDouble == null) { // may be normal
+            success = false;
+        } else {
+            atomicDouble.addAndGet(amountToAdd);
+            success = true;
+        }
+        return success;
+    }
+
+    public static String millisecondsToSecondsString(final long milliseconds) {
+        final double seconds = milliseconds / 1_000d;
+        final DecimalFormat decimalFormat;
+
+        if (milliseconds < 1_000L) {
+            decimalFormat = new DecimalFormat("#,##0.000");
+        } else if (milliseconds < 10_000L) {
+            decimalFormat = new DecimalFormat("#,##0.00");
+        } else if (milliseconds < 100_000L) {
+            decimalFormat = new DecimalFormat("#,##0.0");
+        } else {
+            decimalFormat = new DecimalFormat("#,##0");
+        }
+
+        return decimalFormat.format(seconds);
     }
 
     public static int getClosestNumber(final int mainValue, final int... closeNumbers) {
@@ -273,6 +300,34 @@ public final class Generic {
             }
         }
         return result;
+    }
+
+    public static boolean equalIgnoringSpacesAndCase(final CharSequence firstString, final CharSequence secondString) {
+        return equalIgnoringSpaces(firstString, secondString, true);
+    }
+
+    public static boolean equalIgnoringSpaces(final CharSequence firstString, final CharSequence secondString) {
+        return equalIgnoringSpaces(firstString, secondString, false);
+    }
+
+    public static boolean equalIgnoringSpaces(final CharSequence firstString, final CharSequence secondString, final boolean ignoreCase) {
+        final boolean result;
+        if (firstString == null || secondString == null) {
+            //noinspection StringEquality
+            result = firstString == secondString;
+        } else {
+            final String firstStringNoSpaces = removeSpaces(firstString), secondStringNoSpaces = removeSpaces(secondString);
+            if (ignoreCase) {
+                result = firstStringNoSpaces.equalsIgnoreCase(secondStringNoSpaces);
+            } else {
+                result = firstStringNoSpaces.equals(secondStringNoSpaces);
+            }
+        }
+        return result;
+    }
+
+    public static String removeSpaces(@NotNull final CharSequence initialString) {
+        return SPACE_PATTERN_COMPILE.matcher(initialString).replaceAll("");
     }
 
     public static String[] splitStringAroundSpaces(@NotNull final String initialString) { // trims and splits a string around the spaces; spaces themselves will be removed and I shouldn't get any empty strings
@@ -2450,7 +2505,6 @@ public final class Generic {
         }
     }
 
-    @SuppressWarnings("OverlyNestedMethod")
     public static <T> void copyObjectFields(final T sourceObject, final T destinationObject) {
         // not synchronized
         // fields from sourceObject are copied one by one to destinationObject

@@ -4,10 +4,12 @@ import info.fmro.shared.stream.enums.RequestOperationType;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class RequestMessage
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 6566614737849166532L;
     private Integer id; // Client generated unique id to link request with response (like json rpc)
     private RequestOperationType op; // The operation type

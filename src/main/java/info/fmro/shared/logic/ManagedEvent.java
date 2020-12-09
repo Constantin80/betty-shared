@@ -2,15 +2,13 @@ package info.fmro.shared.logic;
 
 import info.fmro.shared.entities.Event;
 import info.fmro.shared.entities.MarketCatalogue;
+import info.fmro.shared.enums.ProgramName;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
+import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.cache.Utils;
-import info.fmro.shared.stream.cache.market.Market;
-import info.fmro.shared.stream.cache.order.OrderMarket;
 import info.fmro.shared.stream.objects.ListOfQueues;
-import info.fmro.shared.stream.objects.OrdersThreadInterface;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
-import info.fmro.shared.utility.SynchronizedMap;
 import info.fmro.shared.utility.SynchronizedSet;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -18,35 +16,47 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings("WeakerAccess")
 public class ManagedEvent
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ManagedEvent.class);
+    @Serial
     private static final long serialVersionUID = 9206333179442623395L;
+    public static final long RECENT_PERIOD = 2_000L;
     private final String id;
     private String eventName;
+    private final long creationTime;
     private double amountLimit = -1d;
     public final SynchronizedSet<String> marketIds = new SynchronizedSet<>(); // managedMarket ids associated with this event
     public transient ManagedMarketsMap marketsMap; // managedMarkets associated with this event
     @SuppressWarnings("InstanceVariableMayNotBeInitializedByReadObject")
     private transient Event event;
 
-    public ManagedEvent(@NotNull final String id, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final SynchronizedMap<String, ManagedMarket> markets, @NotNull final ListOfQueues listOfQueues) {
+    public ManagedEvent(@NotNull final String id, @NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final RulesManager rulesManager) {
         this.id = id;
+        this.creationTime = System.currentTimeMillis();
         //noinspection ThisEscapedInObjectConstruction
-        this.marketsMap = new ManagedMarketsMap(this, markets);
-        attachEvent(eventsMap, listOfQueues);
+        this.marketsMap = new ManagedMarketsMap(this, rulesManager.markets);
+        attachEvent(eventsMap, rulesManager.listOfQueues, true);
     }
 
+    @Serial
     private void readObject(@NotNull final java.io.ObjectInputStream in)
             throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         this.marketsMap = new ManagedMarketsMap(this);
+    }
+
+    public synchronized boolean isRecentlyCreated() {
+        return isRecentlyCreated(System.currentTimeMillis());
+    }
+
+    public synchronized boolean isRecentlyCreated(final long currentTime) {
+        return currentTime - this.creationTime <= RECENT_PERIOD;
     }
 
 //    private synchronized HashMap<String, ManagedMarket> getMarketsMap() {
@@ -59,11 +69,7 @@ public class ManagedEvent
 //    }
 
     @SuppressWarnings("UnusedReturnValue")
-    synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final SynchronizedMap<String, ManagedMarket> markets, @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck,
-                                        @NotNull final ManagedEventsMap events, @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck, @NotNull final AtomicBoolean marketsMapModified,
-                                        @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
-                                        @NotNull final ExistingFunds safetyLimits, final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap, @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache,
-                                        @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
+    synchronized boolean setAmountLimit(final double newAmountLimit, @NotNull final RulesManager rulesManager, @NotNull final ExistingFunds safetyLimits, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final boolean modified;
         if (Double.isNaN(newAmountLimit)) {
             modified = false;
@@ -76,13 +82,12 @@ public class ManagedEvent
             }
 
         if (modified) {
-            listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setEventAmountLimit, this.id, this.amountLimit));
-            if (pendingOrdersThread != null && marketCataloguesMap != null) {
-                calculateMarketLimits(markets, listOfQueues, marketsToCheck, events, rulesHaveChanged, marketsForOutsideCheck, marketsMapModified, newMarketsOrEventsForOutsideCheck, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap,
-                                      marketCache, orderCacheInitializedFromStreamStamp, programStartTime);
-            } else { // Statics variables don't exist, so I'm in a Client, and I won't calculate the limits here
+            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setEventAmountLimit, this.id, this.amountLimit));
+            if (SharedStatics.programName.get() == ProgramName.SERVER) {
+                calculateMarketLimits(rulesManager, safetyLimits, marketCataloguesMap);
+            } else { // I'm in a Client, and I won't calculate the limits here
             }
-            rulesHaveChanged.set(true);
+            rulesManager.rulesHaveChanged.set(true);
         }
         return modified;
     }
@@ -103,7 +108,7 @@ public class ManagedEvent
 //        return marketIds.contains(marketId);
 //    }
 
-    public synchronized String getId() {
+    public String getId() {
         return this.id;
     }
 
@@ -128,10 +133,21 @@ public class ManagedEvent
     }
 
     public final synchronized void attachEvent(@NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final ListOfQueues listOfQueues) {
+        attachEvent(eventsMap, listOfQueues, false);
+    }
+
+    public final synchronized void attachEvent(@NotNull final StreamSynchronizedMap<? super String, ? extends Event> eventsMap, @NotNull final ListOfQueues listOfQueues, final boolean notFindingEventIsFine) {
         if (this.event == null) {
             this.event = eventsMap.get(this.id);
             if (this.event == null) {
-                logger.error("no event found in eventsMap for: {}", this.id);
+                if (notFindingEventIsFine) { // no error, it's fine
+                } else {
+                    if (isRecentlyCreated()) {
+                        logger.warn("no event found in eventsMap for recently created managedEvent: {}", this.id);
+                    } else {
+                        logger.error("no event found in eventsMap for: {}", this.id);
+                    }
+                }
             } else {
                 setEventName(this.event.getName(), listOfQueues);
             }
@@ -151,20 +167,15 @@ public class ManagedEvent
         return result;
     }
 
-    synchronized void calculateMarketLimits(@NotNull final SynchronizedMap<String, ManagedMarket> markets, @NotNull final ListOfQueues listOfQueues, @NotNull final MarketsToCheckQueue<? super String> marketsToCheck, @NotNull final ManagedEventsMap events,
-                                            @NotNull final AtomicBoolean rulesHaveChanged, @NotNull final SynchronizedSet<? super String> marketsForOutsideCheck, @NotNull final AtomicBoolean marketsMapModified,
-                                            @NotNull final AtomicBoolean newMarketsOrEventsForOutsideCheck, @NotNull final OrdersThreadInterface pendingOrdersThread, @NotNull final SynchronizedMap<? super String, ? extends OrderMarket> orderCache,
-                                            @NotNull final ExistingFunds safetyLimits, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap,
-                                            @NotNull final SynchronizedMap<? super String, ? extends Market> marketCache, @NotNull final AtomicLong orderCacheInitializedFromStreamStamp, final long programStartTime) {
+    synchronized void calculateMarketLimits(@NotNull final RulesManager rulesManager, @NotNull final ExistingFunds safetyLimits, @NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
         final double maxEventLimit = getAmountLimit(safetyLimits);
         //noinspection NonPrivateFieldAccessedInSynchronizedContext
-        Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(markets), true, true, pendingOrdersThread, orderCache, safetyLimits, marketCataloguesMap, marketCache, listOfQueues,
-                                    marketsToCheck, events, markets, rulesHaveChanged, marketsForOutsideCheck, marketsMapModified, newMarketsOrEventsForOutsideCheck, orderCacheInitializedFromStreamStamp, programStartTime);
+        Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(rulesManager.markets), true, true, safetyLimits, marketCataloguesMap, rulesManager);
     }
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -176,7 +187,7 @@ public class ManagedEvent
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.id);
     }
 }

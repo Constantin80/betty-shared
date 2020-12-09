@@ -1,6 +1,5 @@
 package info.fmro.shared.objects;
 
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
@@ -26,17 +25,17 @@ public class TwoOrderedStrings
         }
     }
 
-    public synchronized String getFirst() {
+    public String getFirst() {
         return this.first;
     }
 
-    public synchronized String getSecond() {
+    public String getSecond() {
         return this.second;
     }
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
     @Override
-    public synchronized int compareTo(@NotNull final TwoOrderedStrings o) {
+    public int compareTo(@NotNull final TwoOrderedStrings o) {
         //noinspection ConstantConditions
         if (o == null) {
             return AFTER;
@@ -71,29 +70,20 @@ public class TwoOrderedStrings
     }
 
     @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 17 * hash + Objects.hashCode(this.first);
-        hash = 17 * hash + Objects.hashCode(this.second);
-        return hash;
-    }
-
-    @Contract(value = "null -> false", pure = true)
-    @Override
-    public synchronized boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final TwoOrderedStrings other = (TwoOrderedStrings) obj;
-        if (!Objects.equals(this.first, other.first)) {
-            return false;
-        }
-        return Objects.equals(this.second, other.second);
+        final TwoOrderedStrings that = (TwoOrderedStrings) obj;
+        return Objects.equals(this.first, that.first) &&
+               Objects.equals(this.second, that.second);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.first, this.second);
     }
 }

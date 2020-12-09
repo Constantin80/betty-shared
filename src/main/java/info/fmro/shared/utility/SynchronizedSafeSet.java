@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
@@ -15,6 +16,7 @@ public class SynchronizedSafeSet<E extends SafeObjectInterface>
         extends SynchronizedSet<E>
         implements Serializable {  // it already implements Serializable from super
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedSafeSet.class);
+    @Serial
     private static final long serialVersionUID = -9093408222795168259L;
 
     public SynchronizedSafeSet() {

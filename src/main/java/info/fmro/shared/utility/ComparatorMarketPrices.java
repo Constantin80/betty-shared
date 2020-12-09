@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Objects;
@@ -11,6 +12,7 @@ import java.util.Objects;
 public class ComparatorMarketPrices
         implements Comparator<Double>, Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ComparatorMarketPrices.class);
+    @Serial
     private static final long serialVersionUID = 3658851992618501057L;
 
     @Override

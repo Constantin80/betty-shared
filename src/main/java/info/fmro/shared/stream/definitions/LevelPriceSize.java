@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -14,10 +15,11 @@ import java.util.Objects;
 class LevelPriceSize
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(LevelPriceSize.class);
+    @Serial
     private static final long serialVersionUID = 996457594745721075L;
     private final int level;
     private final double price;
-    private final double size;
+    private final double size; // markets stream has amounts in GBP
 
     LevelPriceSize(final List<Double> levelPriceSize) {
         if (levelPriceSize != null) {
@@ -48,16 +50,16 @@ class LevelPriceSize
         }
     }
 
-    synchronized int getLevel() {
+    int getLevel() {
         return this.level;
     }
 
-    public synchronized double getPrice() {
+    public double getPrice() {
         return this.price;
     }
 
     @Contract(pure = true)
-    private synchronized double getSize() {
+    private double getSize() {
         return this.size;
     }
 
@@ -68,7 +70,7 @@ class LevelPriceSize
 
     @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
@@ -82,12 +84,12 @@ class LevelPriceSize
     }
 
     @Override
-    public synchronized int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.level, this.price, this.size);
     }
 
     @Override
-    public synchronized String toString() {
+    public String toString() {
         return this.level + ":" + this.size + "@" + this.price;
     }
 }

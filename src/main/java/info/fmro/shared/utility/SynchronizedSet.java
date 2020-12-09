@@ -5,17 +5,20 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 
+@SuppressWarnings("WeakerAccess")
 public class SynchronizedSet<E>
 //        extends Ignorable
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedSet.class);
     public static final int DEFAULT_INITIAL_SIZE = 0;
     public static final float DEFAULT_LOAD_FACTOR = 0.75f;
+    @Serial
     private static final long serialVersionUID = -4718857828033491585L;
     private final HashSet<E> set;
     private long timeStamp, timeStampRemoved, timeClean; // timeStamp for general use; timeStampRemoved auto updated at element removal
@@ -182,25 +185,19 @@ public class SynchronizedSet<E>
     }
 
     @Override
-    public synchronized int hashCode() {
-        int hash = 5;
-        hash = 29 * hash + Objects.hashCode(this.set);
-        return hash;
-    }
-
-    @Contract(value = "null -> false", pure = true)
-    @Override
-    public synchronized boolean equals(final Object obj) { // other.set not synchronized, meaning equals result not guaranteed to be correct, but behaviour is acceptable
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) { // that.set not synchronized, meaning equals result not guaranteed to be correct, but behaviour is acceptable
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final SynchronizedSet<?> other = (SynchronizedSet<?>) obj;
-        return Objects.equals(this.set, other.set);
+        final SynchronizedSet<?> that = (SynchronizedSet<?>) obj;
+        return Objects.equals(this.set, that.set);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.set);
     }
 }

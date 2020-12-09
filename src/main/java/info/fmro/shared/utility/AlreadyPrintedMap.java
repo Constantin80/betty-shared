@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.MessageFormatter;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,6 +16,7 @@ public class AlreadyPrintedMap
 //        extends SynchronizedMap<String, Long>
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(AlreadyPrintedMap.class);
+    @Serial
     private static final long serialVersionUID = -8093683012072045094L;
     public static final String NOT_IMPORTANT_PREFIX = "(notImportant)"; // matters for printing the properties or not when the value expires
     public static final boolean defaultIsImportant = true;
@@ -78,7 +80,7 @@ public class AlreadyPrintedMap
         final long usedExpiryPeriod;
         usedExpiryPeriod = expiryPeriod <= 0L ? AlreadyPrintedMap.defaultExpirationPeriod : expiryPeriod;
 
-        final boolean notAlreadyPrinted = !this.containsOrAdd(isImportant, printedString, usedExpiryPeriod);
+        final boolean notAlreadyPrinted = !this.containsOrAdd(isImportant, printedString, usedExpiryPeriod, logLevel);
         if (printAnyway || notAlreadyPrinted) {
             switch (logLevel) {
                 case ERROR:
@@ -120,37 +122,37 @@ public class AlreadyPrintedMap
 //        return this.put(s, expiryPeriod); // current time will be added in the modified put method
 //    }
     @SuppressWarnings("UnusedReturnValue")
-    private synchronized Long add(final boolean isImportant, final String s, final long expiryPeriod) {
-        return this.put(isImportant, s, expiryPeriod); // current time will be added in the modified put method
+    private synchronized Long add(final boolean isImportant, final String s, final long expiryPeriod, final LogLevel logLevel) {
+        return this.put(isImportant, s, expiryPeriod, logLevel); // current time will be added in the modified put method
     }
 
-    public synchronized boolean containsOrAdd(final String s) {
-        return this.containsOrAdd(defaultIsImportant, s, defaultExpirationPeriod);
+    public synchronized boolean containsOrAdd(final String s, final LogLevel logLevel) {
+        return this.containsOrAdd(defaultIsImportant, s, defaultExpirationPeriod, logLevel);
     }
 
-    public synchronized boolean containsOrAdd(final String s, final long expiryPeriod) {
-        return containsOrAdd(defaultIsImportant, s, expiryPeriod);
+    public synchronized boolean containsOrAdd(final String s, final long expiryPeriod, final LogLevel logLevel) {
+        return containsOrAdd(defaultIsImportant, s, expiryPeriod, logLevel);
     }
 
     @SuppressWarnings("WeakerAccess")
-    public synchronized boolean containsOrAdd(final boolean isImportant, final String s, final long expiryPeriod) {
-        final boolean contains = this.contains(s);
+    public synchronized boolean containsOrAdd(final boolean isImportant, final String s, final long expiryPeriod, final LogLevel logLevel) {
+        final boolean contains = this.contains(s, logLevel);
         if (contains) { // contains already, which already checks for expiration of the period, nothing to be done
         } else {
-            this.add(isImportant, s, expiryPeriod);
+            this.add(isImportant, s, expiryPeriod, logLevel);
         }
 
         return contains;
     }
 
-    private synchronized boolean contains(final String s) { // also updates properties
+    private synchronized boolean contains(final String s, final LogLevel logLevel) { // also updates properties
         final boolean result;
         if (this.expirationTimeMap.containsKey(s)) {
             final Long value = this.expirationTimeMap.get(s);
             if (value != null) {
                 final long currentTime = System.currentTimeMillis();
                 if (value > currentTime) {
-                    updateProperties(defaultIsImportant, s, currentTime, true);
+                    updateProperties(defaultIsImportant, s, currentTime, true, logLevel);
                     result = true;
                 } else {
                     this.remove(s);
@@ -168,7 +170,7 @@ public class AlreadyPrintedMap
         return result;
     }
 
-    private synchronized void updateProperties(final boolean isImportant, final String s, final long currentTime, final boolean shouldExist) {
+    private synchronized void updateProperties(final boolean isImportant, final String s, final long currentTime, final boolean shouldExist, final LogLevel logLevel) {
         final AlreadyPrintedProperties properties;
         if (this.propertiesMap.containsKey(s)) {
             properties = this.propertiesMap.get(s);
@@ -180,17 +182,17 @@ public class AlreadyPrintedMap
             if (shouldExist) {
                 logger.error("properties doesn't exist in AlreadyPrintedMap.updateProperties for: {} {} {} {}", isImportant, s, currentTime, shouldExist);
             }
-            properties = new AlreadyPrintedProperties(currentTime, isImportant);
+            properties = new AlreadyPrintedProperties(currentTime, isImportant, logLevel);
             this.propertiesMap.put(s, properties);
         }
     }
 
     @SuppressWarnings("unused")
-    private synchronized Long put(final String s, final Long expiryPeriod) {
-        return put(defaultIsImportant, s, expiryPeriod);
+    private synchronized Long put(final String s, final Long expiryPeriod, final LogLevel logLevel) {
+        return put(defaultIsImportant, s, expiryPeriod, logLevel);
     }
 
-    private synchronized Long put(final boolean isImportant, final String s, final Long expiryPeriod) { // boolean is first argument, as boolean as last argument exists in super.put overload
+    private synchronized Long put(final boolean isImportant, final String s, final Long expiryPeriod, final LogLevel logLevel) { // boolean is first argument, as boolean as last argument exists in super.put overload
         final long currentTime = System.currentTimeMillis();
         final Long existingValue = this.expirationTimeMap.put(s, currentTime + expiryPeriod);
         if (existingValue != null) {
@@ -198,7 +200,7 @@ public class AlreadyPrintedMap
         } else { // value didn't exist, this is the normal case, nothing more to be done
         }
 
-        updateProperties(isImportant, s, currentTime, false);
+        updateProperties(isImportant, s, currentTime, false, logLevel);
 
         return existingValue;
     }

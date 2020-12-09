@@ -6,11 +6,13 @@ import info.fmro.shared.utility.Generic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class PlaceInstruction
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(PlaceInstruction.class);
+    @Serial
     private static final long serialVersionUID = -1136840098955839521L;
     private OrderType orderType;
     private Long selectionId;

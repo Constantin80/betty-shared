@@ -2,7 +2,7 @@ package info.fmro.shared.utility;
 
 import info.fmro.shared.logic.ManagedRunner;
 import info.fmro.shared.objects.Exposure;
-import info.fmro.shared.stream.definitions.PriceSize;
+import info.fmro.shared.stream.cache.market.PriceSize;
 import info.fmro.shared.stream.objects.RunnerId;
 import junitx.framework.FileAssert;
 import org.jetbrains.annotations.Contract;
@@ -104,6 +104,26 @@ class GenericTest {
     }
 
     @Test
+    void millisecondsToSecondsString() {
+        String result = Generic.millisecondsToSecondsString(0L);
+        assertEquals("0.000", result, "0");
+        result = Generic.millisecondsToSecondsString(1L);
+        assertEquals("0.001", result, "1");
+        result = Generic.millisecondsToSecondsString(100L);
+        assertEquals("0.100", result, "2");
+        result = Generic.millisecondsToSecondsString(1_200L);
+        assertEquals("1.20", result, "3");
+        result = Generic.millisecondsToSecondsString(60_001L);
+        assertEquals("60.0", result, "4");
+        result = Generic.millisecondsToSecondsString(400_000L);
+        assertEquals("400", result, "5");
+        result = Generic.millisecondsToSecondsString(3_600_000L);
+        assertEquals("3,600", result, "6");
+        result = Generic.millisecondsToSecondsString(2_111_003_600_000L);
+        assertEquals("2,111,003,600", result, "7");
+    }
+
+    @Test
     void getClosestNumber() {
         int result = Generic.getClosestNumber(5);
         assertEquals(5, result, "1");
@@ -148,7 +168,7 @@ class GenericTest {
 
     @Test
     void objectInstanceOf() {
-        final Object managedRunner = new ManagedRunner("id", new RunnerId(1234L, 9876.123d));
+        final Object managedRunner = new ManagedRunner("id", new RunnerId(1234L, 9876.123d), new AtomicBoolean(), new AtomicBoolean());
         final Object exposureObjectClass = Exposure.class;
         final Class<?> exposureClass = (Class<?>) exposureObjectClass;
         assertTrue(exposureClass.isAssignableFrom(managedRunner.getClass()), "1");

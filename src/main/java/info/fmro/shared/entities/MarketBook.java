@@ -1,6 +1,7 @@
 package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.MarketStatus;
+import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.utility.Generic;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -8,18 +9,19 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 
-@SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass"})
+@SuppressWarnings("OverlyComplexClass")
 public class MarketBook
         implements Serializable, Comparable<MarketBook> {
     private static final Logger logger = LoggerFactory.getLogger(MarketBook.class);
     public static final int BEFORE = -1, EQUAL = 0, AFTER = 1;
+    @Serial
     private static final long serialVersionUID = -690691726819586172L;
     private final String marketId;
     private Boolean isMarketDataDelayed;
@@ -49,7 +51,7 @@ public class MarketBook
         this.marketId = marketId;
     }
 
-    public synchronized String getMarketId() {
+    public String getMarketId() {
         return this.marketId;
     }
 
@@ -98,6 +100,7 @@ public class MarketBook
         return modified;
     }
 
+    @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public synchronized Integer getBetDelay() {
         return this.betDelay;
     }
@@ -166,7 +169,7 @@ public class MarketBook
         return modified;
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
+    @SuppressWarnings({"SpellCheckingInspection", "WeakerAccess", "RedundantSuppression"})
     public synchronized Boolean getInplay() {
         return this.inplay;
     }
@@ -457,7 +460,7 @@ public class MarketBook
         this.timeStamp = System.currentTimeMillis();
     }
 
-    public synchronized int update(final MarketBook marketBook, @NotNull final AtomicLong timeLastSaveToDisk) {
+    public synchronized int update(final MarketBook marketBook) {
         int modified;
         if (this == marketBook) {
             logger.error("update from same object in MarketBook.update: {}", Generic.objectToString(this));
@@ -473,7 +476,7 @@ public class MarketBook
                     logger.error("clock jump in the past of at least {} ms detected", this.timeStamp - currentTime);
                     this.timeStamp = currentTime; // won't update the object further, as I have no guarantees on the time ordering
                 } else {
-                    final long timeSinceLastDiskSave = this.timeStamp - timeLastSaveToDisk.get();
+                    final long timeSinceLastDiskSave = this.timeStamp - SharedStatics.timeLastSaveToDisk.get();
                     if (timeSinceLastDiskSave > 5_000L) {
                         final long timeDifference = this.timeStamp - thatTimeStamp;
                         if (timeDifference > 2_000L) {
@@ -512,7 +515,7 @@ public class MarketBook
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")
     @Override
-    public synchronized int compareTo(@NotNull final MarketBook o) {
+    public int compareTo(@NotNull final MarketBook o) {
         //noinspection ConstantConditions
         if (o == null) {
             return AFTER;
@@ -537,26 +540,20 @@ public class MarketBook
         return EQUAL;
     }
 
-    @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final MarketBook other = (MarketBook) obj;
-        return Objects.equals(this.marketId, other.marketId);
+        final MarketBook that = (MarketBook) obj;
+        return Objects.equals(this.marketId, that.marketId);
     }
 
     @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 13 * hash + Objects.hashCode(this.marketId);
-        return hash;
+    public int hashCode() {
+        return Objects.hash(this.marketId);
     }
 }

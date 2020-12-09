@@ -1,16 +1,17 @@
 package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.MarketBettingType;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
 
+@SuppressWarnings({"unused", "FieldAccessedSynchronizedAndUnsynchronized"})
 public class MarketDescription
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = -2877536783333417777L;
     private Boolean persistenceEnabled;
     private Boolean bspMarket;
@@ -26,41 +27,38 @@ public class MarketDescription
     private String wallet;
     private String rules;
     private Boolean rulesHasDate;
-    @SuppressWarnings("unused")
     private Double eachWayDivisor; // The divisor is returned for the marketType EACH_WAY only
     private String clarifications;
     private MarketLineRangeInfo lineRangeInfo; // Line range info for line markets
-    @SuppressWarnings("unused")
     private String raceType; // An external identifier of a race type
-    @SuppressWarnings("unused")
     private PriceLadderDescription priceLadderDescription; // Details about the price ladder in use for this market.
 
-    @Contract(pure = true)
-    public MarketDescription() {
-    }
+//    @Contract(pure = true)
+//    public MarketDescription() {
+//    }
 
-    @SuppressWarnings("ConstructorWithTooManyParameters")
-    @Contract(pure = true)
-    public MarketDescription(final Boolean persistenceEnabled, final Boolean bspMarket, @NotNull final Date marketTime, @NotNull final Date suspendTime, @NotNull final Date settleTime, final MarketBettingType bettingType, final Boolean turnInPlayEnabled,
-                             final String marketType, final String regulator, final Double marketBaseRate, final Boolean discountAllowed, final String wallet, final String rules, final Boolean rulesHasDate, final String clarifications,
-                             final MarketLineRangeInfo lineRangeInfo) {
-        this.persistenceEnabled = persistenceEnabled;
-        this.bspMarket = bspMarket;
-        this.marketTime = (Date) marketTime.clone();
-        this.suspendTime = (Date) suspendTime.clone();
-        this.settleTime = (Date) settleTime.clone();
-        this.bettingType = bettingType;
-        this.turnInPlayEnabled = turnInPlayEnabled;
-        this.marketType = marketType;
-        this.regulator = regulator;
-        this.marketBaseRate = marketBaseRate;
-        this.discountAllowed = discountAllowed;
-        this.wallet = wallet;
-        this.rules = rules;
-        this.rulesHasDate = rulesHasDate;
-        this.clarifications = clarifications;
-        this.lineRangeInfo = lineRangeInfo;
-    }
+//    @SuppressWarnings("ConstructorWithTooManyParameters")
+//    @Contract(pure = true)
+//    public MarketDescription(final Boolean persistenceEnabled, final Boolean bspMarket, @NotNull final Date marketTime, @NotNull final Date suspendTime, @NotNull final Date settleTime, final MarketBettingType bettingType, final Boolean turnInPlayEnabled,
+//                             final String marketType, final String regulator, final Double marketBaseRate, final Boolean discountAllowed, final String wallet, final String rules, final Boolean rulesHasDate, final String clarifications,
+//                             final MarketLineRangeInfo lineRangeInfo) {
+//        this.persistenceEnabled = persistenceEnabled;
+//        this.bspMarket = bspMarket;
+//        this.marketTime = (Date) marketTime.clone();
+//        this.suspendTime = (Date) suspendTime.clone();
+//        this.settleTime = (Date) settleTime.clone();
+//        this.bettingType = bettingType;
+//        this.turnInPlayEnabled = turnInPlayEnabled;
+//        this.marketType = marketType;
+//        this.regulator = regulator;
+//        this.marketBaseRate = marketBaseRate;
+//        this.discountAllowed = discountAllowed;
+//        this.wallet = wallet;
+//        this.rules = rules;
+//        this.rulesHasDate = rulesHasDate;
+//        this.clarifications = clarifications;
+//        this.lineRangeInfo = lineRangeInfo;
+//    }
 
     public synchronized Boolean getPersistenceEnabled() {
         return this.persistenceEnabled;
@@ -134,91 +132,38 @@ public class MarketDescription
     }
 
     @SuppressWarnings("NonFinalFieldReferenceInEquals")
-    @Contract(value = "null -> false", pure = true)
     @Override
-    public synchronized boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
+    public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
         }
-        if (getClass() != obj.getClass()) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final MarketDescription other = (MarketDescription) obj;
-        if (!Objects.equals(this.persistenceEnabled, other.persistenceEnabled)) {
-            return false;
-        }
-        if (!Objects.equals(this.bspMarket, other.bspMarket)) {
-            return false;
-        }
-        if (!Objects.equals(this.marketTime, other.marketTime)) {
-            return false;
-        }
-        if (!Objects.equals(this.suspendTime, other.suspendTime)) {
-            return false;
-        }
-        if (!Objects.equals(this.settleTime, other.settleTime)) {
-            return false;
-        }
-        if (this.bettingType != other.bettingType) {
-            return false;
-        }
-        if (!Objects.equals(this.turnInPlayEnabled, other.turnInPlayEnabled)) {
-            return false;
-        }
-        if (!Objects.equals(this.marketType, other.marketType)) {
-            return false;
-        }
-        if (!Objects.equals(this.regulator, other.regulator)) {
-            return false;
-        }
-        if (!Objects.equals(this.marketBaseRate, other.marketBaseRate)) {
-            return false;
-        }
-        if (!Objects.equals(this.discountAllowed, other.discountAllowed)) {
-            return false;
-        }
-        if (!Objects.equals(this.wallet, other.wallet)) {
-            return false;
-        }
-        if (!Objects.equals(this.rules, other.rules)) {
-            return false;
-        }
-        if (!Objects.equals(this.rulesHasDate, other.rulesHasDate)) {
-            return false;
-        }
-        if (!Objects.equals(this.eachWayDivisor, other.eachWayDivisor)) {
-            return false;
-        }
-        if (!Objects.equals(this.clarifications, other.clarifications)) {
-            return false;
-        }
-        return Objects.equals(this.lineRangeInfo, other.lineRangeInfo);
+        final MarketDescription that = (MarketDescription) obj;
+        return Objects.equals(this.persistenceEnabled, that.persistenceEnabled) &&
+               Objects.equals(this.bspMarket, that.bspMarket) &&
+               Objects.equals(this.marketTime, that.marketTime) &&
+               Objects.equals(this.suspendTime, that.suspendTime) &&
+               Objects.equals(this.settleTime, that.settleTime) &&
+               this.bettingType == that.bettingType &&
+               Objects.equals(this.turnInPlayEnabled, that.turnInPlayEnabled) &&
+               Objects.equals(this.marketType, that.marketType) &&
+               Objects.equals(this.regulator, that.regulator) &&
+               Objects.equals(this.marketBaseRate, that.marketBaseRate) &&
+               Objects.equals(this.discountAllowed, that.discountAllowed) &&
+               Objects.equals(this.wallet, that.wallet) &&
+               Objects.equals(this.rulesHasDate, that.rulesHasDate) &&
+               Objects.equals(this.eachWayDivisor, that.eachWayDivisor) &&
+               Objects.equals(this.lineRangeInfo, that.lineRangeInfo) &&
+               Objects.equals(this.raceType, that.raceType) &&
+               Objects.equals(this.priceLadderDescription, that.priceLadderDescription);
     }
 
     @SuppressWarnings("NonFinalFieldReferencedInHashCode")
     @Override
-    public synchronized int hashCode() {
-        int hash = 7;
-        hash = 29 * hash + Objects.hashCode(this.persistenceEnabled);
-        hash = 29 * hash + Objects.hashCode(this.bspMarket);
-        hash = 29 * hash + Objects.hashCode(this.marketTime);
-        hash = 29 * hash + Objects.hashCode(this.suspendTime);
-        hash = 29 * hash + Objects.hashCode(this.settleTime);
-        hash = 29 * hash + Objects.hashCode(this.bettingType);
-        hash = 29 * hash + Objects.hashCode(this.turnInPlayEnabled);
-        hash = 29 * hash + Objects.hashCode(this.marketType);
-        hash = 29 * hash + Objects.hashCode(this.regulator);
-        hash = 29 * hash + Objects.hashCode(this.marketBaseRate);
-        hash = 29 * hash + Objects.hashCode(this.discountAllowed);
-        hash = 29 * hash + Objects.hashCode(this.wallet);
-        hash = 29 * hash + Objects.hashCode(this.rules);
-        hash = 29 * hash + Objects.hashCode(this.rulesHasDate);
-        hash = 29 * hash + Objects.hashCode(this.eachWayDivisor);
-        hash = 29 * hash + Objects.hashCode(this.clarifications);
-        hash = 29 * hash + Objects.hashCode(this.lineRangeInfo);
-        return hash;
+    public int hashCode() {
+        return Objects.hash(this.persistenceEnabled, this.bspMarket, this.marketTime, this.suspendTime, this.settleTime, this.bettingType, this.turnInPlayEnabled, this.marketType, this.regulator, this.marketBaseRate, this.discountAllowed, this.wallet,
+                            this.rulesHasDate, this.eachWayDivisor, this.lineRangeInfo, this.raceType, this.priceLadderDescription);
     }
 }

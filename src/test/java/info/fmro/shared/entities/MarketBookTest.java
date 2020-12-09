@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -25,7 +24,7 @@ class MarketBookTest {
             field.set(secondObject, marketId);
             secondObject.setTimeStamp(firstObject.getTimeStamp() + 1L);
 
-            firstObject.update(secondObject, new AtomicLong(0L));
+            firstObject.update(secondObject);
             assertThat(firstObject).as("updated object different").isEqualToIgnoringGivenFields(secondObject);
         } catch (IllegalAccessException e) {
             fail("IllegalAccessException");

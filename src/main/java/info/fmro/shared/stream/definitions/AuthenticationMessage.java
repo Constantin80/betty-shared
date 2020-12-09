@@ -1,10 +1,12 @@
 package info.fmro.shared.stream.definitions;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 public class AuthenticationMessage
         extends RequestMessage
         implements Serializable {
+    @Serial
     private static final long serialVersionUID = 8829964936313620371L;
     private String appKey; // This is your application key to identify your application
     private String session; // The session token generated from API login.
