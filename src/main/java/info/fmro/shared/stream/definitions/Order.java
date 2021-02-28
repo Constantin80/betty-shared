@@ -1,6 +1,6 @@
 package info.fmro.shared.stream.definitions;
 
-import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.logic.ManagedRunner;
 import info.fmro.shared.objects.Exposure;
 import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.enums.LapseStatusReasonCode;
@@ -63,8 +63,14 @@ public class Order
         } else if (this.status == OrderStatus.EC) { // execution complete, nothing should be remaining
         } else {
             switch (this.side) {
-                case B -> exposure.addBackUnmatchedExposure(this.sr);
-                case L -> exposure.addLayUnmatchedExposure(Formulas.layExposure(this.p, this.sr));
+                case B -> {
+                    exposure.addBackUnmatchedExposure(this.sr);
+                    exposure.addBackPotentialUnmatchedProfit(Formulas.calculateLayExposure(this.p, this.sr));
+                }
+                case L -> {
+                    exposure.addLayUnmatchedExposure(Formulas.calculateLayExposure(this.p, this.sr));
+                    exposure.addLayPotentialUnmatchedProfit(this.sr);
+                }
                 default -> logger.error("strange side in Order calculateExposureAndProfit: {} {}", this.side, Generic.objectToString(this));
             }
         }
@@ -73,11 +79,11 @@ public class Order
 //        }
     }
 
-    public synchronized double cancelOrder(final String marketId, final RunnerId runnerId, final AtomicDouble removedExposureDuringThisManageIteration, @NotNull final Method sendPostRequestRescriptMethod, final String reason) { // full cancel
-        return cancelOrder(marketId, runnerId, null, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
+    public synchronized double cancelOrder(final String marketId, final RunnerId runnerId, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) { // full cancel
+        return cancelOrder(marketId, runnerId, null, managedRunner, sendPostRequestRescriptMethod, reason);
     }
 
-    public synchronized double cancelOrder(final String marketId, final RunnerId runnerId, final Double sizeReduction, final AtomicDouble removedExposureDuringThisManageIteration, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
+    public synchronized double cancelOrder(final String marketId, final RunnerId runnerId, final Double sizeReduction, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         if (this.p == null || this.side == null || this.id == null) {
             logger.error("null variables during cancelOrder for: {} {} {} {} {}", this.p, this.side, this.id, reason, Generic.objectToString(this));
             if (this.p == null) { // avoids exception when converting to primitive
@@ -87,11 +93,11 @@ public class Order
         } else { // no error, nothing to be done, method will continue
         }
         final double sizeRemaining = this.sr == null ? 0d : this.sr;
-        return SharedStatics.orderCache.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.getSRMinusTempCanceled(), this.id, sizeReduction, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
+        return SharedStatics.orderCache.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.getSrConsideringTempCancel(), this.id, sizeReduction, managedRunner, sendPostRequestRescriptMethod, reason);
     }
 
-    public synchronized double removeExposure(final String marketId, final RunnerId runnerId, final Side sideToRemove, final double excessExposure, final AtomicDouble removedExposureDuringThisManageIteration,
-                                              @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
+    public synchronized double removeExposure(final String marketId, final RunnerId runnerId, final Side sideToRemove, final double excessExposure, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod,
+                                              final String reason) {
         final double exposureReduction;
         if (this.p == null || this.side == null || this.id == null || !Formulas.oddsAreUsable(this.p)) {
             logger.error("null variables or bad odds during removeExposure for: {} {} {} {} {} {} {} {} {}", marketId, runnerId, sideToRemove, excessExposure, this.p, this.side, this.id, reason, Generic.objectToString(this));
@@ -108,14 +114,13 @@ public class Order
                     sizeReduction = excessExposure;
                 }
             } else {
-                if (excessExposure > Formulas.layExposure(this.p, sizeRemaining)) {
+                if (excessExposure > Formulas.calculateLayExposure(this.p, sizeRemaining)) {
                     sizeReduction = null;
                 } else {
                     sizeReduction = excessExposure / (this.p - 1d);
                 }
             }
-            exposureReduction = SharedStatics.orderCache.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.getSRMinusTempCanceled(), this.id, sizeReduction, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod,
-                                                                        reason);
+            exposureReduction = SharedStatics.orderCache.addCancelOrder(marketId, runnerId, this.side, this.p, sizeRemaining, this.getSrConsideringTempCancel(), this.id, sizeReduction, managedRunner, sendPostRequestRescriptMethod, reason);
         } else {
             logger.error("wrong side in removeExposure for: {} {} {} {} {} {} {}", sideToRemove, this.side, marketId, runnerId, excessExposure, reason, Generic.objectToString(this));
             exposureReduction = 0d;
@@ -123,8 +128,8 @@ public class Order
         return exposureReduction;
     }
 
-    synchronized double getSRMinusTempCanceled() {
-        return this.sr == null ? 0d : this.sr - getSizeTempCanceled();
+    public synchronized double getSrConsideringTempCancel() {
+        return this.sr == null ? 0d : Math.max(0d, this.sr - this.sizeTempCanceled);
     }
 
     @SuppressWarnings("WeakerAccess")

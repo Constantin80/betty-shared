@@ -157,56 +157,6 @@ public class RulesManager
         return readSuccessful;
     }
 
-//    private synchronized void associateMarketsWithEvents(@NotNull final StreamSynchronizedMap<? super String, ? extends MarketCatalogue> marketCataloguesMap) {
-//        for (final ManagedMarket managedMarket : this.markets.valuesCopy()) {
-//            managedMarket.getParentEvent( marketCataloguesMap); // this does the reciprocal association as well, by adding the markets in the managedEvent objects
-//        }
-//    }
-
-//    @SuppressWarnings("UnusedReturnValue")
-//    private synchronized boolean checkMarketsAreAssociatedWithEvents() {
-//        boolean foundError = false;
-//        for (final ManagedMarket managedMarket : this.markets.valuesCopy()) {
-//            if (!managedMarket.parentEventIsSet() || !managedMarket.parentEventHasTheMarketAdded() || !managedMarket.parentEventHasTheMarketIdAdded()) { // error messages are printed inside the methods
-//                managedMarket.getParentEvent(); // this should solve the problem
-//                foundError = true;
-//            }
-//        }
-//        return foundError;
-//    }
-
-//    public synchronized ManagedEvent getParentEvent(String eventId) {
-//        ManagedEvent managedEvent = this.events.get(eventId);
-//        if (managedEvent == null) {
-//            managedEvent = new ManagedEvent(eventId);
-//            this.events.put(eventId, managedEvent);
-//            Statics.rulesManager.rulesHaveChanged.set(true);
-//        } else { // I got the event and I'll return it, nothing else to be done
-//        }
-//
-//        return managedEvent;
-//    }
-
-//    public synchronized Set<String> getMarketIds() {
-//        return this.markets.keySetCopy();
-//    }
-
-//    public boolean addMarketToCheck(@NotNull final String marketId) { // best to not synchronize this on the rulesManager, it can lead to deadlock
-//        final boolean elementAdded = this.marketsToCheck.add(marketId);
-////        if (this.marketsToCheck.contains(marketId)) {
-////            elementAdded = false; // won't add same market again
-////        } else {
-////            this.marketsToCheck.add(marketId);
-////            elementAdded = true;
-////        }
-//
-//        if (elementAdded) {
-//            this.marketsToCheckExist.set(true);
-//        } else { // nothing to be done on this branch
-//        }
-//        return elementAdded;
-//    }
-
     public synchronized Integer getTestMarker() {
         return this.testMarker;
     }
@@ -972,5 +922,27 @@ public class RulesManager
         } else {
             logger.error("wrong arrayLength in parseAddManagedRunnerCommand for: {} {}", arrayLength, addManagedRunnerCommand);
         }
+    }
+
+    @Nullable
+    private synchronized ManagedMarket getManagedMarket(final String marketId) {
+        return this.markets.get(marketId);
+    }
+
+    @Nullable
+    public synchronized ManagedRunner getManagedRunner(final String marketId, @Nullable final RunnerId runnerId) {
+        @Nullable final ManagedRunner managedRunner;
+        final ManagedMarket managedMarket = getManagedMarket(marketId);
+        if (managedMarket == null) {
+            logger.error("null managedMarket in getManagedRunner for: {} {}", marketId, runnerId);
+            managedRunner = null;
+        } else {
+            managedRunner = managedMarket.getManagedRunner(runnerId);
+        }
+        return managedRunner;
+    }
+
+    public synchronized Set<String> getManagedMarketIds() {
+        return this.markets.keySetCopy();
     }
 }

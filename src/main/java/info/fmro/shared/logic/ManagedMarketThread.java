@@ -85,18 +85,18 @@ public class ManagedMarketThread
                     } else {
 //                            logger.info("manage market is supported: {} {}", this.id, this.marketName);
 //                    final double calculatedLimit = this.getCalculatedLimit();
-                        int exposureHasBeenModified = 0;
+                        @SuppressWarnings("unused") int exposureHasBeenModified = 0;
                         @NotNull final ArrayList<ManagedRunner> runnersList = this.managedMarket.simpleGetRunners();
                         for (final ManagedRunner runner : runnersList) {
-                            runner.resetRemovedExposureDuringThisManageIteration(); // resets the variables that keep track of already removed exposure, that will be used later in this method
+//                            runner.resetRemovedExposureDuringThisManageIteration(); // resets the variables that keep track of already removed exposure, that will be used later in this method
                             // removes orders that can be moved to better odds, hardToReachOrders, and unmatched orders at worse odds than limit
                             exposureHasBeenModified += runner.cancelBetsAtTooGoodOrTooBadOdds(this.existingFunds.currencyRate, this.sendPostRequestRescriptMethod);
                         }
-                        if (exposureHasBeenModified > 0) {
-                            this.managedMarket.calculateExposure(this.rulesManager);
-                            exposureHasBeenModified = 0;
-                        } else { // no need to calculateExposure
-                        }
+//                        if (exposureHasBeenModified > 0) {
+//                            this.managedMarket.calculateExposure(this.rulesManager);
+//                            exposureHasBeenModified = 0;
+//                        } else { // no need to calculateExposure
+//                        }
 
                         @NotNull final ArrayList<ManagedRunner> runnersOrderedList = this.managedMarket.createRunnersOrderedList();
                         if (this.managedMarket.isMarketLiveOrAlmostLive(this.rulesManager.marketsToCheck) && !this.managedMarket.isKeepAtInPlay()) {
@@ -106,16 +106,19 @@ public class ManagedMarketThread
                         } else {
 //                                logger.info("manage market useTheNewLimit: {} {} runners:{}", this.managedMarket.marketId, this.managedMarket.marketName, runnersOrderedList.size());
                             for (final ManagedRunner runner : runnersList) {
-                                exposureHasBeenModified += runner.checkRunnerLimits(this.existingFunds, this.sendPostRequestRescriptMethod, this.speedLimit);
+                                if (runner.checkRunnerLimits(this.existingFunds, this.sendPostRequestRescriptMethod, this.speedLimit) > 0d) {
+                                    exposureHasBeenModified++;
+                                } else { // no modification made
+                                }
                             }
-                            if (exposureHasBeenModified > 0) {
-                                this.managedMarket.calculateExposure(this.rulesManager);
-                                exposureHasBeenModified = 0;
-                            } else { // no need to calculateExposure
-                            }
+//                            if (exposureHasBeenModified > 0) {
+//                                this.managedMarket.calculateExposure(this.rulesManager);
+//                                exposureHasBeenModified = 0;
+//                            } else { // no need to calculateExposure
+//                            }
 
                             //noinspection UnusedAssignment
-                            exposureHasBeenModified += this.managedMarket.useTheNewLimit(runnersOrderedList, this.rulesManager, this.existingFunds, this.sendPostRequestRescriptMethod, this.speedLimit);
+                            exposureHasBeenModified += this.managedMarket.useTheNewLimit(runnersOrderedList, this.existingFunds, this.sendPostRequestRescriptMethod, this.speedLimit);
                         }
                     }
                 } else { // for not supported I can't calculate the limit

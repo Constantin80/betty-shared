@@ -57,7 +57,7 @@ public class LimitOrder
         if (side == Side.BACK) {
             liability = primitiveSize;
         } else if (side == Side.LAY) {
-            liability = Formulas.layExposure(primitivePrice, primitiveSize);
+            liability = Formulas.calculateLayExposure(primitivePrice, primitiveSize);
         } else {
             liability = Math.max(primitiveSize, primitiveSize * (primitivePrice - 1d)); // assume the worst
             if (side == null) {

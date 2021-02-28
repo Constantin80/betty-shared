@@ -1,7 +1,7 @@
 package info.fmro.shared.stream.cache.order;
 
 import com.google.common.math.DoubleMath;
-import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.logic.ManagedRunner;
 import info.fmro.shared.objects.Exposure;
 import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.cache.OrdersList;
@@ -33,7 +33,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("OverlyComplexClass")
-class OrderMarketRunner
+public class OrderMarketRunner
         extends Exposure
         implements Serializable { // amounts are in account currency (EUR)
     @Serial
@@ -300,7 +300,7 @@ class OrderMarketRunner
 //        return this.layMatches.copy();
 //    }
 
-    synchronized HashMap<String, Order> getUnmatchedOrders() {
+    public synchronized HashMap<String, Order> getUnmatchedOrders() {
         return new HashMap<>(this.unmatchedOrders);
     }
 
@@ -322,21 +322,20 @@ class OrderMarketRunner
         this.layMatches.updateLayProfitExposure(this);
     }
 
-    synchronized int cancelUnmatchedAmounts(final double backExcessExposure, final double layExcessExposure, @NotNull final Method sendPostRequestRescriptMethod, final AtomicDouble removedExposureDuringThisManageIterationBack,
-                                            final AtomicDouble removedExposureDuringThisManageIterationLay, final String reason) {
+    synchronized double cancelUnmatchedAmounts(final double backExcessExposure, final double layExcessExposure, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         // best odds are removed first, as they're most unlikely to get matched
         // always the newer orders are removed first
-        int exposureHasBeenModified = 0;
-        exposureHasBeenModified += cancelUnmatchedAmounts(Side.B, backExcessExposure, sendPostRequestRescriptMethod, removedExposureDuringThisManageIterationBack, reason);
-        exposureHasBeenModified += cancelUnmatchedAmounts(Side.L, layExcessExposure, sendPostRequestRescriptMethod, removedExposureDuringThisManageIterationLay, reason);
-        return exposureHasBeenModified;
+        double removedExposure = 0d;
+        removedExposure += cancelUnmatchedAmounts(Side.B, backExcessExposure, managedRunner, sendPostRequestRescriptMethod, reason);
+        removedExposure += cancelUnmatchedAmounts(Side.L, layExcessExposure, managedRunner, sendPostRequestRescriptMethod, reason);
+        return removedExposure;
     }
 
     @SuppressWarnings("WeakerAccess")
-    synchronized int cancelUnmatchedAmounts(final Side side, final double excessExposure, @NotNull final Method sendPostRequestRescriptMethod, final AtomicDouble removedExposureDuringThisManageIteration, final String reason) {
-        int exposureHasBeenModified = 0;
+    synchronized double cancelUnmatchedAmounts(final Side side, final double excessExposure, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
+        double excessExposureLeft = excessExposure - (side == Side.B ? this.getBackTempCancelExposure() : this.getLayTempCancelExposure());
         if (excessExposure >= .1d) {
-            double excessExposureLeft = excessExposure - (side == Side.B ? this.getBackTempCancelExposure() : this.getLayTempCancelExposure());
+//            excessExposureLeft = excessExposure - (side == Side.B ? this.getBackTempCancelExposure() : this.getLayTempCancelExposure());
             final Comparator<Double> priceComparator = side == Side.B ? Comparator.reverseOrder() : Comparator.naturalOrder(); // order by reversed price or price, then reversed placed date
             if (side == Side.B || side == Side.L) {
                 final ArrayList<Order> sortedOrders =
@@ -348,10 +347,9 @@ class OrderMarketRunner
                                                             thenComparing(Order::getPd, Comparator.nullsFirst(Comparator.reverseOrder()))).
                                                     collect(Collectors.toCollection(ArrayList::new));
                 for (final Order order : sortedOrders) {
-                    final double removedExposure = order.removeExposure(this.marketId, this.runnerId, side, excessExposureLeft, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
+                    final double removedExposure = order.removeExposure(this.marketId, this.runnerId, side, excessExposureLeft, managedRunner, sendPostRequestRescriptMethod, reason);
 //                    Generic.addToAtomicDouble(removedExposureDuringThisManageIteration, removedExposure);
                     excessExposureLeft -= removedExposure;
-                    exposureHasBeenModified++;
                     if (excessExposureLeft <= 0d) {
                         break;
                     } else { // some exposure still left, will continue the loop
@@ -360,12 +358,13 @@ class OrderMarketRunner
             } else {
                 logger.error("unknown side in cancelUnmatchedAmounts for: {} {} {} {}", side, excessExposure, reason, Generic.objectToString(this));
             }
-        } else { // no excess exposure present, nothing to do
+        } else { // no excess exposure present
+//            excessExposureLeft = excessExposure;
         }
-        return exposureHasBeenModified;
+        return excessExposure - excessExposureLeft; // total removed exposure
     }
 
-    synchronized double cancelUnmatchedExceptGivenExposure(final Side side, final double notCanceledExposure, @NotNull final Method sendPostRequestRescriptMethod, final AtomicDouble removedExposureDuringThisManageIteration, final String reason) {
+    synchronized double cancelUnmatchedExceptGivenExposure(final Side side, final double notCanceledExposure, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         // worst odds are kept, as they're most likely to get matched
         // older orders are kept
         double exposureLeftUntilIStartToCancel = notCanceledExposure + (side == Side.B ? this.getBackTempCancelExposure() : this.getLayTempCancelExposure());
@@ -384,42 +383,63 @@ class OrderMarketRunner
 
             if (side == Side.B) {
                 for (final Order order : sortedOrders) {
-                    final double price = order.getP();
-                    final double sizeRemaining = order.getSr();
-                    if (sizeRemaining <= 0d) { // it's dangerous to try to fix the error here; orders with zero size remaining are removed from cache when the orderChange happens, so I shouldn't get zero size here
-                        logger.error("order with zero or negative amount left in cancelUnmatchedExceptGivenExposure for: {} {} {} {} {} {} {}", price, sizeRemaining, side, notCanceledExposure, reason, Generic.objectToString(order),
-                                     Generic.objectToString(this));
-                    } else if (exposureLeftUntilIStartToCancel < .1d) { // no more excess left, everything from now on will be canceled
-                        order.cancelOrder(this.marketId, this.runnerId, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
-                    } else if (exposureLeftUntilIStartToCancel >= sizeRemaining) { // keeping this order, and reducing the exposureLeftUntilIStartToCancel
-                        exposureLeftUntilIStartToCancel -= sizeRemaining;
-                    } else { // exposureLeftUntilIStartToCancel < excessPresentInOrder; partial cancelOrder
+                    final Double price = order.getP();
+                    if (price == null) {
+                        logger.error("null price in cancelUnmatchedExceptGivenExposure for: {}", Generic.objectToString(order));
+                    } else {
+                        final double sizeRemaining = order.getSrConsideringTempCancel();
+                        if (sizeRemaining <= 0d) { // it's dangerous to try to fix the error here; orders with zero size remaining are removed from cache when the orderChange happens, so I shouldn't get zero size here
+                            final Double sr = order.getSr();
+                            if (sr == null || sr == 0) {
+                                logger.error("order with zero or negative amount left in cancelUnmatchedExceptGivenExposure for: {} {} {} {} {} {} {}", price, sizeRemaining, side, notCanceledExposure, reason, Generic.objectToString(order),
+                                             Generic.objectToString(this));
+                            } else { // no error
+                            }
+                        } else if (exposureLeftUntilIStartToCancel < .1d) { // no more excess left, everything from now on will be canceled
+                            order.cancelOrder(this.marketId, this.runnerId, managedRunner, sendPostRequestRescriptMethod, reason);
+                        } else if (exposureLeftUntilIStartToCancel >= sizeRemaining) { // keeping this order, and reducing the exposureLeftUntilIStartToCancel
+                            exposureLeftUntilIStartToCancel -= sizeRemaining;
+                        } else { // exposureLeftUntilIStartToCancel < excessPresentInOrder; partial cancelOrder
 //                        final double removedExposure;
-                        if (order.cancelOrder(this.marketId, this.runnerId, exposureLeftUntilIStartToCancel, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason) > 0d) {
+                            order.cancelOrder(this.marketId, this.runnerId, order.getSr() - exposureLeftUntilIStartToCancel, managedRunner, sendPostRequestRescriptMethod, reason);
                             exposureLeftUntilIStartToCancel = 0d;
-                        } else { // cancelOrder failed for some reason, nothing to be done
-                        }
+//                            if (order.cancelOrder(this.marketId, this.runnerId, exposureLeftUntilIStartToCancel, removedExposureDuringThisManageIteration, managedRunner, sendPostRequestRescriptMethod, reason) > 0d) {
+//                                exposureLeftUntilIStartToCancel = 0d;
+//                            } else { // cancelOrder failed for some reason, nothing to be done
+//                            }
 //                        Generic.addToAtomicDouble(removedExposureDuringThisManageIteration, removedExposure);
+                        }
                     }
                 } // end for
             } else if (side == Side.L) {
                 for (final Order order : sortedOrders) {
-                    final double price = order.getP();
-                    final double sizeRemaining = order.getSr();
-                    final double excessPresentInOrder = Formulas.layExposure(price, sizeRemaining);
-                    if (excessPresentInOrder <= 0d) {
-                        logger.error("order with zero or negative amount left in cancelUnmatchedExceptGivenExposure for: {} {} {} {} {} {} {}", price, sizeRemaining, side, notCanceledExposure, reason, Generic.objectToString(order),
-                                     Generic.objectToString(this));
-                    } else if (exposureLeftUntilIStartToCancel < .1d) { // no more excess left, everything from now on will be canceled
-                        order.cancelOrder(this.marketId, this.runnerId, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
-                    } else if (exposureLeftUntilIStartToCancel >= excessPresentInOrder) { // keeping this order, and reducing the exposureLeftUntilIStartToCancel
-                        exposureLeftUntilIStartToCancel -= excessPresentInOrder;
-                    } else { // exposureLeftUntilIStartToCancel < excessPresentInOrder; partial cancelOrder
-                        if (order.cancelOrder(this.marketId, this.runnerId, Formulas.oddsAreUsable(price) ? exposureLeftUntilIStartToCancel / (price - 1d) : null, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason) > 0d) {
+                    final Double price = order.getP();
+                    if (price == null) {
+                        logger.error("null price in cancelUnmatchedExceptGivenExposure for: {}", Generic.objectToString(order));
+                    } else {
+                        final double sizeRemaining = order.getSrConsideringTempCancel();
+                        final double excessPresentInOrder = Formulas.calculateLayExposure(price, sizeRemaining);
+                        if (excessPresentInOrder <= 0d) {
+                            final Double sr = order.getSr();
+                            if (sr == null || sr == 0) {
+                                logger.error("order with zero or negative amount left in cancelUnmatchedExceptGivenExposure for: {} {} {} {} {} {} {}", price, sizeRemaining, side, notCanceledExposure, reason, Generic.objectToString(order),
+                                             Generic.objectToString(this));
+                            } else { // no error
+                            }
+                        } else if (exposureLeftUntilIStartToCancel < .1d) { // no more excess left, everything from now on will be canceled
+                            order.cancelOrder(this.marketId, this.runnerId, managedRunner, sendPostRequestRescriptMethod, reason);
+                        } else if (exposureLeftUntilIStartToCancel >= excessPresentInOrder) { // keeping this order, and reducing the exposureLeftUntilIStartToCancel
+                            exposureLeftUntilIStartToCancel -= excessPresentInOrder;
+                        } else { // exposureLeftUntilIStartToCancel < excessPresentInOrder; partial cancelOrder
+                            order.cancelOrder(this.marketId, this.runnerId, order.getSr() - (Formulas.oddsAreUsable(price) ? exposureLeftUntilIStartToCancel / (price - 1d) : 0d), managedRunner, sendPostRequestRescriptMethod, reason);
                             exposureLeftUntilIStartToCancel = 0d;
-                        } else { // cancelOrder failed for some reason, nothing to be done
-                        }
+//                            if (order.cancelOrder(this.marketId, this.runnerId, Formulas.oddsAreUsable(price) ? exposureLeftUntilIStartToCancel / (price - 1d) : null, removedExposureDuringThisManageIteration, managedRunner, sendPostRequestRescriptMethod,
+//                                                  reason) > 0d) {
+//                                exposureLeftUntilIStartToCancel = 0d;
+//                            } else { // cancelOrder failed for some reason, nothing to be done
+//                            }
 //                        Generic.addToAtomicDouble(removedExposureDuringThisManageIteration, removedExposure);
+                        }
                     }
                 } // end for
             } else {
@@ -441,8 +461,8 @@ class OrderMarketRunner
 //        return cancelUnmatchedAtWorseOdds(sideToCancel, worstNotCanceledOdds, sendPostRequestRescriptMethod, false);
 //    }
 
-    synchronized int cancelUnmatchedAtWorseOdds(final Side sideToCancel, final double worstNotCanceledOdds, final double excessExposure, @NotNull final Method sendPostRequestRescriptMethod, final boolean includeTheProvidedOdds,
-                                                final AtomicDouble removedExposureDuringThisManageIteration, final String reason) {
+    synchronized int cancelUnmatchedAtWorseOdds(final Side sideToCancel, final double worstNotCanceledOdds, final double excessExposure, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod,
+                                                final boolean includeTheProvidedOdds, final String reason) {
         int modifications = 0;
         if (this.runnerId == null) {
             logger.error("null runnerId in orderMarketRunner.cancelAllUnmatched: {}", Generic.objectToString(this));
@@ -490,7 +510,7 @@ class OrderMarketRunner
                         if (shouldCancelOrder) {
 //                            modifications += Generic.booleanToInt(order.cancelOrder(this.marketId, this.runnerId, sendPostRequestRescriptMethod));
                             logger.info("{} cancelUnmatchedAtWorseOdds: {} {} {} price:{} size:{} excess:{} reasonId:{}", reason, this.marketId, this.runnerId, side, price, size, excessExposureLeft > 1_000_000_000d ? "max" : excessExposureLeft, reason);
-                            final double removedExposure = order.removeExposure(this.marketId, this.runnerId, side, excessExposureLeft, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
+                            final double removedExposure = order.removeExposure(this.marketId, this.runnerId, side, excessExposureLeft, managedRunner, sendPostRequestRescriptMethod, reason);
 //                            Generic.addToAtomicDouble(removedExposureDuringThisManageIteration, removedExposure);
                             excessExposureLeft -= removedExposure;
                             modifications++;
@@ -507,8 +527,7 @@ class OrderMarketRunner
         return modifications;
     }
 
-    synchronized int cancelUnmatchedTooGoodOdds(@NotNull final Side sideToCancel, final double worstOddsThatAreGettingCanceled, @NotNull final Method sendPostRequestRescriptMethod, final AtomicDouble removedExposureDuringThisManageIteration,
-                                                final String reason) {
+    synchronized int cancelUnmatchedTooGoodOdds(@NotNull final Side sideToCancel, final double worstOddsThatAreGettingCanceled, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         int modifications = 0;
         if (this.runnerId == null || worstOddsThatAreGettingCanceled <= 0d) {
             logger.error("null runnerId or bogus worstOddsThatAreGettingCanceled in orderMarketRunner.cancelUnmatchedTooGoodOdds: {} {} {} {}", sideToCancel, worstOddsThatAreGettingCanceled, reason, Generic.objectToString(this));
@@ -529,7 +548,7 @@ class OrderMarketRunner
                         // not the right side
                         final boolean shouldCancelOrder = sideToCancel == side && !Formulas.oddsAreWorse(side, worstOddsThatAreGettingCanceled, price);
                         if (shouldCancelOrder) {
-                            final double removedExposure = order.cancelOrder(this.marketId, this.runnerId, removedExposureDuringThisManageIteration, sendPostRequestRescriptMethod, reason);
+                            final double removedExposure = order.cancelOrder(this.marketId, this.runnerId, managedRunner, sendPostRequestRescriptMethod, reason);
                             modifications += Generic.booleanToInt(removedExposure > 0d);
 //                            Generic.addToAtomicDouble(removedExposureDuringThisManageIteration, removedExposure);
                         } else { // won't cancel, nothing to be done

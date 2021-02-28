@@ -457,7 +457,7 @@ public final class Formulas {
         return result;
     }
 
-    public static double getBetSizeFromExposure(final Side side, final double price, final double exposure) {
+    public static double calculateBetSizeFromExposure(final Side side, final double price, final double exposure) {
         final double betSize;
         if (side == null) {
             logger.error("null side in Formulas.getBetSizeFromExposure for: {} {}", price, exposure);
@@ -475,7 +475,7 @@ public final class Formulas {
         return betSize;
     }
 
-    public static double exposure(final Side side, final double price, final double size) {
+    public static double calculateExposure(final Side side, final double price, final double size) {
         final double exposure;
         if (side == null || size < 0d || !oddsAreUsable(price)) {
             logger.error("bad arguments in Formulas.exposure for: {} {} {}", side, price, size);
@@ -491,8 +491,24 @@ public final class Formulas {
         return exposure;
     }
 
-    public static double layExposure(final double price, final double size) {
-        return exposure(Side.L, price, size);
+    public static double calculateProfit(final Side side, final double price, final double size) {
+        final double profit;
+        if (side == null || size < 0d || !oddsAreUsable(price)) {
+            logger.error("bad arguments in Formulas.profit for: {} {} {}", side, price, size);
+            profit = 0d;
+        } else if (side == Side.B) {
+            profit = size * (price - 1d);
+        } else if (side == Side.L) {
+            profit = size;
+        } else {
+            logger.error("bogus side {} in Formulas.profit for: {} {}", side, price, size);
+            profit = 0d;
+        }
+        return profit;
+    }
+
+    public static double calculateLayExposure(final double price, final double size) {
+        return calculateExposure(Side.L, price, size);
     }
 
     public static boolean oddsAreAcceptable(final Side side, final double worstAcceptedOdds, final double price) {
@@ -561,7 +577,7 @@ public final class Formulas {
         return returnValue;
     }
 
-    private static void removeOwnAmountsFromAvailableTreeMap(@NotNull final Map<Double, Double> availableAmounts, @NotNull final TreeMap<Double, Double> amountsFromMyUnmatchedOrders) {
+    public static void removeOwnAmountsFromAvailableTreeMap(@NotNull final Map<Double, Double> availableAmounts, @NotNull final TreeMap<Double, Double> amountsFromMyUnmatchedOrders) {
         //noinspection ForLoopWithMissingComponent
         for (final Iterator<Map.Entry<Double, Double>> iterator = availableAmounts.entrySet().iterator(); iterator.hasNext(); ) {
             final Map.Entry<Double, Double> entry = iterator.next();

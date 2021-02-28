@@ -54,7 +54,7 @@ public class ManagedMarket
     public static final long veryRecentPeriod = 10_000L;
     public final AtomicBoolean cancelAllUnmatchedBets = new AtomicBoolean();
     private final HashMap<RunnerId, ManagedRunner> runners = new HashMap<>(4); // this is the only place where managedRunners are stored permanently
-    private final HashMap<RunnerId, Double> runnerMatchedExposure = new HashMap<>(4), runnerTotalExposure = new HashMap<>(4);
+    private final HashMap<RunnerId, Double> runnerMatchedExposureMap = new HashMap<>(4), runnerTotalExposureMap = new HashMap<>(4), runnerTotalExposureConsideringCanceledMap = new HashMap<>(4);
     final String marketId; // marketId
     @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     private String parentEventId;
@@ -62,9 +62,8 @@ public class ManagedMarket
     private String marketName;
     private double amountLimit = -1d; // only has effect if >= 0d
     private double calculatedLimit;
-    private double marketMatchedExposure = Double.NaN;
-    private double marketTotalExposure = Double.NaN;
-    private double matchedBackExposureSum, unmatchedBackExposureSum, totalBackExposureSum;
+    private double marketMatchedExposure = Double.NaN, marketTotalExposure = Double.NaN, marketTotalExposureConsideringCanceled = Double.NaN;
+    private double matchedBackExposureSum, unmatchedBackExposureSum, totalBackExposureSum, totalBackExposureSumConsideringCanceled;
     private long timeMarketGoesLive;
     private long calculatedLimitStamp;
     private long manageMarketStamp;
@@ -109,6 +108,11 @@ public class ManagedMarket
 //        this.runnersOrderedList.sort(Comparator.comparing(k -> k.getLastTradedPrice(marketCache), new ComparatorMarketPrices()));
     }
 
+    @Nullable
+    synchronized ManagedRunner getManagedRunner(@Nullable final RunnerId runnerId) {
+        return this.runners.get(runnerId);
+    }
+
     @NotNull
     synchronized ArrayList<ManagedRunner> createRunnersOrderedList() {
         final ArrayList<ManagedRunner> runnersOrderedList = new ArrayList<>(this.runners.values());
@@ -123,6 +127,10 @@ public class ManagedMarket
 
     synchronized ArrayList<ManagedRunner> simpleGetRunners() {
         return new ArrayList<>(this.runners.values());
+    }
+
+    public synchronized HashMap<RunnerId, ManagedRunner> simpleGetRunnersMap() {
+        return new HashMap<>(this.runners);
     }
 
     @NotNull
@@ -423,18 +431,42 @@ public class ManagedMarket
         this.totalBackExposureSum = totalBackExposureSum;
     }
 
+    @Contract(pure = true)
+    private synchronized double getTotalBackExposureSumConsideringCanceled() {
+        return this.totalBackExposureSumConsideringCanceled;
+    }
+
+    private synchronized void setTotalBackExposureSumConsideringCanceled(final double totalBackExposureSumConsideringCanceled) {
+        this.totalBackExposureSumConsideringCanceled = totalBackExposureSumConsideringCanceled;
+    }
+
     public synchronized boolean defaultExposureValuesExist() {
-        return Double.isNaN(this.marketMatchedExposure) || Double.isNaN(this.marketTotalExposure);
+        return Double.isNaN(this.marketMatchedExposure) || Double.isNaN(this.marketTotalExposure) || Double.isNaN(this.marketTotalExposureConsideringCanceled);
     }
 
     public synchronized double getMarketMatchedExposure() {
+        if (Double.isNaN(this.marketMatchedExposure)) {
+            logger.error("returning defaultMarketMatchedExposure for: {}", this.marketId);
+        } else { // no error, normal case
+        }
         return this.marketMatchedExposure;
     }
 
     public synchronized double getMarketTotalExposure() {
+        if (Double.isNaN(this.marketTotalExposure)) {
+            logger.error("returning defaultMarketTotalExposure for: {}", this.marketId);
+        } else { // no error, normal case
+        }
         return this.marketTotalExposure;
     }
 
+    public synchronized double getMarketTotalExposureConsideringCanceled() {
+        if (Double.isNaN(this.marketTotalExposureConsideringCanceled)) {
+            logger.error("returning defaultMarketTotalExposureConsideringCanceled for: {}", this.marketId);
+        } else { // no error, normal case
+        }
+        return this.marketTotalExposureConsideringCanceled;
+    }
 //    public synchronized void resetOrderCacheObjects() {
 //        this.orderMarket = null;
 //        for (final ManagedRunner managedRunner : this.runners.values()) {
@@ -883,117 +915,221 @@ public class ManagedMarket
         return isValid;
     }
 
-    private synchronized int removeExposureBalanceTwoRunnerMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sideList, final double excessMatchedExposure,
-                                                                  @NotNull final ExistingFunds existingFunds, @NotNull final Method sendPostRequestRescriptMethod, @NotNull final BetFrequencyLimit speedLimit, final String reason) {
+    private synchronized int excessMatchedExposureBalanceTwoRunnerMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sidesToPlaceExposureOn, final double excessMatchedExposure,
+                                                                         @NotNull final ExistingFunds existingFunds, @NotNull final Method sendPostRequestRescriptMethod, @NotNull final BetFrequencyLimit speedLimit, final String reason) {
         int modifications = 0;
-        if (sideList.size() == 2) {
-            @NotNull final Side firstSide = sideList.get(0), secondSide = sideList.get(1);
+        if (sidesToPlaceExposureOn.size() == 2) {
+            @NotNull final Side firstSide = sidesToPlaceExposureOn.get(0), secondSide = sidesToPlaceExposureOn.get(1);
+            final double totalTempExposure = firstRunner.totalTempExposure() + secondRunner.totalTempExposure();
             if (firstSide == Side.B && secondSide == Side.L) {
-                modifications += SharedStatics.orderCache.cancelUnmatched(firstRunner.getMarketId(), firstRunner.getRunnerId(), secondSide, sendPostRequestRescriptMethod, firstRunner.removedExposureDuringThisManageIterationLay,
-                                                                          "removeExposureBalanceTwoRunnerMarket");
-                modifications += SharedStatics.orderCache.cancelUnmatched(secondRunner.getMarketId(), secondRunner.getRunnerId(), firstSide, sendPostRequestRescriptMethod, secondRunner.removedExposureDuringThisManageIterationBack,
-                                                                          "removeExposureBalanceTwoRunnerMarket");
-                @NotNull final List<Double> exposuresToBePlaced = Utils.getExposureToBePlacedForTwoWayMarket(firstRunner, secondRunner, sideList, excessMatchedExposure);
+                @NotNull final List<Double> exposuresToBePlaced = Utils.getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure(firstRunner, secondRunner, sidesToPlaceExposureOn, excessMatchedExposure);
                 final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
                 if (firstExposureToBePlaced <= 0d) {
-                    modifications += firstRunner.cancelUnmatchedAmounts(-firstExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason);
+                    modifications += firstRunner.cancelUnmatchedAmounts(-firstExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason) > 0d ? 1 : 0;
                 } else {
-                    if (firstRunner.placeOrder(firstSide, firstExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, true, reason) > 0d) {
+                    if (firstRunner.placeOrder(firstSide, firstExposureToBePlaced - totalTempExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit, true, reason) > 0d) {
                         modifications++;
                     }
                 }
                 if (secondExposureToBePlaced <= 0d) {
-                    modifications += secondRunner.cancelUnmatchedAmounts(0d, -secondExposureToBePlaced, sendPostRequestRescriptMethod, reason);
+                    modifications += secondRunner.cancelUnmatchedAmounts(0d, -secondExposureToBePlaced, sendPostRequestRescriptMethod, reason) > 0d ? 1 : 0;
                 } else {
-                    if (secondRunner.placeOrder(secondSide, secondExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, true, reason) > 0d) {
+                    if (secondRunner.placeOrder(secondSide, secondExposureToBePlaced - totalTempExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit, true, reason) > 0d) {
                         modifications++;
                     }
                 }
             } else if (firstSide == Side.L && secondSide == Side.B) {
-                modifications += SharedStatics.orderCache.cancelUnmatched(firstRunner.getMarketId(), firstRunner.getRunnerId(), secondSide, sendPostRequestRescriptMethod, firstRunner.removedExposureDuringThisManageIterationBack,
-                                                                          "removeExposureBalanceTwoRunnerMarket");
-                modifications += SharedStatics.orderCache.cancelUnmatched(secondRunner.getMarketId(), secondRunner.getRunnerId(), firstSide, sendPostRequestRescriptMethod, secondRunner.removedExposureDuringThisManageIterationLay,
-                                                                          "removeExposureBalanceTwoRunnerMarket");
-                @NotNull final List<Double> exposuresToBePlaced = Utils.getExposureToBePlacedForTwoWayMarket(firstRunner, secondRunner, sideList, excessMatchedExposure);
+                @NotNull final List<Double> exposuresToBePlaced = Utils.getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure(firstRunner, secondRunner, sidesToPlaceExposureOn, excessMatchedExposure);
                 final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
                 if (firstExposureToBePlaced <= 0d) {
-                    modifications += firstRunner.cancelUnmatchedAmounts(0d, -firstExposureToBePlaced, sendPostRequestRescriptMethod, reason);
+                    modifications += firstRunner.cancelUnmatchedAmounts(0d, -firstExposureToBePlaced, sendPostRequestRescriptMethod, reason) > 0d ? 1 : 0;
                 } else {
-                    if (firstRunner.placeOrder(firstSide, firstExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, true, reason) > 0d) {
+                    if (firstRunner.placeOrder(firstSide, firstExposureToBePlaced - totalTempExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit, true, reason) > 0d) {
                         modifications++;
                     }
                 }
                 if (secondExposureToBePlaced <= 0d) {
-                    modifications += secondRunner.cancelUnmatchedAmounts(-secondExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason);
+                    modifications += secondRunner.cancelUnmatchedAmounts(-secondExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason) > 0d ? 1 : 0;
                 } else {
-                    if (secondRunner.placeOrder(secondSide, secondExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, true, reason) > 0d) {
+                    if (secondRunner.placeOrder(secondSide, secondExposureToBePlaced - totalTempExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit, true, reason) > 0d) {
                         modifications++;
                     }
                 }
             } else {
-                logger.error("bogus sides for balanceTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure, reason);
+                logger.error("bogus sides for excessMatchedExposureBalanceTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure,
+                             reason);
             }
         } else {
-            logger.error("bogus sideList for balanceTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure, reason);
+            logger.error("bogus sideList for excessMatchedExposureBalanceTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure,
+                         reason);
         }
         return modifications;
     }
 
-    private synchronized int useNewLimitOnTwoRunnerMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sideList, final double availableLimit, @NotNull final ExistingFunds existingFunds,
-                                                          @NotNull final Method sendPostRequestRescriptMethod, @NotNull final BetFrequencyLimit speedLimit, final String reason) {
+    private synchronized int removeExposureBalanceTwoRunnerMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sidesToPlaceExposureOn, final double excessMatchedExposure,
+                                                                  @NotNull final ExistingFunds existingFunds, @NotNull final Method sendPostRequestRescriptMethod, @NotNull final BetFrequencyLimit speedLimit, final String reason) {
         int modifications = 0;
-        if (sideList.size() == 2) {
-            @NotNull final Side firstSide = sideList.get(0), secondSide = sideList.get(1);
+        if (sidesToPlaceExposureOn.size() == 2) {
+            @NotNull final Side firstSide = sidesToPlaceExposureOn.get(0), secondSide = sidesToPlaceExposureOn.get(1);
+//            final double totalTempExposure = firstRunner.totalTempExposure() + secondRunner.totalTempExposure();
             if (firstSide == Side.B && secondSide == Side.L) {
-                @NotNull final List<Double> exposuresToBePlaced = Utils.getAmountsToBePlacedForTwoWayMarket(firstRunner, secondRunner, sideList, availableLimit);
-                final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
-                if (firstExposureToBePlaced <= 0d) {
-                    modifications += firstRunner.cancelUnmatchedAmounts(-firstExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason);
-                } else {
-                    if (firstRunner.placeOrder(Side.B, firstExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
-                        modifications++;
-                    }
-                }
-                if (secondExposureToBePlaced <= 0d) {
-                    modifications += secondRunner.cancelUnmatchedAmounts(0d, -secondExposureToBePlaced, sendPostRequestRescriptMethod, reason);
-                } else {
-                    if (secondRunner.placeOrder(Side.L, secondExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
-                        modifications++;
-                    }
-                }
+                modifications += SharedStatics.orderCache.cancelUnmatched(firstRunner.getMarketId(), firstRunner.getRunnerId(), secondSide, firstRunner, sendPostRequestRescriptMethod, "removeExposureBalanceTwoRunnerMarket");
+                modifications += SharedStatics.orderCache.cancelUnmatched(secondRunner.getMarketId(), secondRunner.getRunnerId(), firstSide, secondRunner, sendPostRequestRescriptMethod, "removeExposureBalanceTwoRunnerMarket");
+                modifications += excessMatchedExposureBalanceTwoRunnerMarket(firstRunner, secondRunner, sidesToPlaceExposureOn, excessMatchedExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit, reason);
             } else if (firstSide == Side.L && secondSide == Side.B) {
-                @NotNull final List<Double> exposuresToBePlaced = Utils.getAmountsToBePlacedForTwoWayMarket(firstRunner, secondRunner, sideList, availableLimit);
-                final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
-                if (firstExposureToBePlaced <= 0d) {
-                    modifications += firstRunner.cancelUnmatchedAmounts(0d, -firstExposureToBePlaced, sendPostRequestRescriptMethod, reason);
-                } else {
-                    if (firstRunner.placeOrder(Side.L, firstExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
-                        modifications++;
-                    }
-                }
-                if (secondExposureToBePlaced <= 0d) {
-                    modifications += secondRunner.cancelUnmatchedAmounts(-secondExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason);
-                } else {
-                    if (secondRunner.placeOrder(Side.B, secondExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
-                        modifications++;
-                    }
-                }
+                modifications += SharedStatics.orderCache.cancelUnmatched(firstRunner.getMarketId(), firstRunner.getRunnerId(), secondSide, firstRunner, sendPostRequestRescriptMethod, "removeExposureBalanceTwoRunnerMarket");
+                modifications += SharedStatics.orderCache.cancelUnmatched(secondRunner.getMarketId(), secondRunner.getRunnerId(), firstSide, secondRunner, sendPostRequestRescriptMethod, "removeExposureBalanceTwoRunnerMarket");
+                modifications += excessMatchedExposureBalanceTwoRunnerMarket(firstRunner, secondRunner, sidesToPlaceExposureOn, excessMatchedExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit, reason);
             } else {
-                logger.error("bogus sides for useNewLimitOnTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit, reason);
+                logger.error("bogus sides for balanceTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure, reason);
             }
         } else {
-            logger.error("bogus sideList for useNewLimitOnTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit, reason);
+            logger.error("bogus sideList for balanceTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure, reason);
         }
         return modifications;
     }
+
+    private synchronized int placeExposureOnTwoRunnerMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sidesToPlaceExposureOn, final double availableLimit,
+                                                            @NotNull final ExistingFunds existingFunds, @NotNull final Method sendPostRequestRescriptMethod, @NotNull final BetFrequencyLimit speedLimit, final String reason) {
+        int modifications = 0;
+        if (availableLimit > 0d) {
+            if (sidesToPlaceExposureOn.size() == 2) {
+                @NotNull final Side firstSide = sidesToPlaceExposureOn.get(0), secondSide = sidesToPlaceExposureOn.get(1);
+                if (firstSide == Side.B && secondSide == Side.L) {
+                    @NotNull final List<Double> exposuresToBePlaced = Utils.getExposureToBePlacedForTwoWayMarket(firstRunner, secondRunner, sidesToPlaceExposureOn, availableLimit);
+                    final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
+                    if (firstExposureToBePlaced > 0d) {
+                        if (firstRunner.placeOrder(Side.B, firstExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
+                            modifications++;
+                        }
+                    } else { // nothing to place
+                    }
+                    if (secondExposureToBePlaced > 0d) {
+                        if (secondRunner.placeOrder(Side.L, secondExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
+                            modifications++;
+                        }
+                    } else { // nothing to place
+                    }
+                } else if (firstSide == Side.L && secondSide == Side.B) {
+                    @NotNull final List<Double> exposuresToBePlaced = Utils.getExposureToBePlacedForTwoWayMarket(firstRunner, secondRunner, sidesToPlaceExposureOn, availableLimit);
+                    final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
+                    if (firstExposureToBePlaced > 0d) {
+                        if (firstRunner.placeOrder(Side.L, firstExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
+                            modifications++;
+                        }
+                    } else { // nothing to place
+                    }
+                    if (secondExposureToBePlaced > 0d) {
+                        if (secondRunner.placeOrder(Side.B, secondExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
+                            modifications++;
+                        }
+                    } else { // nothing to place
+                    }
+                } else {
+                    logger.error("bogus sides for placeExposureOnTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit, reason);
+                }
+            } else {
+                logger.error("bogus sideList for placeExposureOnTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit, reason);
+            }
+        } else { // normal, nothing to do
+        }
+        return modifications;
+    }
+
+    private synchronized int cancelExposureOnTwoRunnerMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sidesToPlaceExposureOn, final double availableLimit,
+                                                             @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
+        int modifications = 0;
+        if (availableLimit < 0d) {
+            if (sidesToPlaceExposureOn.size() == 2) {
+                @NotNull final Side firstSide = sidesToPlaceExposureOn.get(0), secondSide = sidesToPlaceExposureOn.get(1);
+                if (firstSide == Side.B && secondSide == Side.L) {
+                    @NotNull final List<Double> exposuresToBePlaced = Utils.getExposureToBePlacedForTwoWayMarket(firstRunner, secondRunner, sidesToPlaceExposureOn, availableLimit);
+                    final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
+                    if (firstExposureToBePlaced < 0d) {
+                        modifications += firstRunner.cancelUnmatchedAmounts(-firstExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason) > 0d ? 1 : 0;
+                    } else { // nothing to cancel
+                    }
+                    if (secondExposureToBePlaced < 0d) {
+                        modifications += secondRunner.cancelUnmatchedAmounts(0d, -secondExposureToBePlaced, sendPostRequestRescriptMethod, reason) > 0d ? 1 : 0;
+                    } else { // nothing to cancel
+                    }
+                } else if (firstSide == Side.L && secondSide == Side.B) {
+                    @NotNull final List<Double> exposuresToBePlaced = Utils.getExposureToBePlacedForTwoWayMarket(firstRunner, secondRunner, sidesToPlaceExposureOn, availableLimit);
+                    final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
+                    if (firstExposureToBePlaced < 0d) {
+                        modifications += firstRunner.cancelUnmatchedAmounts(0d, -firstExposureToBePlaced, sendPostRequestRescriptMethod, reason) > 0d ? 1 : 0;
+                    } else { // nothing to cancel
+                    }
+                    if (secondExposureToBePlaced < 0d) {
+                        modifications += secondRunner.cancelUnmatchedAmounts(-secondExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason) > 0d ? 1 : 0;
+                    } else { // nothing to cancel
+                    }
+                } else {
+                    logger.error("bogus sides for cancelExposureOnTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit, reason);
+                }
+            } else {
+                logger.error("bogus sideList for cancelExposureOnTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit, reason);
+            }
+        } else { // normal, nothing to do
+        }
+        return modifications;
+    }
+
+//    private synchronized int useNewLimitOnTwoRunnerMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sideList, final double availableLimit, @NotNull final ExistingFunds existingFunds,
+//                                                          @NotNull final Method sendPostRequestRescriptMethod, @NotNull final BetFrequencyLimit speedLimit, final String reason) {
+//        int modifications = 0;
+//        if (sideList.size() == 2) {
+//            @NotNull final Side firstSide = sideList.get(0), secondSide = sideList.get(1);
+//            if (firstSide == Side.B && secondSide == Side.L) {
+//                @NotNull final List<Double> exposuresToBePlaced = Utils.getAmountsToBePlacedForTwoWayMarket(firstRunner, secondRunner, sideList, availableLimit);
+//                final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
+//                if (firstExposureToBePlaced <= 0d) {
+//                    modifications += firstRunner.cancelUnmatchedAmounts(-firstExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason);
+//                } else {
+//                    if (firstRunner.placeOrder(Side.B, firstExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
+//                        modifications++;
+//                    }
+//                }
+//                if (secondExposureToBePlaced <= 0d) {
+//                    modifications += secondRunner.cancelUnmatchedAmounts(0d, -secondExposureToBePlaced, sendPostRequestRescriptMethod, reason);
+//                } else {
+//                    if (secondRunner.placeOrder(Side.L, secondExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
+//                        modifications++;
+//                    }
+//                }
+//            } else if (firstSide == Side.L && secondSide == Side.B) {
+//                @NotNull final List<Double> exposuresToBePlaced = Utils.getAmountsToBePlacedForTwoWayMarket(firstRunner, secondRunner, sideList, availableLimit);
+//                final double firstExposureToBePlaced = exposuresToBePlaced.get(0), secondExposureToBePlaced = exposuresToBePlaced.get(1);
+//                if (firstExposureToBePlaced <= 0d) {
+//                    modifications += firstRunner.cancelUnmatchedAmounts(0d, -firstExposureToBePlaced, sendPostRequestRescriptMethod, reason);
+//                } else {
+//                    if (firstRunner.placeOrder(Side.L, firstExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
+//                        modifications++;
+//                    }
+//                }
+//                if (secondExposureToBePlaced <= 0d) {
+//                    modifications += secondRunner.cancelUnmatchedAmounts(-secondExposureToBePlaced, 0d, sendPostRequestRescriptMethod, reason);
+//                } else {
+//                    if (secondRunner.placeOrder(Side.B, secondExposureToBePlaced, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, reason) > 0d) {
+//                        modifications++;
+//                    }
+//                }
+//            } else {
+//                logger.error("bogus sides for useNewLimitOnTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit, reason);
+//            }
+//        } else {
+//            logger.error("bogus sideList for useNewLimitOnTwoRunnerMarket: {} {} {} {} {}", Generic.objectToString(sideList), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), availableLimit, reason);
+//        }
+//        return modifications;
+//    }
 
     synchronized int removeExposureGettingOut(@NotNull final ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final ExistingFunds existingFunds, @NotNull final Method sendPostRequestRescriptMethod,
                                               @NotNull final BetFrequencyLimit speedLimit) {
         // assumes market and runners exposure has been updated
         int modifications = 0;
-        if (Double.isNaN(this.marketTotalExposure)) {
+        if (Double.isNaN(this.marketTotalExposureConsideringCanceled)) {
             logger.error("marketTotalExposure not initialized in removeExposure for: {}", Generic.objectToString(this));
-        } else if (this.marketTotalExposure < .1) { // exposure too small, nothing to be done
+        } else if (this.marketTotalExposureConsideringCanceled < .1) { // exposure too small, nothing to be done
         } else {
             final int size = runnersOrderedList.size();
             // in all cases, existing unmatched bets on the wrong side are canceled, bets on the right side are kept within the necessary amount, and if extra is needed it is added
@@ -1004,7 +1140,10 @@ public class ManagedMarket
                     // in the special case, market wide exposure is used, rather than the one on each runner
 //                    final long currentTime = System.currentTimeMillis();
                     final ManagedRunner firstRunner = runnersOrderedList.get(0), secondRunner = runnersOrderedList.get(1);
-                    final double backLayMatchedExposure = firstRunner.getBackMatchedExposure() + secondRunner.getLayMatchedExposure(), layBackMatchedExposure = firstRunner.getLayMatchedExposure() + secondRunner.getBackMatchedExposure(),
+
+                    final double backLayTempExposure = firstRunner.rawBackTempExposure() + secondRunner.rawLayTempExposure(), layBackTempExposure = firstRunner.rawLayTempExposure() + secondRunner.rawBackTempExposure();
+                    final double backLayMatchedExposure = firstRunner.getBackMatchedExposure() + secondRunner.getLayMatchedExposure() + backLayTempExposure,
+                            layBackMatchedExposure = firstRunner.getLayMatchedExposure() + secondRunner.getBackMatchedExposure() + layBackTempExposure,
                             excessMatchedExposure = Math.abs(backLayMatchedExposure - layBackMatchedExposure);
 //                    final OrderMarketRunner firstOrderRunner = firstRunner.getOrderMarketRunner(orderCache, currentTime), secondOrderRunner = secondRunner.getOrderMarketRunner(orderCache, currentTime);
 //                    if (firstOrderRunner == null || secondOrderRunner == null) {
@@ -1015,11 +1154,13 @@ public class ManagedMarket
                         modifications += cancelAllUnmatchedBets(sendPostRequestRescriptMethod, "cancelAllUnmatchedBetsGettingOut");
                     } else if (backLayMatchedExposure > layBackMatchedExposure) {
                         // I'll use unmatched exposure, equal to excessMatchedExposure, on lay/back
-                        modifications += removeExposureBalanceTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.L, Side.B), excessMatchedExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit,
+                        final List<Side> sidesToPlaceExposureOn = List.of(Side.L, Side.B);
+                        modifications += removeExposureBalanceTwoRunnerMarket(firstRunner, secondRunner, sidesToPlaceExposureOn, excessMatchedExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit,
                                                                               "removeExposureGettingOut balanceTwoRunner");
                     } else { // backLayMatchedExposure < layBackMatchedExposure
                         // I'll use unmatched exposure, equal to excessMatchedExposure, on back/lay
-                        modifications += removeExposureBalanceTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.B, Side.L), excessMatchedExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit,
+                        final List<Side> sidesToPlaceExposureOn = List.of(Side.B, Side.L);
+                        modifications += removeExposureBalanceTwoRunnerMarket(firstRunner, secondRunner, sidesToPlaceExposureOn, excessMatchedExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit,
                                                                               "removeExposureGettingOut balanceTwoRunner");
                     }
                 } else { // if not valid, error message and take action, with all order canceling
@@ -1035,12 +1176,12 @@ public class ManagedMarket
         return modifications;
     }
 
-    @SuppressWarnings("OverlyNestedMethod")
-    synchronized int useTheNewLimit(@NotNull final ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final RulesManager rulesManager, @NotNull final ExistingFunds existingFunds, @NotNull final Method sendPostRequestRescriptMethod,
-                                    @NotNull final BetFrequencyLimit speedLimit) {
+    @SuppressWarnings({"OverlyNestedMethod", "OverlyLongMethod"})
+    synchronized int useTheNewLimit(@NotNull final ArrayList<? extends ManagedRunner> runnersOrderedList, @NotNull final ExistingFunds existingFunds, @NotNull final Method sendPostRequestRescriptMethod, @NotNull final BetFrequencyLimit speedLimit) {
+        // the exposure for placing new orders does not consider tempCancel orders, but for calculating if limit is breached it will consider tempCancel
         int modifications = 0;
-        if (Double.isNaN(this.marketTotalExposure)) {
-            logger.error("marketTotalExposure not initialized in useTheNewLimit for: {}", Generic.objectToString(this));
+        if (defaultExposureValuesExist()) {
+            logger.error("marketExposure not initialized in useTheNewLimit for: {}", Generic.objectToString(this));
         } else {
             // variant of removeExposure, or the other way around ... major difference is that in this case the overall calculatedLimit matters, this time it's not about individual runners
 //            final long currentTime = System.currentTimeMillis();
@@ -1058,20 +1199,38 @@ public class ManagedMarket
                 if (checkTwoWayMarketLimitsValid(runnersOrderedList)) {
                     final ManagedRunner firstRunner = runnersOrderedList.get(0), secondRunner = runnersOrderedList.get(1);
                     final double backLayExposure = firstRunner.getBackTotalExposure() + secondRunner.getLayTotalExposure(), layBackExposure = firstRunner.getLayTotalExposure() + secondRunner.getBackTotalExposure();
+                    final double backLayMatchedExposure = firstRunner.getBackMatchedExposure() + secondRunner.getLayMatchedExposure(), layBackMatchedExposure = firstRunner.getLayMatchedExposure() + secondRunner.getBackMatchedExposure();
+                    final double backLayExposureConsideringCanceled = firstRunner.getBackTotalExposureConsideringCanceled() + secondRunner.getLayTotalExposureConsideringCanceled(),
+                            layBackExposureConsideringCanceled = firstRunner.getLayTotalExposureConsideringCanceled() + secondRunner.getBackTotalExposureConsideringCanceled();
                     final double availableBackLayLimit = this.calculatedLimit - backLayExposure, availableLayBackLimit = this.calculatedLimit - layBackExposure;
+                    final double availableMatchedBackLayLimit = this.calculatedLimit - backLayMatchedExposure, availableMatchedLayBackLimit = this.calculatedLimit - layBackMatchedExposure;
+                    final double availableBackLayLimitConsideringCanceled = this.calculatedLimit - backLayExposureConsideringCanceled, availableLayBackLimitConsideringCanceled = this.calculatedLimit - layBackExposureConsideringCanceled;
 //                    final OrderMarketRunner firstOrderRunner = firstRunner.getOrderMarketRunner(orderCache, currentTime), secondOrderRunner = secondRunner.getOrderMarketRunner(orderCache, currentTime);
 //                    if (firstOrderRunner == null || secondOrderRunner == null) {
 //                        logger.error("null OrderMarketRunner during useTheNewLimit for: {} {} {}", Generic.objectToString(firstOrderRunner), Generic.objectToString(secondOrderRunner), Generic.objectToString(this));
 //                        modifications += cancelAllUnmatchedBets(pendingOrdersThread);
 //                    } else {
-                    if (availableBackLayLimit == 0d) { // availableLimit is 0d, nothing to be done
-                    } else {
-                        modifications += useNewLimitOnTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.L, Side.B), availableBackLayLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit, "useTheNewLimit onTwoRunner");
+                    modifications += cancelExposureOnTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.L, Side.B), availableBackLayLimitConsideringCanceled, sendPostRequestRescriptMethod, "cancelExposure onTwoRunner LB");
+                    modifications += cancelExposureOnTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.B, Side.L), availableLayBackLimitConsideringCanceled, sendPostRequestRescriptMethod, "cancelExposure onTwoRunner BL");
+                    if (availableMatchedBackLayLimit <= -0.1d) {
+                        excessMatchedExposureBalanceTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.L, Side.B), -availableMatchedBackLayLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit,
+                                                                    "useTheNewLimit excessMatchedExposureBalanceTwoRunnerMarket LB");
+                    } else { // matched exposure doesn't breach limit
                     }
-                    if (availableLayBackLimit == 0d) { // availableLimit is 0d, nothing to be done
-                    } else {
-                        modifications += useNewLimitOnTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.B, Side.L), availableLayBackLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit, "useTheNewLimit onTwoRunner");
+                    if (availableMatchedLayBackLimit <= -0.1d) {
+                        excessMatchedExposureBalanceTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.B, Side.L), -availableMatchedLayBackLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit,
+                                                                    "useTheNewLimit excessMatchedExposureBalanceTwoRunnerMarket BL");
+                    } else { // matched exposure doesn't breach limit
                     }
+
+//                    if (availableBackLayLimit == 0d) { // availableLimit is 0d, nothing to be done
+//                    } else {
+                    modifications += placeExposureOnTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.L, Side.B), availableBackLayLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit, "placeExposure onTwoRunner LB");
+//                    }
+//                    if (availableLayBackLimit == 0d) { // availableLimit is 0d, nothing to be done
+//                    } else {
+                    modifications += placeExposureOnTwoRunnerMarket(firstRunner, secondRunner, List.of(Side.B, Side.L), availableLayBackLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit, "placeExposure onTwoRunner BL");
+//                    }
 //                    }
                 } else { // if not valid, error message and take action, with all order canceling
                     logger.error("checkTwoWayMarketLimitsValid false in useTheNewLimit for: {} {}", this.marketId, this.marketName);
@@ -1081,109 +1240,230 @@ public class ManagedMarket
                 // new limit for lay exposure on the runner will be calculated by proportion * calculatedLimit; runner limits are also considered
                 // calculate the amounts that need to be added or subtracted on the back side of that runner, for the new lay exposure limit
                 // place the needed orders and recalculate exposure
-                // todo add tempExposure and tempCancelExposure to ManagedRunner in real time; remove some exposure calculations based on modifications made
-                // todo order placing, first on lay, then on back with runners sorted based on odds
-                // todo splitting depending on this.calculatedLimit & this.marketTotalExposure is wrong, as there are back and lay exposures, and they're different
-                if (Math.abs(this.calculatedLimit - this.marketTotalExposure) < .1d) { // potential extra lay bets are placed after the conditional, nothing to be done here
-                } else if (this.calculatedLimit > this.marketTotalExposure) { // placing extra bets, starting with back
-                    if (this.calculatedLimit >= this.totalBackExposureSum + .1d) { // placing extra back bets
-                        final double extraBackBetsToBePlaced = Math.min(this.calculatedLimit - this.marketTotalExposure, this.calculatedLimit - this.totalBackExposureSum);
-                        final double availableIdealBackExposureSum = calculateAvailableIdealBackExposureSum(runnersOrderedList);
-                        if (availableIdealBackExposureSum == 0d) { // this is normal when no managed runners exist on market
-//                            logger.info("zero availableIdealBackExposureSum: {} {} {} {} {} {} {}", availableIdealBackExposureSum, extraBackBetsToBePlaced, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure, this.id,
-//                                        this.marketName);
-                        } else if (availableIdealBackExposureSum < 0d) {
-                            logger.error("negative availableIdealBackExposureSum: {} {} {} {} {} {}", availableIdealBackExposureSum, extraBackBetsToBePlaced, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure,
-                                         Generic.objectToString(this, "parentEvent"));
-                        } else {
-                            final double proportionOfAvailableIdealBackExposureToBeUsed = Math.min(1d, extraBackBetsToBePlaced / availableIdealBackExposureSum);
-                            for (final ManagedRunner managedRunner : runnersOrderedList) {
-                                final double backTotalExposure = managedRunner.getBackTotalExposure();
-                                final double extraExposureExistingOnLay = managedRunner.getLayTotalExposure() - backTotalExposure;
-                                final double availableIdealBackExposure = managedRunner.getIdealBackExposure() - backTotalExposure;
-                                // todo this might work with 1 runner, but not with exposure on multiple runners
-                                final double amountToPlaceOnBack = Math.min(availableIdealBackExposure, availableIdealBackExposure * proportionOfAvailableIdealBackExposureToBeUsed + Math.max(extraExposureExistingOnLay, 0d));
-                                if (amountToPlaceOnBack > .1d) {
-//                                    final double toBeUsedBackOdds = managedRunner.getToBeUsedBackOdds();
-//                                    if (Formulas.oddsAreUsable(toBeUsedBackOdds)) {
-                                    if (managedRunner.placeOrder(Side.B, amountToPlaceOnBack, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, "useTheNewLimit multipleRunner") > 0d) {
-                                        modifications++;
-                                    } else { // no modification made, nothing to be done
+
+                // removal of excess exposure done first, for each runner
+                // first removal of unmatched on back, starting with highest odds, then unmatched on lay
+                // then balanceMatched on lay and then on back
+                if (this.calculatedLimit + .1d <= this.marketTotalExposureConsideringCanceled) { // I need to remove unmatched exposure
+                    for (int i = 0; i < runnersOrderedList.size(); i++) {
+                        final ManagedRunner managedRunner = runnersOrderedList.get(i);
+                        final double localRunnerTotalExposureConsideringCanceled = getRunnerTotalExposureConsideringCanceled(managedRunner);
+                        double excessExposure = localRunnerTotalExposureConsideringCanceled - this.calculatedLimit;
+                        if (excessExposure >= .1d) {
+                            for (int j = runnersOrderedList.size() - 1; j >= 0 && excessExposure >= .1d; j--) {
+                                if (i == j) { // same managedRunner, won't cancel backExposure
+                                } else {
+                                    final ManagedRunner managedRunnerToRemoveExposure = runnersOrderedList.get(j);
+                                    if (managedRunnerToRemoveExposure.rawBackUnmatchedExposure() > 0d) {
+                                        excessExposure -= managedRunnerToRemoveExposure.cancelUnmatchedAmounts(excessExposure, 0d, sendPostRequestRescriptMethod, "useTheNewLimit remove backExcessExposure");
+                                    } else { // no unmatched exposure, nothing to cancel
                                     }
-//                                    } else { // odds unusable, nothing to be done
-//                                    }
-//                                    if (pendingOrdersThread.addPlaceOrder(this.marketId, managedRunner.getRunnerId(), Side.B, managedRunner.getToBeUsedBackOdds(), amountToPlaceOnBack) > 0d) {
-//                                        modifications++;
-//                                    } else { // no modification made, nothing to be done
-//                                    }
-                                } else { // amount negative or too small, won't place anything
                                 }
-                            } // end for
-                        }
-                    } else { // potential extra lay bets are placed after the conditional, nothing to be done here
-                    }
-                } else { // this.calculatedLimit < this.marketTotalExposure; removing bets
-                    if (this.totalBackExposureSum >= this.calculatedLimit + .1d) { // removing back bets
-                        final double backBetsToBeRemoved = Math.min(this.marketTotalExposure - this.calculatedLimit, this.totalBackExposureSum - this.calculatedLimit);
-                        final double excessiveBackExposureOverIdeal = calculateExcessiveBackExposureOverIdealSum(runnersOrderedList);
-                        if (excessiveBackExposureOverIdeal <= 0d) {
-                            logger.error("negative or zero excessiveBackExposureOverIdeal: {} {} {} {} {} {}", excessiveBackExposureOverIdeal, backBetsToBeRemoved, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure,
-                                         Generic.objectToString(this));
-                        } else {
-                            final double proportionOfExcessiveExposureToBeRemoved = Math.min(1d, backBetsToBeRemoved / excessiveBackExposureOverIdeal);
-                            for (final ManagedRunner managedRunner : runnersOrderedList) {
-                                final double amountToRemoveFromBack = (managedRunner.getBackTotalExposure() - managedRunner.getIdealBackExposure()) * proportionOfExcessiveExposureToBeRemoved;
-                                if (amountToRemoveFromBack > 0d) {
-//                                    final OrderMarketRunner orderMarketRunner = managedRunner.getOrderMarketRunner(orderCache, currentTime);
-//                                    if (orderMarketRunner == null) {
-//                                        logger.error("null orderMarketRunner while positive amountToRemoveFromBack for: {} {} {}", amountToRemoveFromBack, Generic.objectToString(managedRunner), Generic.objectToString(this));
-//                                    } else {
-                                    modifications += managedRunner.balanceTotalAmounts(amountToRemoveFromBack, 0d, existingFunds, sendPostRequestRescriptMethod, speedLimit, "useTheNewLimit balanceTotal multipleRunner");
-//                                    }
-                                } else { // amount negative, won't remove anything
+                            }
+                            if (excessExposure >= .1d) {
+                                if (managedRunner.rawLayUnmatchedExposure() > 0d) {
+                                    managedRunner.cancelUnmatchedAmounts(0d, excessExposure, sendPostRequestRescriptMethod, "useTheNewLimit remove layExcessExposure");
+                                } else { // no unmatched exposure, nothing to cancel
                                 }
-                            } // end for
+                            } else { // no excessExposure left
+                            }
+
+                            this.updateOverallMarketAndRunnersExposureAndSums();
+                        } else { // runner exposure is fine, nothing to be done on this branch
                         }
-                    } else { // potential lay bets are removed after the conditional, nothing to be done here
                     }
+                } else { // no need to remove exposure, nothing to be done on this branch
                 }
-                if (modifications > 0) {
-                    calculateExposure(rulesManager);
-                    modifications = 0;
-                } else { // no need to calculateExposure
+                if (this.calculatedLimit + .1d <= this.marketTotalExposureConsideringCanceled) { // I need to balance matched exposure
+                    for (int i = 0; i < runnersOrderedList.size(); i++) {
+                        final ManagedRunner managedRunner = runnersOrderedList.get(i);
+                        final double localRunnerTotalExposureConsideringCanceled = getRunnerTotalExposureConsideringCanceled(managedRunner);
+                        double excessExposure = localRunnerTotalExposureConsideringCanceled - this.calculatedLimit;
+                        if (excessExposure >= .1d) {
+                            final double excessLayMatchedExposureOnRunner = managedRunner.getLayMatchedExposure() - managedRunner.getBackMatchedExposure();
+                            if (excessLayMatchedExposureOnRunner > .1d) {
+                                excessExposure -= managedRunner.balanceMatchedAmounts(0d, Math.max(0d, Math.min(excessExposure, excessLayMatchedExposureOnRunner)), existingFunds, sendPostRequestRescriptMethod, speedLimit,
+                                                                                      "useTheNewLimit balance layExcessExposure");
+                            } else { // no unmatched exposure, nothing to cancel
+                            }
+                            if (excessExposure >= .1d) {
+                                for (int j = runnersOrderedList.size() - 1; j >= 0 && excessExposure >= .1d; j--) {
+                                    if (i == j) { // same managedRunner, won't balance exposure
+                                    } else {
+                                        final ManagedRunner managedRunnerToRemoveExposure = runnersOrderedList.get(j);
+                                        final double excessBackMatchedExposureOnRunner = managedRunnerToRemoveExposure.getBackMatchedExposure() - managedRunnerToRemoveExposure.getLayMatchedExposure();
+                                        if (excessBackMatchedExposureOnRunner > .1d) {
+                                            excessExposure -= managedRunnerToRemoveExposure.balanceMatchedAmounts(Math.max(0d, Math.min(excessExposure, excessBackMatchedExposureOnRunner)), 0d, existingFunds, sendPostRequestRescriptMethod,
+                                                                                                                  speedLimit, "useTheNewLimit balance backExcessExposure");
+                                        } else { // no unmatched exposure, nothing to cancel
+                                        }
+                                    }
+                                }
+                            } else { // no excessExposure left
+                            }
+
+                            this.updateOverallMarketAndRunnersExposureAndSums();
+                        } else { // runner exposure is fine, nothing to be done on this branch
+                        }
+                    }
+                } else { // no need to remove exposure, nothing to be done on this branch
                 }
 
-                // I can still place or remove some lay bets
-                // use the calculatedLimit and modify the bets on the lay side of the runner, considering the runner limit as well
-                // place the orders, recalculating exposure now shouldn't be necessary
-                for (final ManagedRunner managedRunner : runnersOrderedList) {
+                boolean layExposureWasPlaced = false;
+                for (final ManagedRunner managedRunner : runnersOrderedList) { // place exposure on lay
                     final double availableLayLimit = managedRunner.getIdealLayExposure() - managedRunner.getLayTotalExposure();
                     final double availableMarketLimit = this.calculatedLimit - this.totalBackExposureSum + managedRunner.getBackTotalExposure() - managedRunner.getLayTotalExposure();
                     final double minimumAvailableLimit = Math.min(availableLayLimit, availableMarketLimit);
-                    if (minimumAvailableLimit > .1d) {
-//                        final double toBeUsedLayOdds = managedRunner.getToBeUsedLayOdds();
-//                        if (Formulas.oddsAreUsable(toBeUsedLayOdds)) {
-//                            final double amountToPlaceOnLay = minimumAvailableLimit / (toBeUsedLayOdds - 1d);
+                    if (minimumAvailableLimit >= .1d) {
                         if (managedRunner.placeOrder(Side.L, minimumAvailableLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, "useTheNewLimit placeLay multipleRunner") > 0d) {
                             modifications++;
+                            layExposureWasPlaced = true;
                         } else { // no modification made, nothing to be done
                         }
-//                            if (pendingOrdersThread.addPlaceOrder(this.marketId, managedRunner.getRunnerId(), Side.L, toBeUsedLayOdds, amountToPlaceOnLay) > 0d) {
-//                                modifications++;
-//                            } else { // no modification made, nothing to be done
-//                            }
-//                        } else { // odds unusable, nothing to be done
-//                        }
-                    } else if (minimumAvailableLimit < -.1d) {
-//                        final OrderMarketRunner orderMarketRunner = managedRunner.getOrderMarketRunner(orderCache, currentTime);
-//                        if (orderMarketRunner == null) {
-//                            logger.error("null orderMarketRunner while negative minimumAvailableLimit for: {} {} {}", minimumAvailableLimit, Generic.objectToString(managedRunner), Generic.objectToString(this));
-//                        } else {
-                        modifications += managedRunner.balanceTotalAmounts(0d, -minimumAvailableLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit, "useTheNewLimit balanceTotal multipleRunner");
-//                        }
                     } else { // difference too small, nothing to be done
                     }
                 }
+                if (layExposureWasPlaced) {
+                    this.updateOverallMarketAndRunnersExposureAndSums();
+                } else { // no reason to update the marketAndRunnersExposureAndSums
+                }
+                for (final ManagedRunner managedRunner : runnersOrderedList) { // place exposure on back, upto min(layTotalExposure, layLimit)
+                    final double marketTotalExposureWithoutRunner = this.calculateMarketTotalExposureWithoutRunner(managedRunner);
+                    final double availableMarketExposureForBackBetsOnThisRunner = this.calculatedLimit - marketTotalExposureWithoutRunner;
+                    final double backTotalExposure = managedRunner.getBackTotalExposure();
+                    final double availableIdealBackExposure = Math.min(managedRunner.getIdealBackExposure() - backTotalExposure, availableMarketExposureForBackBetsOnThisRunner);
+                    final double extraExposureExistingOnLay = Math.min(managedRunner.getLayTotalExposure(), managedRunner.getIdealLayExposure()) - backTotalExposure;
+                    final double amountToPlaceOnBack = Math.min(availableIdealBackExposure, extraExposureExistingOnLay);
+                    if (amountToPlaceOnBack >= .1d) {
+                        if (managedRunner.placeOrder(Side.B, amountToPlaceOnBack, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, "useTheNewLimit placeBack multipleRunner") > 0d) {
+                            modifications++;
+                            this.updateOverallMarketAndRunnersExposureAndSums();
+                        } else { // no modification made, nothing to be done
+                        }
+                    } else { // amount negative or too small, won't place anything
+                    }
+                }
+                for (final ManagedRunner managedRunner : runnersOrderedList) { // place exposure on back, upto maxLimit
+                    final double marketTotalExposureWithoutRunner = this.calculateMarketTotalExposureWithoutRunner(managedRunner);
+                    final double availableMarketExposureForBackBetsOnThisRunner = this.calculatedLimit - marketTotalExposureWithoutRunner;
+                    final double backTotalExposure = managedRunner.getBackTotalExposure();
+                    final double availableIdealBackExposure = Math.min(managedRunner.getIdealBackExposure() - backTotalExposure, availableMarketExposureForBackBetsOnThisRunner);
+                    if (availableIdealBackExposure >= .1d) {
+                        if (managedRunner.placeOrder(Side.B, availableIdealBackExposure, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, "useTheNewLimit placeBackMax multipleRunner") > 0d) {
+                            modifications++;
+                            this.updateOverallMarketAndRunnersExposureAndSums();
+                        } else { // no modification made, nothing to be done
+                        }
+                    } else { // amount negative or too small, won't place anything
+                    }
+                }
+
+//                if (Math.abs(this.calculatedLimit - this.marketTotalExposure) < .1d) { // potential extra lay bets are placed after the conditional, nothing to be done here
+//                } else if (this.calculatedLimit > this.marketTotalExposure) { // placing extra bets, starting with back
+//                    if (this.calculatedLimit >= this.totalBackExposureSum + .1d) { // placing extra back bets
+//                        final double extraBackBetsToBePlaced = Math.min(this.calculatedLimit - this.marketTotalExposure, this.calculatedLimit - this.totalBackExposureSum);
+//                        final double availableIdealBackExposureSum = calculateAvailableIdealBackExposureSum(runnersOrderedList);
+//                        if (availableIdealBackExposureSum == 0d) { // this is normal when no managed runners exist on market
+////                            logger.info("zero availableIdealBackExposureSum: {} {} {} {} {} {} {}", availableIdealBackExposureSum, extraBackBetsToBePlaced, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure, this.id,
+////                                        this.marketName);
+//                        } else if (availableIdealBackExposureSum < 0d) {
+//                            logger.error("negative availableIdealBackExposureSum: {} {} {} {} {} {}", availableIdealBackExposureSum, extraBackBetsToBePlaced, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure,
+//                                         Generic.objectToString(this, "parentEvent"));
+//                        } else {
+//                            final double proportionOfAvailableIdealBackExposureToBeUsed = Math.min(1d, extraBackBetsToBePlaced / availableIdealBackExposureSum);
+//                            for (final ManagedRunner managedRunner : runnersOrderedList) {
+//                                final double backTotalExposure = managedRunner.getBackTotalExposure();
+//                                final double extraExposureExistingOnLay = managedRunner.getLayTotalExposure() - backTotalExposure;
+//                                final double availableIdealBackExposure = managedRunner.getIdealBackExposure() - backTotalExposure;
+//                                // this might work with 1 runner, but not with exposure on multiple runners
+//                                final double amountToPlaceOnBack = Math.min(availableIdealBackExposure, availableIdealBackExposure * proportionOfAvailableIdealBackExposureToBeUsed + Math.max(extraExposureExistingOnLay, 0d));
+//                                if (amountToPlaceOnBack > .1d) {
+////                                    final double toBeUsedBackOdds = managedRunner.getToBeUsedBackOdds();
+////                                    if (Formulas.oddsAreUsable(toBeUsedBackOdds)) {
+//                                    if (managedRunner.placeOrder(Side.B, amountToPlaceOnBack, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, "useTheNewLimit multipleRunner") > 0d) {
+//                                        modifications++;
+//                                    } else { // no modification made, nothing to be done
+//                                    }
+////                                    } else { // odds unusable, nothing to be done
+////                                    }
+////                                    if (pendingOrdersThread.addPlaceOrder(this.marketId, managedRunner.getRunnerId(), Side.B, managedRunner.getToBeUsedBackOdds(), amountToPlaceOnBack) > 0d) {
+////                                        modifications++;
+////                                    } else { // no modification made, nothing to be done
+////                                    }
+//                                } else { // amount negative or too small, won't place anything
+//                                }
+//                            } // end for
+//                        }
+//                    } else { // potential extra lay bets are placed after the conditional, nothing to be done here
+//                    }
+//                } else { // this.calculatedLimit < this.marketTotalExposure; removing bets
+//                    if (this.totalBackExposureSum >= this.calculatedLimit + .1d) { // removing back bets
+//                        final double backBetsToBeRemoved = Math.min(this.marketTotalExposure - this.calculatedLimit, this.totalBackExposureSum - this.calculatedLimit);
+//                        final double excessiveBackExposureOverIdeal = calculateExcessiveBackExposureOverIdealSum(runnersOrderedList);
+//                        if (excessiveBackExposureOverIdeal <= 0d) {
+//                            logger.error("negative or zero excessiveBackExposureOverIdeal: {} {} {} {} {} {}", excessiveBackExposureOverIdeal, backBetsToBeRemoved, this.totalBackExposureSum, this.calculatedLimit, this.marketTotalExposure,
+//                                         Generic.objectToString(this));
+//                        } else {
+//                            final double proportionOfExcessiveExposureToBeRemoved = Math.min(1d, backBetsToBeRemoved / excessiveBackExposureOverIdeal);
+//                            for (final ManagedRunner managedRunner : runnersOrderedList) {
+//                                final double amountToRemoveFromBack = (managedRunner.getBackTotalExposure() - managedRunner.getIdealBackExposure()) * proportionOfExcessiveExposureToBeRemoved;
+//                                if (amountToRemoveFromBack > 0d) {
+////                                    final OrderMarketRunner orderMarketRunner = managedRunner.getOrderMarketRunner(orderCache, currentTime);
+////                                    if (orderMarketRunner == null) {
+////                                        logger.error("null orderMarketRunner while positive amountToRemoveFromBack for: {} {} {}", amountToRemoveFromBack, Generic.objectToString(managedRunner), Generic.objectToString(this));
+////                                    } else {
+//                                    if (managedRunner.removeExposureIncludingMatched(amountToRemoveFromBack, 0d, existingFunds, sendPostRequestRescriptMethod, speedLimit, "useTheNewLimit balanceTotal multipleRunner") > 0d) {
+//                                        modifications++;
+//                                    } else { // no modification made, nothing to be done
+//                                    }
+////                                    }
+//                                } else { // amount negative, won't remove anything
+//                                }
+//                            } // end for
+//                        }
+//                    } else { // potential lay bets are removed after the conditional, nothing to be done here
+//                    }
+//                }
+////                if (modifications > 0) {
+////                    calculateExposure(rulesManager);
+////                    modifications = 0;
+////                } else { // no need to calculateExposure
+////                }
+//
+//                // I can still place or remove some lay bets
+//                // use the calculatedLimit and modify the bets on the lay side of the runner, considering the runner limit as well
+//                // place the orders, recalculating exposure now shouldn't be necessary
+//                for (final ManagedRunner managedRunner : runnersOrderedList) {
+//                    final double availableLayLimit = managedRunner.getIdealLayExposure() - managedRunner.getLayTotalExposure();
+//                    final double availableMarketLimit = this.calculatedLimit - this.totalBackExposureSum + managedRunner.getBackTotalExposure() - managedRunner.getLayTotalExposure();
+//                    final double minimumAvailableLimit = Math.min(availableLayLimit, availableMarketLimit);
+//                    if (minimumAvailableLimit > .1d) {
+////                        final double toBeUsedLayOdds = managedRunner.getToBeUsedLayOdds();
+////                        if (Formulas.oddsAreUsable(toBeUsedLayOdds)) {
+////                            final double amountToPlaceOnLay = minimumAvailableLimit / (toBeUsedLayOdds - 1d);
+//                        if (managedRunner.placeOrder(Side.L, minimumAvailableLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit, false, "useTheNewLimit placeLay multipleRunner") > 0d) {
+//                            modifications++;
+//                        } else { // no modification made, nothing to be done
+//                        }
+////                            if (pendingOrdersThread.addPlaceOrder(this.marketId, managedRunner.getRunnerId(), Side.L, toBeUsedLayOdds, amountToPlaceOnLay) > 0d) {
+////                                modifications++;
+////                            } else { // no modification made, nothing to be done
+////                            }
+////                        } else { // odds unusable, nothing to be done
+////                        }
+//                    } else if (minimumAvailableLimit < -.1d) {
+////                        final OrderMarketRunner orderMarketRunner = managedRunner.getOrderMarketRunner(orderCache, currentTime);
+////                        if (orderMarketRunner == null) {
+////                            logger.error("null orderMarketRunner while negative minimumAvailableLimit for: {} {} {}", minimumAvailableLimit, Generic.objectToString(managedRunner), Generic.objectToString(this));
+////                        } else {
+//                        if (managedRunner.removeExposureIncludingMatched(0d, -minimumAvailableLimit, existingFunds, sendPostRequestRescriptMethod, speedLimit, "useTheNewLimit balanceTotal multipleRunner") > 0d) {
+//                            modifications++;
+//                        } else { // no modification made, nothing to be done
+//                        }
+////                        }
+//                    } else { // difference too small, nothing to be done
+//                    }
+//                }
             }
         }
         return modifications;
@@ -1434,26 +1714,19 @@ public class ManagedMarket
     }
 
     public synchronized void calculateExposure(@NotNull final RulesManager rulesManager) {
-        if (exposureCanBeCalculated(rulesManager)) {
+        calculateExposure(rulesManager, false);
+    }
+
+    public synchronized void calculateExposure(@NotNull final RulesManager rulesManager, final boolean calculateAnyway) {
+        if (calculateAnyway || exposureCanBeCalculated(rulesManager)) {
             updateRunnersExposure();
 //            final boolean success = updateRunnersExposure();
 //            this.marketMatchedExposure = Double.NaN;
 //            this.marketTotalExposure = Double.NaN;
 //            if (success) {
-            this.updateExposureSums();
+//            this.updateExposureSums();
+            this.updateOverallMarketAndRunnersExposureAndSums();
 
-            this.marketMatchedExposure = Double.NaN;
-            this.marketTotalExposure = Double.NaN;
-            for (final ManagedRunner managedRunner : this.runners.values()) {
-                this.marketMatchedExposure = Double.isNaN(this.marketMatchedExposure) ? calculateRunnerMatchedExposure(managedRunner) : Math.max(this.marketMatchedExposure, calculateRunnerMatchedExposure(managedRunner));
-                this.marketTotalExposure = Double.isNaN(this.marketTotalExposure) ? calculateRunnerTotalExposure(managedRunner) : Math.max(this.marketTotalExposure, calculateRunnerTotalExposure(managedRunner));
-            } // end for
-            if (Double.isNaN(this.marketMatchedExposure)) {
-                this.marketMatchedExposure = 0d;
-            }
-            if (Double.isNaN(this.marketTotalExposure)) {
-                this.marketTotalExposure = 0d;
-            }
 //            } else { // nothing to do, default Double.NaN values will be retained
 //            }
         } else { // for not supported I can't calculate the exposure; potential log messages have been written already in the exposureCanBeCalculated method
@@ -1462,17 +1735,40 @@ public class ManagedMarket
     }
 
     private synchronized void updateExposureSums() { // updates matchedBackExposureSum & totalBackExposureSum
-        double localMatchedBackExposureSum = 0d, localUnmatchedBackExposureSum = 0d, localTotalBackExposureSum = 0d;
+        double localMatchedBackExposureSum = 0d, localUnmatchedBackExposureSum = 0d, localTotalBackExposureSum = 0d, localTotalBackExposureSumConsideringCanceled = 0d;
         for (final ManagedRunner managedRunner : this.runners.values()) {
             localMatchedBackExposureSum += managedRunner.getBackMatchedExposure();
             localUnmatchedBackExposureSum += managedRunner.getBackUnmatchedExposure();
             localTotalBackExposureSum += managedRunner.getBackTotalExposure();
+            localTotalBackExposureSumConsideringCanceled += managedRunner.getBackTotalExposureConsideringCanceled();
         }
         this.setMatchedBackExposureSum(localMatchedBackExposureSum);
         this.setUnmatchedBackExposureSum(localUnmatchedBackExposureSum);
         this.setTotalBackExposureSum(localTotalBackExposureSum);
+        this.setTotalBackExposureSumConsideringCanceled(localTotalBackExposureSumConsideringCanceled);
     }
 
+    private synchronized void updateOverallMarketAndRunnersExposureAndSums() {
+        this.updateExposureSums();
+        this.marketMatchedExposure = Double.NaN;
+        this.marketTotalExposure = Double.NaN;
+        this.marketTotalExposureConsideringCanceled = Double.NaN;
+        for (final ManagedRunner managedRunner : this.runners.values()) {
+            this.marketMatchedExposure = Double.isNaN(this.marketMatchedExposure) ? calculateRunnerMatchedExposure(managedRunner) : Math.max(this.marketMatchedExposure, calculateRunnerMatchedExposure(managedRunner));
+            this.marketTotalExposure = Double.isNaN(this.marketTotalExposure) ? calculateRunnerTotalExposure(managedRunner) : Math.max(this.marketTotalExposure, calculateRunnerTotalExposure(managedRunner));
+            this.marketTotalExposureConsideringCanceled = Double.isNaN(this.marketTotalExposureConsideringCanceled) ?
+                                                          calculateRunnerTotalExposureConsideringCanceled(managedRunner) : Math.max(this.marketTotalExposureConsideringCanceled, calculateRunnerTotalExposureConsideringCanceled(managedRunner));
+        } // end for
+        if (Double.isNaN(this.marketMatchedExposure)) {
+            this.marketMatchedExposure = 0d;
+        }
+        if (Double.isNaN(this.marketTotalExposure)) {
+            this.marketTotalExposure = 0d;
+        }
+        if (Double.isNaN(this.marketTotalExposureConsideringCanceled)) {
+            this.marketTotalExposureConsideringCanceled = 0d;
+        }
+    }
 //    private synchronized void updateIdealBackExposureSum() { // updates idealBackExposureSum
 //        double idealBackExposureSum = 0d;
 //        for (ManagedRunner managedRunner : this.runners.values()) {
@@ -1484,7 +1780,7 @@ public class ManagedMarket
     private synchronized double calculateRunnerMatchedExposure(@NotNull final ManagedRunner managedRunner) {
         final double exposure = managedRunner.getLayMatchedExposure() + this.matchedBackExposureSum - managedRunner.getBackMatchedExposure();
         final RunnerId runnerId = managedRunner.getRunnerId();
-        this.runnerMatchedExposure.put(runnerId, exposure);
+        this.runnerMatchedExposureMap.put(runnerId, exposure);
 
         return exposure;
     }
@@ -1492,14 +1788,22 @@ public class ManagedMarket
     private synchronized double calculateRunnerTotalExposure(@NotNull final ManagedRunner managedRunner) {
         final double exposure = managedRunner.getLayTotalExposure() + this.totalBackExposureSum - managedRunner.getBackTotalExposure();
         final RunnerId runnerId = managedRunner.getRunnerId();
-        this.runnerTotalExposure.put(runnerId, exposure);
+        this.runnerTotalExposureMap.put(runnerId, exposure);
+
+        return exposure;
+    }
+
+    private synchronized double calculateRunnerTotalExposureConsideringCanceled(@NotNull final ManagedRunner managedRunner) {
+        final double exposure = managedRunner.getLayTotalExposureConsideringCanceled() + this.totalBackExposureSumConsideringCanceled - managedRunner.getBackTotalExposureConsideringCanceled();
+        final RunnerId runnerId = managedRunner.getRunnerId();
+        this.runnerTotalExposureConsideringCanceledMap.put(runnerId, exposure);
 
         return exposure;
     }
 
     @SuppressWarnings("unused")
     private synchronized double getRunnerMatchedExposure(final RunnerId runnerId) {
-        final Double exposureObject = this.runnerMatchedExposure.get(runnerId);
+        final Double exposureObject = this.runnerMatchedExposureMap.get(runnerId);
         final double exposure;
         if (exposureObject == null) {
             logger.error("null exposure during getRunnerMatchedExposure for {} in {}", runnerId, Generic.objectToString(this));
@@ -1511,12 +1815,51 @@ public class ManagedMarket
         return exposure;
     }
 
-    @SuppressWarnings("unused")
+    private synchronized double getRunnerTotalExposure(final ManagedRunner managedRunner) {
+        final RunnerId runnerId = managedRunner == null ? null : managedRunner.getRunnerId();
+        return getRunnerTotalExposure(runnerId);
+    }
+
     private synchronized double getRunnerTotalExposure(final RunnerId runnerId) {
-        final Double exposureObject = this.runnerTotalExposure.get(runnerId);
+        final Double exposureObject = this.runnerTotalExposureMap.get(runnerId);
         final double exposure;
         if (exposureObject == null) {
             logger.error("null exposure during getRunnerTotalExposure for {} in {}", runnerId, Generic.objectToString(this));
+            exposure = 0d;
+        } else {
+            exposure = exposureObject;
+        }
+        return exposure;
+    }
+
+    private synchronized double calculateMarketTotalExposureWithoutRunner(final ManagedRunner excludedManagedRunner) {
+        final RunnerId excludedRunnerId = excludedManagedRunner == null ? null : excludedManagedRunner.getRunnerId();
+        double marketTotalExposureWithoutRunner = Double.NaN;
+        for (final Map.Entry<RunnerId, Double> entry : this.runnerTotalExposureMap.entrySet()) {
+            final RunnerId runnerId = entry.getKey();
+            if (Objects.equals(runnerId, excludedRunnerId)) { // ignoring this runner
+            } else {
+                final Double runnerTotalExposure = entry.getValue();
+                final double runnerTotalExposurePrimitive = runnerTotalExposure == null ? 0d : runnerTotalExposure;
+                marketTotalExposureWithoutRunner = Double.isNaN(marketTotalExposureWithoutRunner) ? runnerTotalExposurePrimitive : Math.max(marketTotalExposureWithoutRunner, runnerTotalExposurePrimitive);
+            }
+        }
+        if (Double.isNaN(marketTotalExposureWithoutRunner)) {
+            marketTotalExposureWithoutRunner = 0d;
+        }
+        return marketTotalExposureWithoutRunner;
+    }
+
+    private synchronized double getRunnerTotalExposureConsideringCanceled(final ManagedRunner managedRunner) {
+        final RunnerId runnerId = managedRunner == null ? null : managedRunner.getRunnerId();
+        return getRunnerTotalExposureConsideringCanceled(runnerId);
+    }
+
+    private synchronized double getRunnerTotalExposureConsideringCanceled(final RunnerId runnerId) {
+        final Double exposureObject = this.runnerTotalExposureConsideringCanceledMap.get(runnerId);
+        final double exposure;
+        if (exposureObject == null) {
+            logger.error("null exposure during getRunnerTotalExposureConsideringCanceled for {} in {}", runnerId, Generic.objectToString(this));
             exposure = 0d;
         } else {
             exposure = exposureObject;
@@ -1571,7 +1914,7 @@ public class ManagedMarket
 //                }
 //            } // end for
 //        }
-        return SharedStatics.orderCache.cancelUnmatched(this.marketId, sendPostRequestRescriptMethod, reason);
+        return SharedStatics.orderCache.cancelUnmatched(this.marketId, simpleGetRunnersMap(), sendPostRequestRescriptMethod, reason);
     }
 
     public synchronized boolean isSupported(@NotNull final RulesManager rulesManager) {

@@ -9,6 +9,7 @@ import info.fmro.shared.stream.cache.Utils;
 import info.fmro.shared.stream.objects.ListOfQueues;
 import info.fmro.shared.stream.objects.SerializableObjectModification;
 import info.fmro.shared.stream.objects.StreamSynchronizedMap;
+import info.fmro.shared.utility.Generic;
 import info.fmro.shared.utility.SynchronizedSet;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Objects;
 
 @SuppressWarnings("WeakerAccess")
@@ -32,6 +34,7 @@ public class ManagedEvent
     private final long creationTime;
     private double amountLimit = -1d;
     public final SynchronizedSet<String> marketIds = new SynchronizedSet<>(); // managedMarket ids associated with this event
+    @NotNull
     public transient ManagedMarketsMap marketsMap; // managedMarkets associated with this event
     @SuppressWarnings("InstanceVariableMayNotBeInitializedByReadObject")
     private transient Event event;
@@ -171,6 +174,22 @@ public class ManagedEvent
         final double maxEventLimit = getAmountLimit(safetyLimits);
         //noinspection NonPrivateFieldAccessedInSynchronizedContext
         Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(rulesManager.markets), true, true, safetyLimits, marketCataloguesMap, rulesManager);
+    }
+
+    public double calculateExposure() { // not synchronized; assumes market exposures have already been calculated
+        double eventExposure = 0d;
+        final Collection<ManagedMarket> markets = this.marketsMap.valuesCopy();
+        if (markets == null) { // error message was already printed
+        } else {
+            for (final ManagedMarket managedMarket : markets) {
+                if (managedMarket == null) {
+                    logger.error("null managedMarket in calculateExposure: {} {}", Generic.objectToString(this.marketIds), Generic.objectToString(markets));
+                } else {
+                    eventExposure += managedMarket.getMarketTotalExposure();
+                }
+            }
+        }
+        return eventExposure;
     }
 
     @Contract(value = "null -> false", pure = true)

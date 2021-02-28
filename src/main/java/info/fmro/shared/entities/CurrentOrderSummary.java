@@ -71,15 +71,15 @@ public final class CurrentOrderSummary
 
             if (this.side == null) {
                 logger.error("null side in CurrentOrderSummary placedAmount: {}", Generic.objectToString(this));
-                amount = Math.max(size, Formulas.layExposure(price, size)); // assume the worst
+                amount = Math.max(size, Formulas.calculateLayExposure(price, size)); // assume the worst
             } else {
                 amount = switch (this.side) {
                     case BACK -> size;
-                    case LAY -> Formulas.layExposure(price, size);
+                    case LAY -> Formulas.calculateLayExposure(price, size);
                     //noinspection UnnecessaryDefault
                     default -> {
                         logger.error("unknown side {} in CurrentOrderSummary placedAmount: {}", this.side, Generic.objectToString(this));
-                        yield Math.max(size, Formulas.layExposure(price, size)); // assume the worst
+                        yield Math.max(size, Formulas.calculateLayExposure(price, size)); // assume the worst
                     }
                 }; // end switch
             }

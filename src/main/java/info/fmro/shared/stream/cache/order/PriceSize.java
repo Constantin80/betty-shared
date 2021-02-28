@@ -60,7 +60,7 @@ public class PriceSize
             logger.error("bogus price {} in PriceSize for: {}", this.price, Generic.objectToString(this));
             this.size = 0d;
         } else {
-            exposure.addBackMatchedProfit(Formulas.layExposure(this.price, getSize()));
+            exposure.addBackMatchedProfit(Formulas.calculateLayExposure(this.price, getSize()));
             exposure.addBackMatchedExposure(getSize());
         }
     }
@@ -72,7 +72,7 @@ public class PriceSize
             this.size = 0d;
         } else {
             exposure.addLayMatchedProfit(getSize());
-            exposure.addLayMatchedExposure(Formulas.layExposure(this.price, getSize()));
+            exposure.addLayMatchedExposure(Formulas.calculateLayExposure(this.price, getSize()));
         }
     }
 //    synchronized TwoDoubles getBackProfitExposurePair() { // this works for back; for lay profit and exposure are reversed

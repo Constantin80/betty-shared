@@ -79,24 +79,26 @@ public class TemporaryOrder
     }
 
     public synchronized void updateExposure(@NotNull final Exposure exposure) {
-        if (this.type == TemporaryOrderType.CANCEL) { // no exposure update from cancel order, as the possible result of cancel is not well determined
+        if (this.type == TemporaryOrderType.CANCEL) {
             if (this.side == Side.B) {
                 exposure.addBackTempCancelExposure(this.sizeReduction == null ? Exposure.HUGE_AMOUNT : this.sizeReduction);
             } else if (this.side == Side.L) {
-                exposure.addLayTempCancelExposure(Formulas.layExposure(this.price, this.sizeReduction == null ? Exposure.HUGE_AMOUNT : this.sizeReduction));
+                exposure.addLayTempCancelExposure(Formulas.calculateLayExposure(this.price, this.sizeReduction == null ? Exposure.HUGE_AMOUNT : this.sizeReduction));
             } else {
                 logger.error("unknown side in temporaryOrder updateExposure for: {} {}", this.side, Generic.objectToString(this));
             }
         } else if (this.type == TemporaryOrderType.PLACE) {
             if (this.side == Side.B) {
                 exposure.addBackTempExposure(this.size);
+                exposure.addBackPotentialTempProfit(Formulas.calculateLayExposure(this.price, this.size));
             } else if (this.side == Side.L) {
-                exposure.addLayTempExposure(Formulas.layExposure(this.price, this.size));
+                exposure.addLayTempExposure(Formulas.calculateLayExposure(this.price, this.size));
+                exposure.addLayPotentialTempProfit(this.size);
             } else {
                 logger.error("unknown side in temporaryOrder updateExposure for: {} {}", this.side, Generic.objectToString(this));
             }
         } else {
-            logger.error("unknown temporaryOrder type: {} {}", this.type, Generic.objectToString(this));
+            logger.error("unknown temporaryOrder type {} in updateExposure: {}", this.type, Generic.objectToString(this));
         }
     }
 

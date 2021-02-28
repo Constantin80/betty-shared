@@ -1,5 +1,6 @@
 package info.fmro.shared.stream.cache.order;
 
+import info.fmro.shared.logic.ManagedRunner;
 import info.fmro.shared.stream.definitions.Order;
 import info.fmro.shared.stream.definitions.OrderMarketChange;
 import info.fmro.shared.stream.definitions.OrderRunnerChange;
@@ -14,12 +15,12 @@ import org.slf4j.LoggerFactory;
 import java.io.Serial;
 import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-class OrderMarket
+public class OrderMarket
         implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(OrderMarket.class);
     @Serial
@@ -65,13 +66,22 @@ class OrderMarket
         }
     }
 
-    synchronized int cancelUnmatchedAtWorseOdds(final Side sideToCancel, final double worstNotCanceledOdds, final double excessExposure, @NotNull final Method sendPostRequestRescriptMethod, final boolean includeTheProvidedOdds, final String reason) {
+    synchronized int cancelUnmatchedAtWorseOdds(final Side sideToCancel, final double worstNotCanceledOdds, final double excessExposure, @NotNull final HashMap<RunnerId, ManagedRunner> managedRunners, @NotNull final Method sendPostRequestRescriptMethod,
+                                                final boolean includeTheProvidedOdds, final String reason) {
         int modifications = 0;
         for (final OrderMarketRunner orderMarketRunner : this.marketRunners.values()) {
             if (orderMarketRunner == null) {
                 logger.error("null orderMarketRunner in cancelUnmatchedAtWorseOdds for: {}", Generic.objectToString(this)); // should never happen, no need to try to fix
             } else {
-                modifications += orderMarketRunner.cancelUnmatchedAtWorseOdds(sideToCancel, worstNotCanceledOdds, excessExposure, sendPostRequestRescriptMethod, includeTheProvidedOdds, null, reason);
+                final RunnerId runnerId = orderMarketRunner.getRunnerId();
+                ManagedRunner managedRunner = managedRunners.get(runnerId);
+                if (managedRunner == null) {
+//                    final String marketId = orderMarketRunner.getMarketId();
+                    logger.error("null managedRunner in cancelUnmatchedAtWorseOdds for: {} {}", this.marketId, runnerId);
+                    managedRunner = new ManagedRunner(this.marketId, runnerId, new AtomicBoolean(), new AtomicBoolean());
+                } else { // found the managedRunner, nothing to be done
+                }
+                modifications += orderMarketRunner.cancelUnmatchedAtWorseOdds(sideToCancel, worstNotCanceledOdds, excessExposure, managedRunner, sendPostRequestRescriptMethod, includeTheProvidedOdds, reason);
             }
         }
         return modifications;
@@ -139,8 +149,8 @@ class OrderMarket
         return new HashSet<>(this.marketRunners.keySet());
     }
 
-    synchronized ArrayList<OrderMarketRunner> getOrderMarketRunners() {
-        return new ArrayList<>(this.marketRunners.values());
+    public synchronized HashMap<RunnerId, OrderMarketRunner> getOrderMarketRunners() {
+        return new HashMap<>(this.marketRunners);
     }
 
     synchronized OrderMarketRunner getOrderMarketRunner(final RunnerId runnerId) {
