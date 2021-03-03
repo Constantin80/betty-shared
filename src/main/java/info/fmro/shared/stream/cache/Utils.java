@@ -82,16 +82,16 @@ public final class Utils {
 
         // todo add tempExposure and tempCancelExposure to ManagedRunner in real time; remove some exposure calculations based on modifications made; done, test
 
-// todo partial cancel works horribly when more bets exist, same on back and lay
-        // todo the way exposure is calculated is terrible and is different when the initial exposure was zero and all bets are placed at the same time, versus situation where some exposure already exists on some runner; bad on back, works on lay
+        // todo partial cancel works horribly when more bets exist, same on back and lay; alot of modifications were made, test again
+        // todo the way exposure is calculated is terrible and is different when the initial exposure was zero and all bets are placed at the same time, versus situation where some exposure already exists on some runner; bad on back, works on lay; alot of modifications were made, test again
 
         // todo also test with a bet somewhat above exposure limit to test partial cancel
         // todo with same manually placed bets test the market and event limits as well
 
-        //todo negative amount from others; solved, test
+        // todo negative amount from others; solved, test
         // todo getBestOddsWhereICanMoveAmountsToBetterOdds ; test to see if it happens again, with same 3k amount at 1.02 lay
-        // todo it keeps happening, above a certain value; I need to make tests for the method that finds the odds that can be moved
-        // todo canceling of orders above limit doesn't work well
+        // todo it keeps happening, above a certain value; I need to make tests for the method that finds the odds that can be moved; alot of modifications were made, test again
+        // todo canceling of orders above limit doesn't work well; alot of modifications were made, test again
         // todo bestOddsThatCanBeUsed 1.03 for: 1.174531260 RunnerId{selectionId=30246, handicap=0.0} L 2.86
         // todo !!!no success in cancelOrders:; solved, test
 
@@ -104,7 +104,7 @@ public final class Utils {
         // todo 03:00:39.296 [Thread-186] INFO  info.fmro.shared.logic.ManagedRunner - unusable odds 1001.0 in placeOrder for: 1.174240702 RunnerId{selectionId=5383053, handicap=0.0} B 2.9805677771642234
         //   03:00:39.297 [Thread-186] INFO  info.fmro.shared.logic.ManagedRunner - unusable odds 1001.0 in placeOrder for: 1.174240702 RunnerId{selectionId=58805, handicap=0.0} B 2.9805677771642234
         // todo the not rounded size is not a problem, it gets rounded, but why place on runners with zero limit ?
-        //  pare a incerca balanceMatchedAmounts, dar de ce atunci cand exista deja un cancelOrder si amounturile sunt unmatched
+        //  pare a incerca balanceMatchedAmounts, dar de ce atunci cand exista deja un cancelOrder si amounturile sunt unmatched; alot of modifications were made, test again
         // todo balance on marketWithTwoRunners or on specific runners, no more balance on entire markets with more than 2 runners; done, test
         // todo test the balancing on 2 runner market and on single runners, extensive testing, with bets on 1 runner or 2 runners
 
@@ -240,14 +240,14 @@ public final class Utils {
                 // I'm getting the raw excessMatchedExposure, without considering existing exposure and limits
                 // the factors are the price of toBeUsedOdds, and which of the toBeUsedOdds is more profitable; those two should be enough for now; also lay bets should be given slight priority over back bets, as other gamblers like to back rather than lay
                 if (excessMatchedExposure <= 0d) {
-                    logger.error("bogus excessMatchedExposure for getExposureToBePlacedForTwoWayMarket: {} {} {} {} {}", firstRunner.getMarketId(), firstRunner.getRunnerId(), secondRunner.getRunnerId(), Generic.objectToString(sidesToPlaceExposureOn),
-                                 excessMatchedExposure);
+                    logger.error("bogus excessMatchedExposure for getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure: {} {} {} {} {}", firstRunner.getMarketId(), firstRunner.getRunnerId(), secondRunner.getRunnerId(),
+                                 Generic.objectToString(sidesToPlaceExposureOn), excessMatchedExposure);
                     exposureList = List.of(0d, 0d);
                 } else {
                     final double firstToBeUsedOdds = firstRunner.getOddsLimit(firstSide), secondToBeUsedOdds = secondRunner.getOddsLimit(secondSide);
                     if (!Formulas.oddsAreUsable(firstToBeUsedOdds) || !Formulas.oddsAreUsable(secondToBeUsedOdds)) {
-                        logger.error("unusable odds for getExposureToBePlacedForTwoWayMarket: {} {} {} {} {} {} {}", firstRunner.getMarketId(), firstRunner.getRunnerId(), secondRunner.getRunnerId(), Generic.objectToString(sidesToPlaceExposureOn),
-                                     firstRunner.getOddsLimit(firstSide), secondRunner.getOddsLimit(secondSide), excessMatchedExposure);
+                        logger.error("unusable odds for getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure: {} {} {} {} {} {} {}", firstRunner.getMarketId(), firstRunner.getRunnerId(), secondRunner.getRunnerId(),
+                                     Generic.objectToString(sidesToPlaceExposureOn), firstRunner.getOddsLimit(firstSide), secondRunner.getOddsLimit(secondSide), excessMatchedExposure);
                         exposureList = List.of(0d, 0d);
                     } else {
                         final double firstSmallerOddsBonus = Math.sqrt(Math.sqrt((secondToBeUsedOdds - 1d) / (firstToBeUsedOdds - 1d))); // double sqrt should be well balanced exposure, a limited advantage for the smaller odds
@@ -331,11 +331,13 @@ public final class Utils {
                     }
                 }
             } else {
-                logger.error("bogus sides for getExposureToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure);
+                logger.error("bogus sides for getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure: {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner),
+                             excessMatchedExposure);
                 exposureList = List.of(0d, 0d);
             }
         } else {
-            logger.error("bogus sideList for getExposureToBePlacedForTwoWayMarket: {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner), excessMatchedExposure);
+            logger.error("bogus sideList for getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure: {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner),
+                         excessMatchedExposure);
             exposureList = List.of(0d, 0d);
         }
         return exposureList;
