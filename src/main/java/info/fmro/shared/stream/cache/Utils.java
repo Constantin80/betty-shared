@@ -21,7 +21,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
-@SuppressWarnings({"OverlyComplexClass", "UtilityClass"})
+@SuppressWarnings("UtilityClass")
 public final class Utils {
     private static final Logger logger = LoggerFactory.getLogger(Utils.class);
 
@@ -77,43 +77,10 @@ public final class Utils {
 
         // todo test order placing
 
-        // todo when client exits ... show a window with all unmatched bets on unmanaged markets, all unmanaged markets with matched exposure, and all managed events/markets/runners that are over limit; done, test
-        // todo print tempCancel in GUI as well; done, test
+        // todo show and use crossmatch amounts as well; maybe use BEST_OFFERS with depth 10 and never place my own bets further than that, unless mandatory placing; done, test
 
-        // todo add tempExposure and tempCancelExposure to ManagedRunner in real time; remove some exposure calculations based on modifications made; done, test
-
-        // todo partial cancel works horribly when more bets exist, same on back and lay; alot of modifications were made, test again
-        // todo the way exposure is calculated is terrible and is different when the initial exposure was zero and all bets are placed at the same time, versus situation where some exposure already exists on some runner; bad on back, works on lay; alot of modifications were made, test again
-
-        // todo also test with a bet somewhat above exposure limit to test partial cancel
-        // todo with same manually placed bets test the market and event limits as well
-
-        // todo negative amount from others; solved, test
-        // todo getBestOddsWhereICanMoveAmountsToBetterOdds ; test to see if it happens again, with same 3k amount at 1.02 lay
-        // todo it keeps happening, above a certain value; I need to make tests for the method that finds the odds that can be moved; alot of modifications were made, test again
-        // todo canceling of orders above limit doesn't work well; alot of modifications were made, test again
-        // todo bestOddsThatCanBeUsed 1.03 for: 1.174531260 RunnerId{selectionId=30246, handicap=0.0} L 2.86
-        // todo !!!no success in cancelOrders:; solved, test
-
-        // todo will not post similar placeOrder ; will not post duplicate placeOrder ; do these need to be caught before order placing is attempted ? because error message is printed; solved, test
-        // todo negative amount from others  ; again, same error; this has priority as it might cause some fo the other errors!; solved, test
-
-        // todo  ERROR info.fmro.shared.stream.cache.Utils - managedMarket with total exposure ; the marketExposure doesn't reset to zero before being calculated, and the error appears when I set a small limit for the market; solved, test
-        //  this should have minimal impact, just the error message
-
-        // todo 03:00:39.296 [Thread-186] INFO  info.fmro.shared.logic.ManagedRunner - unusable odds 1001.0 in placeOrder for: 1.174240702 RunnerId{selectionId=5383053, handicap=0.0} B 2.9805677771642234
-        //   03:00:39.297 [Thread-186] INFO  info.fmro.shared.logic.ManagedRunner - unusable odds 1001.0 in placeOrder for: 1.174240702 RunnerId{selectionId=58805, handicap=0.0} B 2.9805677771642234
-        // todo the not rounded size is not a problem, it gets rounded, but why place on runners with zero limit ?
-        //  pare a incerca balanceMatchedAmounts, dar de ce atunci cand exista deja un cancelOrder si amounturile sunt unmatched; alot of modifications were made, test again
         // todo balance on marketWithTwoRunners or on specific runners, no more balance on entire markets with more than 2 runners; done, test
         // todo test the balancing on 2 runner market and on single runners, extensive testing, with bets on 1 runner or 2 runners
-
-        // todo 03:00:39.330 [pool-2-thread-12] ERROR i.f.shared.betapi.CancelOrdersThread - !!!no success in cancelOrders: (customerRef=null status=FAILURE errorCode=BET_ACTION_ERROR marketId=1.174240702 instructionReports=[(status=FAILURE errorCode=INVALID_BET_SIZE instruction=(betId=213988285405 sizeReduction=2.9805677771642234) sizeCancelled=null cancelledDate=null)]) 1.174240702 [(betId=213988285405 sizeReduction=2.9805677771642234)]
-        //  rounding of amounts for cancelOrder, fixed, test
-
-        // todo the way to split event limit between markets is wrong in case of default market limit; solved, now maxMarket limit is at most eventLimit; test
-
-        // todo on mandatoryPlace if I have a bet on the mandatory odds and I place another bet on other odds, my mandatory bet can get partially canceled; I'll test again to see the exact behavior
 
         // todo remove exposure should have a setting to leave the profit on just 1 side; it's not clear how I will use the "Prefer BACK/LAY/NONE" setting in the logic
         // todo program needs to have a simple get out of market at 1 hour before live and a panicked get out at 5 minutes before
@@ -232,7 +199,7 @@ public final class Utils {
     public static List<Double> getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sidesToPlaceExposureOn,
                                                                                              final double excessMatchedExposure) {
         final List<Double> exposureList;
-        if (sidesToPlaceExposureOn.size() == 2) {
+        if (sidesToPlaceExposureOn.size() == 2 && firstRunner.isMandatoryPlace() == secondRunner.isMandatoryPlace()) {
             @NotNull final Side firstSide = sidesToPlaceExposureOn.get(0), secondSide = sidesToPlaceExposureOn.get(1);
             if ((firstSide == Side.B && secondSide == Side.L) || (firstSide == Side.L && secondSide == Side.B)) {
                 // nonMatchedExposure should include the tempExposure
@@ -336,8 +303,8 @@ public final class Utils {
                 exposureList = List.of(0d, 0d);
             }
         } else {
-            logger.error("bogus sideList for getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure: {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner), Generic.objectToString(secondRunner),
-                         excessMatchedExposure);
+            logger.error("bogus sideList or mandatoryPlace for getExposureToBePlacedForTwoWayMarketWithExcessMatchedExposure: {} {} {} {} {} {}", Generic.objectToString(sidesToPlaceExposureOn), Generic.objectToString(firstRunner),
+                         Generic.objectToString(secondRunner), excessMatchedExposure, firstRunner.isMandatoryPlace(), secondRunner.isMandatoryPlace());
             exposureList = List.of(0d, 0d);
         }
         return exposureList;
@@ -346,7 +313,7 @@ public final class Utils {
     @SuppressWarnings("OverlyNestedMethod")
     public static List<Double> getExposureToBePlacedForTwoWayMarket(@NotNull final ManagedRunner firstRunner, @NotNull final ManagedRunner secondRunner, @NotNull final List<Side> sidesToPlaceExposureOn, final double availableLimit) {
         final List<Double> exposureList;
-        if (sidesToPlaceExposureOn.size() == 2) {
+        if (sidesToPlaceExposureOn.size() == 2 && firstRunner.isMandatoryPlace() == secondRunner.isMandatoryPlace()) {
             @NotNull final Side firstSide = sidesToPlaceExposureOn.get(0), secondSide = sidesToPlaceExposureOn.get(1);
             if ((firstSide == Side.B && secondSide == Side.L) || (firstSide == Side.L && secondSide == Side.B)) {
                 // I'm getting the raw availableLimit, without considering existing exposure and limits
@@ -355,18 +322,34 @@ public final class Utils {
                     logger.error("availableLimit zero for getAmountsToBePlacedForTwoWayMarket: {} {} {} {}", firstRunner.getMarketId(), firstRunner.getRunnerId(), secondRunner.getRunnerId(), Generic.objectToString(sidesToPlaceExposureOn));
                     exposureList = List.of(0d, 0d);
                 } else {
-                    final double firstToBeUsedOdds = firstRunner.getOddsLimit(firstSide), secondToBeUsedOdds = secondRunner.getOddsLimit(secondSide);
-                    if (!Formulas.oddsAreUsable(firstToBeUsedOdds) || !Formulas.oddsAreUsable(secondToBeUsedOdds)) {
-                        if (Formulas.oddsAreDisabled(firstToBeUsedOdds, firstSide) || Formulas.oddsAreDisabled(secondToBeUsedOdds, secondSide)) { // normal branch, odds disabled, will place 0d amount, no need to print anything
+                    final double firstOddsLimit = firstRunner.getOddsLimit(firstSide), secondOddsLimit = secondRunner.getOddsLimit(secondSide);
+                    if (!Formulas.oddsAreUsable(firstOddsLimit) || !Formulas.oddsAreUsable(secondOddsLimit)) {
+                        if (Formulas.oddsAreDisabled(firstOddsLimit, firstSide) || Formulas.oddsAreDisabled(secondOddsLimit, secondSide)) { // normal branch, odds disabled, will place 0d amount, no need to print anything
                         } else {
                             logger.error("bogus internal arguments for getAmountsToBePlacedForTwoWayMarket: {} {} {} {} {}", firstRunner.getMarketId(), firstRunner.getRunnerId(), secondRunner.getRunnerId(), Generic.objectToString(sidesToPlaceExposureOn),
                                          availableLimit);
                         }
                         exposureList = List.of(0d, 0d);
                     } else {
-                        final double firstSmallerOddsBonus = Math.sqrt(Math.sqrt((secondToBeUsedOdds - 1d) / (firstToBeUsedOdds - 1d))); // double sqrt should be well balanced exposure, a limited advantage for the smaller odds
                         final double firstAmountLayBonus = firstSide == Side.L ? 1.25d : .8d;
+                        final double firstToBeUsedOdds, secondToBeUsedOdds;
+//                        // here I calculate the toBeUsedOdds
+//                        if (availableLimit > 0d) { // I'll place new exposure
+//                            if (firstRunner.isMandatoryPlace()) {
+//                                firstToBeUsedOdds = firstOddsLimit;
+//                                secondToBeUsedOdds = secondOddsLimit;
+//                            } else {
+//                                double tempFirstToBeUsedOdds = firstOddsLimit, tempSecondToBeUsedOdds = secondOddsLimit;
+//
+//                            }
+//                        } else { // I'll cancel amounts
+//
+//                        }
+                        // I decided to not bother with complex calculation, simple is good enough, and some formulas I use are quite rough anyway
+                        firstToBeUsedOdds = firstOddsLimit;
+                        secondToBeUsedOdds = secondOddsLimit;
 
+                        final double firstSmallerOddsBonus = Math.sqrt(Math.sqrt((secondToBeUsedOdds - 1d) / (firstToBeUsedOdds - 1d))); // double sqrt should be well balanced exposure, a limited advantage for the smaller odds
                         final double firstAmountProfitability = firstSide == Side.B ? firstToBeUsedOdds - 1d : 1d / (firstToBeUsedOdds - 1d);
                         final double secondAmountProfitability = secondSide == Side.B ? secondToBeUsedOdds - 1d : 1d / (secondToBeUsedOdds - 1d);
                         final double firstAmountProfitabilityBonus;
@@ -394,8 +377,9 @@ public final class Utils {
                                 exposureToAddOnSecond = -secondUnmatchedExposure;
                                 exposureToAddOnFirst = -firstUnmatchedExposure;
                             } else { // some unmatched exposure will be left
-                                double resultingUnmatchedExposureOnSecond = (availableLimit + firstUnmatchedExposure + secondUnmatchedExposure) / (firstOverSecondFinalProportion + 1d);
+                                double resultingUnmatchedExposureOnSecond = (availableLimit + totalUnmatchedExposure) / (firstOverSecondFinalProportion + 1d);
                                 resultingUnmatchedExposureOnSecond = Math.min(secondUnmatchedExposure, resultingUnmatchedExposureOnSecond);
+                                resultingUnmatchedExposureOnSecond = Math.max(secondUnmatchedExposure + availableLimit, resultingUnmatchedExposureOnSecond);
                                 exposureToAddOnSecond = resultingUnmatchedExposureOnSecond - secondUnmatchedExposure;
                                 exposureToAddOnFirst = availableLimit - exposureToAddOnSecond;
                             }
@@ -418,6 +402,8 @@ public final class Utils {
                                     exposureList = List.of(exposureToAddOnFirst, exposureToAddOnSecond);
                                 }
                             }
+//                            logger.info("exposureList=({};{}) exposureToAddOnFirst={} exposureToAddOnSecond={} firstExposureLimitRemaining={} secondExposureLimitRemaining={}", exposureList.get(0), exposureList.get(1), exposureToAddOnFirst,
+//                                        exposureToAddOnSecond, firstExposureLimitRemaining, secondExposureLimitRemaining);
                         }
                     }
                 }
@@ -426,7 +412,8 @@ public final class Utils {
                 exposureList = List.of(0d, 0d);
             }
         } else {
-            logger.error("bogus sideList for getAmountsToBePlacedForTwoWayMarket: {} {} {} {} {}", firstRunner.getMarketId(), firstRunner.getRunnerId(), secondRunner.getRunnerId(), Generic.objectToString(sidesToPlaceExposureOn), availableLimit);
+            logger.error("bogus sideList or mandatoryPlace for getAmountsToBePlacedForTwoWayMarket: {} {} {} {} {} {} {}", firstRunner.getMarketId(), firstRunner.getRunnerId(), secondRunner.getRunnerId(), Generic.objectToString(sidesToPlaceExposureOn),
+                         availableLimit, firstRunner.isMandatoryPlace(), secondRunner.isMandatoryPlace());
             exposureList = List.of(0d, 0d);
         }
         return exposureList;

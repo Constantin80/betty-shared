@@ -26,5 +26,6 @@ public enum InstructionReportErrorCode {
     INVALID_ORDER_TYPE, // You have specified a time in force of FILL_OR_KILL, but have included a non-LIMIT order type.
     UNEXPECTED_MIN_FILL_SIZE, // You have specified a minFillSize on a limit order, where the limit order's time in force is not FILL_OR_KILL.Using minFillSize is not supported where the time in force of the request (as opposed to an order) is FILL_OR_KILL
     INVALID_CUSTOMER_ORDER_REF, // The supplied customer order reference is too long.
-    INVALID_MIN_FILL_SIZE // The minFillSize must be greater than zero and less than or equal to the order's size. The minFillSize cannot be less than the minimum bet size for your currency
+    INVALID_MIN_FILL_SIZE, // The minFillSize must be greater than zero and less than or equal to the order's size. The minFillSize cannot be less than the minimum bet size for your currency
+    INVALID_PROFIT_RATIO // bets that are placed to benefit from rounding
 }

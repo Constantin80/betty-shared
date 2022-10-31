@@ -1,6 +1,6 @@
 package info.fmro.shared.stream.definitions;
 
-import info.fmro.shared.stream.enums.PriceLadderType;
+import info.fmro.shared.enums.PriceLadderType;
 
 import java.io.Serial;
 import java.io.Serializable;

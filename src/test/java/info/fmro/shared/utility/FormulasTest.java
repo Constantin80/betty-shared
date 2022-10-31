@@ -1,10 +1,12 @@
 package info.fmro.shared.utility;
 
+import info.fmro.shared.objects.AmountsNavigableMap;
 import info.fmro.shared.stream.enums.Side;
 import info.fmro.shared.stream.objects.RunnerId;
 import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
@@ -180,9 +182,10 @@ class FormulasTest {
     void getBestOddsWhereICanMoveAmountsToBetterOdds() {
         final TreeMap<Double, Double> myUnmatchedBackAmounts = new TreeMap<>(Comparator.naturalOrder());
         myUnmatchedBackAmounts.put(3.0d, 5.0d);
-        final NavigableMap<Double, Double> availableToLay = new TreeMap<>(Comparator.naturalOrder());
-        availableToLay.put(1.7d, 105.1d);
-        final double odds = Formulas.getBestOddsWhereICanMoveAmountsToBetterOdds("x", new RunnerId(0L, 0d), Side.B, myUnmatchedBackAmounts, availableToLay, false);
+        final NavigableMap<Double, Double> availableToLayMap = new TreeMap<>(Comparator.naturalOrder());
+        availableToLayMap.put(1.7d, 105.1d);
+        final AmountsNavigableMap availableToLay = new AmountsNavigableMap(availableToLayMap, Side.L);
+        final double odds = Formulas.getBestOddsWhereICanMoveAmountsToBetterOdds("x", new RunnerId(0L, 0d), Side.B, new HashMap<>(2), myUnmatchedBackAmounts, availableToLay, false);
         assertEquals(0d, odds);
     }
 }

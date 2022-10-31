@@ -81,7 +81,8 @@ public class OrderMarket
                     managedRunner = new ManagedRunner(this.marketId, runnerId, new AtomicBoolean(), new AtomicBoolean());
                 } else { // found the managedRunner, nothing to be done
                 }
-                modifications += orderMarketRunner.cancelUnmatchedAtWorseOdds(sideToCancel, worstNotCanceledOdds, excessExposure, managedRunner, sendPostRequestRescriptMethod, includeTheProvidedOdds, reason);
+                modifications += orderMarketRunner.cancelUnmatchedAtWorseOdds(sideToCancel, worstNotCanceledOdds, excessExposure, new HashMap<>(1), managedRunner, sendPostRequestRescriptMethod, includeTheProvidedOdds, 0L,
+                                                                              reason);
             }
         }
         return modifications;

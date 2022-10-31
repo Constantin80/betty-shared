@@ -2,6 +2,7 @@ package info.fmro.shared.stream.cache.order;
 
 import com.google.common.math.DoubleMath;
 import info.fmro.shared.logic.ManagedRunner;
+import info.fmro.shared.objects.AmountsNavigableMap;
 import info.fmro.shared.objects.Exposure;
 import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.cache.OrdersList;
@@ -340,12 +341,12 @@ public class OrderMarketRunner
             if (side == Side.B || side == Side.L) {
                 final ArrayList<Order> sortedOrders =
                         this.unmatchedOrders.
-                                                    values().
-                                                    stream().
-                                                    filter(p -> p.getSide() == side).
-                                                    sorted(Comparator.comparing(Order::getP, Comparator.nullsFirst(priceComparator)).
-                                                            thenComparing(Order::getPd, Comparator.nullsFirst(Comparator.reverseOrder()))).
-                                                    collect(Collectors.toCollection(ArrayList::new));
+                                values().
+                                stream().
+                                filter(p -> p.getSide() == side).
+                                sorted(Comparator.comparing(Order::getP, Comparator.nullsFirst(priceComparator)).
+                                                 thenComparing(Order::getPd, Comparator.nullsFirst(Comparator.reverseOrder()))).
+                                collect(Collectors.toCollection(ArrayList::new));
                 for (final Order order : sortedOrders) {
                     final double removedExposure = order.removeExposure(this.marketId, this.runnerId, side, excessExposureLeft, managedRunner, sendPostRequestRescriptMethod, reason);
 //                    Generic.addToAtomicDouble(removedExposureDuringThisManageIteration, removedExposure);
@@ -374,12 +375,12 @@ public class OrderMarketRunner
             final Comparator<Double> priceComparator = side == Side.B ? Comparator.naturalOrder() : Comparator.reverseOrder(); // order by price or reversed price, then placed date
             final ArrayList<Order> sortedOrders =
                     this.unmatchedOrders.
-                                                values().
-                                                stream().
-                                                filter(p -> p.getSide() == side).
-                                                sorted(Comparator.comparing(Order::getP, Comparator.nullsLast(priceComparator)).
-                                                        thenComparing(Order::getPd, Comparator.nullsLast(Comparator.naturalOrder()))).
-                                                collect(Collectors.toCollection(ArrayList::new)); // order by price, then placed date
+                            values().
+                            stream().
+                            filter(p -> p.getSide() == side).
+                            sorted(Comparator.comparing(Order::getP, Comparator.nullsLast(priceComparator)).
+                                             thenComparing(Order::getPd, Comparator.nullsLast(Comparator.naturalOrder()))).
+                            collect(Collectors.toCollection(ArrayList::new)); // order by price, then placed date
 
             if (side == Side.B) {
                 for (final Order order : sortedOrders) {
@@ -461,8 +462,8 @@ public class OrderMarketRunner
 //        return cancelUnmatchedAtWorseOdds(sideToCancel, worstNotCanceledOdds, sendPostRequestRescriptMethod, false);
 //    }
 
-    synchronized int cancelUnmatchedAtWorseOdds(final Side sideToCancel, final double worstNotCanceledOdds, final double excessExposure, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod,
-                                                final boolean includeTheProvidedOdds, final String reason) {
+    synchronized int cancelUnmatchedAtWorseOdds(final Side sideToCancel, final double worstNotCanceledOdds, final double excessExposure, @NotNull final HashMap<Double, Double> mandatoryPlaceAmounts, @NotNull final ManagedRunner managedRunner,
+                                                @NotNull final Method sendPostRequestRescriptMethod, final boolean includeTheProvidedOdds, final long minAgeMillis, final String reason) {
         int modifications = 0;
         if (this.runnerId == null) {
             logger.error("null runnerId in orderMarketRunner.cancelAllUnmatched: {}", Generic.objectToString(this));
@@ -472,15 +473,32 @@ public class OrderMarketRunner
             if ((sideToCancel == Side.B || sideToCancel == Side.L) && excessExposure < Double.MAX_VALUE) {
                 final Comparator<Double> priceComparator = sideToCancel == Side.B ? Comparator.reverseOrder() : Comparator.naturalOrder(); // order by reversed price or price, then reversed placed date
                 orders = this.unmatchedOrders.
-                                                     values().
-                                                     stream().
-                                                     filter(p -> p.getSide() == sideToCancel).
-                                                     sorted(Comparator.comparing(Order::getP, Comparator.nullsFirst(priceComparator)).
-                                                             thenComparing(Order::getPd, Comparator.nullsFirst(Comparator.reverseOrder()))).
-                                                     collect(Collectors.toCollection(ArrayList::new));
+                        values().
+                        stream().
+                        filter(p -> p.getSide() == sideToCancel).
+                        sorted(Comparator.comparing(Order::getP, Comparator.nullsFirst(priceComparator)).
+                                         thenComparing(Order::getPd, Comparator.nullsFirst(Comparator.reverseOrder()))).
+                        collect(Collectors.toCollection(ArrayList::new));
             } else {
                 orders = this.unmatchedOrders.values();
             }
+            // getting a map of the amounts that should be canceled at mandatoryPlaceAmounts prices
+            if (sideToCancel != null && !mandatoryPlaceAmounts.isEmpty()) {
+                for (final Order order : orders) {
+                    final Side side = order.getSide();
+                    if (sideToCancel == side) {
+                        final Double price = order.getP();
+                        if (mandatoryPlaceAmounts.containsKey(price)) {
+                            final Double size = order.getSr();
+                            mandatoryPlaceAmounts.put(price, mandatoryPlaceAmounts.get(price) - Math.max(size, 0d));
+                        } else { // not the price I look for
+                        }
+                    } else { // not the side I look for
+                    }
+                }
+            } else { // no need to modify mandatoryPlaceAmounts map, it won't be used
+            }
+            final long currentTime = System.currentTimeMillis();
             for (final Order order : orders) {
                 if (order == null) {
                     logger.error("null order in cancelAllUnmatched for: {} {}", reason, Generic.objectToString(this));
@@ -489,6 +507,7 @@ public class OrderMarketRunner
                     final Double price = order.getP();
                     final Double size = order.getSr();
                     final String betId = order.getId();
+                    final long ageMillis = order.getAgeMillis(currentTime);
                     if (side == null || price == null || size == null || betId == null) {
                         logger.error("null order attributes in cancelAllUnmatched for: {} {} {} {} {} {}", side, price, size, betId, reason, Generic.objectToString(order));
                     } else {
@@ -496,6 +515,8 @@ public class OrderMarketRunner
                         if (sideToCancel == null) { // cancel all orders
                             shouldCancelOrder = true;
                         } else if (sideToCancel != side) { // not the right side
+                            shouldCancelOrder = false;
+                        } else if (minAgeMillis > 0L && ageMillis < minAgeMillis) { // order too recent
                             shouldCancelOrder = false;
                         } else // odds matter and are worse
                             // odds matter but are not worse
@@ -509,10 +530,21 @@ public class OrderMarketRunner
 
                         if (shouldCancelOrder) {
 //                            modifications += Generic.booleanToInt(order.cancelOrder(this.marketId, this.runnerId, sendPostRequestRescriptMethod));
+                            final double mandatoryPlaceAmountLeftToCancel;
+                            if (mandatoryPlaceAmounts.containsKey(price)) {
+                                mandatoryPlaceAmountLeftToCancel = -mandatoryPlaceAmounts.get(price);
+                            } else {
+                                mandatoryPlaceAmountLeftToCancel = Double.MAX_VALUE;
+                            }
+
                             logger.info("{} cancelUnmatchedAtWorseOdds: {} {} {} price:{} size:{} excess:{} reasonId:{}", reason, this.marketId, this.runnerId, side, price, size, excessExposureLeft > 1_000_000_000d ? "max" : excessExposureLeft, reason);
-                            final double removedExposure = order.removeExposure(this.marketId, this.runnerId, side, excessExposureLeft, managedRunner, sendPostRequestRescriptMethod, reason);
+                            final double removedExposure = order.removeExposure(this.marketId, this.runnerId, side, Math.min(excessExposureLeft, mandatoryPlaceAmountLeftToCancel), managedRunner, sendPostRequestRescriptMethod, reason);
 //                            Generic.addToAtomicDouble(removedExposureDuringThisManageIteration, removedExposure);
                             excessExposureLeft -= removedExposure;
+                            if (mandatoryPlaceAmounts.containsKey(price)) {
+                                mandatoryPlaceAmounts.put(price, mandatoryPlaceAmounts.get(price) + removedExposure);
+                            } else { // price is not among mandatory place, nothing to do
+                            }
                             modifications++;
                             if (excessExposureLeft <= 0d) {
                                 break;
@@ -527,11 +559,13 @@ public class OrderMarketRunner
         return modifications;
     }
 
-    synchronized int cancelUnmatchedTooGoodOdds(@NotNull final Side sideToCancel, final double worstOddsThatAreGettingCanceled, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
+    synchronized int cancelUnmatchedTooGoodOdds(@NotNull final Side sideToCancel, final double worstOddsThatAreGettingCanceled, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final long minAgeMillis,
+                                                final String reason) {
         int modifications = 0;
         if (this.runnerId == null || worstOddsThatAreGettingCanceled <= 0d) {
             logger.error("null runnerId or bogus worstOddsThatAreGettingCanceled in orderMarketRunner.cancelUnmatchedTooGoodOdds: {} {} {} {}", sideToCancel, worstOddsThatAreGettingCanceled, reason, Generic.objectToString(this));
         } else {
+            final long currentTime = System.currentTimeMillis();
             for (final Order order : this.unmatchedOrders.values()) {
                 if (order == null) {
                     logger.error("null order in cancelUnmatchedTooGoodOdds for: {} {}", reason, Generic.objectToString(this));
@@ -540,13 +574,14 @@ public class OrderMarketRunner
                     final Double price = order.getP();
                     final Double size = order.getSr();
                     final String betId = order.getId();
+                    final long ageMillis = order.getAgeMillis(currentTime);
                     if (side == null || price == null || size == null || betId == null) {
                         logger.error("null order attributes in cancelUnmatchedTooGoodOdds for: {} {} {} {} {} {}", side, price, size, betId, reason, Generic.objectToString(order));
                     } else {
                         // odds matter and are same or better
                         // odds matter but are not worse
                         // not the right side
-                        final boolean shouldCancelOrder = sideToCancel == side && !Formulas.oddsAreWorse(side, worstOddsThatAreGettingCanceled, price);
+                        final boolean shouldCancelOrder = sideToCancel == side && !Formulas.oddsAreWorse(side, worstOddsThatAreGettingCanceled, price) && (minAgeMillis <= 0L || ageMillis >= minAgeMillis);
                         if (shouldCancelOrder) {
                             final double removedExposure = order.cancelOrder(this.marketId, this.runnerId, managedRunner, sendPostRequestRescriptMethod, reason);
                             modifications += Generic.booleanToInt(removedExposure > 0d);
@@ -596,7 +631,7 @@ public class OrderMarketRunner
                 }
             }
         }
-        return new OrdersList(orders, backRecentModifications);
+        return new OrdersList(orders, backRecentModifications, Side.B, AmountsNavigableMap.NOT_PRESENT);
     }
 
     @NotNull
@@ -635,6 +670,6 @@ public class OrderMarketRunner
                 }
             }
         }
-        return new OrdersList(orders, layRecentModifications);
+        return new OrdersList(orders, layRecentModifications, Side.L, AmountsNavigableMap.NOT_PRESENT);
     }
 }

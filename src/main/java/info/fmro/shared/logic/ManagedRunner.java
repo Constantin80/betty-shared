@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.AtomicDouble;
 import info.fmro.shared.enums.PrefSide;
 import info.fmro.shared.enums.ProgramName;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
+import info.fmro.shared.objects.AmountsNavigableMap;
 import info.fmro.shared.objects.Exposure;
 import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.cache.OrdersList;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serial;
 import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -89,6 +91,22 @@ public class ManagedRunner
 //    private synchronized boolean isAttachOrderMarketRunnerRecent(final long currentTime) {
 //        return this.attachOrderMarketRunnerStamp + attachOrderMarketRunnerRecentPeriod > currentTime;
 //    }
+
+    private synchronized HashMap<Double, Double> getMandatoryPlaceAmounts(final Side side) {
+        final HashMap<Double, Double> result = new HashMap<>(2);
+        if (isMandatoryPlace()) {
+            if (side == Side.B) {
+                result.put(this.minBackOdds, Double.MAX_VALUE);
+            } else if (side == Side.L) {
+                result.put(this.maxLayOdds, Double.MAX_VALUE);
+            } else {
+                logger.error("strange {} side in getMandatoryPlaceAmounts for: {} {}", side, this.marketId, this.runnerId);
+            }
+        } else { // map will remain empty
+        }
+
+        return result;
+    }
 
     synchronized boolean errorBackSmallerThanLayOdds() {
         final boolean error = this.minBackOdds < this.maxLayOdds;
@@ -210,20 +228,21 @@ public class ManagedRunner
         double exposureCanceledAndBalanced = 0d;
 //        getOrderMarketRunner(orderCache); // updates the orderMarketRunner
 //        if (this.orderMarketRunner != null) {
-        final double backTotalExposure = this.getBackTotalExposure(), layTotalExposure = this.getLayTotalExposure();
+        final double backTotalExposureConsideringCanceled = this.getBackTotalExposureConsideringCanceled(), layTotalExposureConsideringCanceled = this.getLayTotalExposureConsideringCanceled();
 //        final double localBackAmountLimit = this.getBackAmountLimit(), localLayAmountLimit = this.getLayAmountLimit();
-        if (this.idealBackExposure + .1d < backTotalExposure || this.idealLayExposure + .1d < layTotalExposure) {
+        if (this.idealBackExposure + .1d < backTotalExposureConsideringCanceled || this.idealLayExposure + .1d < layTotalExposureConsideringCanceled) {
             if (SharedStatics.notPlacingOrders || SharedStatics.denyBetting.get()) {
                 SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.DEBUG, "exposure limit has been breached while betting_denied back:{}->{} lay:{}->{} for runner: {} {}",
-                                                        this.idealBackExposure, backTotalExposure, this.idealLayExposure, layTotalExposure, this.getMarketId(), this.getRunnerId());
+                                                        this.idealBackExposure, backTotalExposureConsideringCanceled, this.idealLayExposure, layTotalExposureConsideringCanceled, this.getMarketId(), this.getRunnerId());
             } else {
-                logger.error("exposure limit has been breached back:{}->{} lay:{}->{} for runner: {} {}", this.idealBackExposure, backTotalExposure, this.idealLayExposure, layTotalExposure, this.getMarketId(), this.getRunnerId());
+                logger.error("exposure limit has been breached back:{}->{} lay:{}->{} for runner: {} {}", this.idealBackExposure, backTotalExposureConsideringCanceled, this.idealLayExposure, layTotalExposureConsideringCanceled, this.getMarketId(),
+                             this.getRunnerId());
             }
-            final double backExcessExposure = Math.max(0d, backTotalExposure - this.idealBackExposure), layExcessExposure = Math.max(0d, layTotalExposure - this.idealLayExposure);
+            final double backExcessExposureConsideringCanceled = Math.max(0d, backTotalExposureConsideringCanceled - this.idealBackExposure), layExcessExposureConsideringCanceled = Math.max(0d, layTotalExposureConsideringCanceled - this.idealLayExposure);
             final double backMatchedExposure = this.getBackMatchedExposure(), layMatchedExposure = this.getLayMatchedExposure();
             final double backExcessMatchedExposure = Math.max(0d, backMatchedExposure - this.idealBackExposure), layExcessMatchedExposure = Math.max(0d, layMatchedExposure - this.idealLayExposure);
 //            if (this.orderMarketRunner != null) {
-            exposureCanceledAndBalanced += cancelUnmatchedAmounts(backExcessExposure, layExcessExposure, sendPostRequestRescriptMethod, "checkRunnerLimits cancelUnmatched") > 0d ? 1 : 0;
+            exposureCanceledAndBalanced += cancelUnmatchedAmounts(backExcessExposureConsideringCanceled, layExcessExposureConsideringCanceled, sendPostRequestRescriptMethod, "checkRunnerLimits cancelUnmatched") > 0d ? 1 : 0;
 //            } else { // orderMarketRunner is null if no orders exist on the runner yet
 //            }
             if (backExcessMatchedExposure >= .1d || layExcessMatchedExposure >= .1d) {
@@ -325,35 +344,43 @@ public class ManagedRunner
                 final boolean mandatory = isMandatoryPlace();
                 // back
                 @NotNull final OrdersList unmatchedBackAmountsUnparsed = SharedStatics.orderCache.getUnmatchedBackAmounts(this.marketId, this.runnerId), availableLayAmountsUnparsed = this.marketRunner.getAvailableToLay(currencyRate);
-                @NotNull final TreeMap<Double, Double> unmatchedBackAmounts = unmatchedBackAmountsUnparsed.getOrdersThatAppearInRecords(availableLayAmountsUnparsed), availableLayAmounts = availableLayAmountsUnparsed.getOrders();
-                final double backBestOddsWhereICanMoveAmountsToBetterOdds = Formulas.getBestOddsWhereICanMoveAmountsToBetterOdds(this.marketId, this.runnerId, Side.B, unmatchedBackAmounts, availableLayAmounts);
+                @NotNull final TreeMap<Double, Double> unmatchedBackAmounts = unmatchedBackAmountsUnparsed.getOrdersThatAppearInRecords(availableLayAmountsUnparsed);
+                @NotNull final AmountsNavigableMap availableLayAmounts = new AmountsNavigableMap(availableLayAmountsUnparsed.getOrders(), Side.L);
+                final HashMap<Double, Double> backMandatoryPlaceAmounts = getMandatoryPlaceAmounts(Side.B);
+                final double backBestOddsWhereICanMoveAmountsToBetterOdds = Formulas.getBestOddsWhereICanMoveAmountsToBetterOdds(this.marketId, this.runnerId, Side.B, backMandatoryPlaceAmounts, new TreeMap<>(unmatchedBackAmounts),
+                                                                                                                                 availableLayAmounts);
                 if (backBestOddsWhereICanMoveAmountsToBetterOdds == 0d) { // nothing to be done
                 } else {
-                    exposureHasBeenModified += SharedStatics.orderCache.cancelUnmatchedAtWorseOdds(this.marketId, this.runnerId, Side.B, backBestOddsWhereICanMoveAmountsToBetterOdds, this, sendPostRequestRescriptMethod,
-                                                                                                   true, "ICanMoveAmountsToBetterOdds");
+                    exposureHasBeenModified += SharedStatics.orderCache.cancelUnmatchedAtWorseOdds(this.marketId, this.runnerId, Side.B, backBestOddsWhereICanMoveAmountsToBetterOdds, backMandatoryPlaceAmounts, this,
+                                                                                                   sendPostRequestRescriptMethod, true, 60_000L, "ICanMoveAmountsToBetterOdds");
                 }
                 final double minWorstOdds = mandatory ? Formulas.getNextOddsUp(this.minBackOdds, Side.B) : 1d;
-                final double worstOddsThatAreGettingCanceledBack = Formulas.getWorstOddsThatCantBeReached(this.marketId, this.runnerId, Side.B, unmatchedBackAmounts, availableLayAmounts, false, false, minWorstOdds);
+                final double worstOddsThatAreGettingCanceledBack = Formulas.getWorstOddsThatCantBeReached(this.marketId, this.runnerId, Side.B, unmatchedBackAmounts, availableLayAmounts, false, false,
+                                                                                                          true, minWorstOdds);
                 if (worstOddsThatAreGettingCanceledBack == 0d) { // nothing to be done
                 } else {
-                    exposureHasBeenModified += SharedStatics.orderCache.cancelUnmatchedTooGoodOdds(this.marketId, this.runnerId, Side.B, worstOddsThatAreGettingCanceledBack, this, sendPostRequestRescriptMethod,
+                    exposureHasBeenModified += SharedStatics.orderCache.cancelUnmatchedTooGoodOdds(this.marketId, this.runnerId, Side.B, worstOddsThatAreGettingCanceledBack, this, sendPostRequestRescriptMethod, 10_000L,
                                                                                                    "cancelBetsAtTooGoodOrTooBadOdds unmatchedTooGood");
                 }
 
                 // lay
                 @NotNull final OrdersList unmatchedLayAmountsUnparsed = SharedStatics.orderCache.getUnmatchedLayAmounts(this.marketId, this.runnerId), availableBackAmountsUnparsed = this.marketRunner.getAvailableToBack(currencyRate);
-                @NotNull final TreeMap<Double, Double> unmatchedLayAmounts = unmatchedLayAmountsUnparsed.getOrdersThatAppearInRecords(availableBackAmountsUnparsed), availableBackAmounts = availableBackAmountsUnparsed.getOrders();
-                final double layBestOddsWhereICanMoveAmountsToBetterOdds = Formulas.getBestOddsWhereICanMoveAmountsToBetterOdds(this.marketId, this.runnerId, Side.L, unmatchedLayAmounts, availableBackAmounts);
+                @NotNull final TreeMap<Double, Double> unmatchedLayAmounts = unmatchedLayAmountsUnparsed.getOrdersThatAppearInRecords(availableBackAmountsUnparsed);
+                @NotNull final AmountsNavigableMap availableBackAmounts = new AmountsNavigableMap(availableBackAmountsUnparsed.getOrders(), Side.B);
+                final HashMap<Double, Double> layMandatoryPlaceAmounts = getMandatoryPlaceAmounts(Side.L);
+                final double layBestOddsWhereICanMoveAmountsToBetterOdds = Formulas.getBestOddsWhereICanMoveAmountsToBetterOdds(this.marketId, this.runnerId, Side.L, layMandatoryPlaceAmounts, new TreeMap<>(unmatchedLayAmounts),
+                                                                                                                                availableBackAmounts);
                 if (layBestOddsWhereICanMoveAmountsToBetterOdds == 0d) { // nothing to be done
                 } else {
-                    exposureHasBeenModified += SharedStatics.orderCache.cancelUnmatchedAtWorseOdds(this.marketId, this.runnerId, Side.L, layBestOddsWhereICanMoveAmountsToBetterOdds, this, sendPostRequestRescriptMethod,
-                                                                                                   true, "ICanMoveAmountsToBetterOdds");
+                    exposureHasBeenModified += SharedStatics.orderCache.cancelUnmatchedAtWorseOdds(this.marketId, this.runnerId, Side.L, layBestOddsWhereICanMoveAmountsToBetterOdds, layMandatoryPlaceAmounts, this,
+                                                                                                   sendPostRequestRescriptMethod, true, 60_000L, "ICanMoveAmountsToBetterOdds");
                 }
                 final double maxWorstOdds = mandatory ? Formulas.getNextOddsDown(this.maxLayOdds, Side.L) : 1_001d;
-                final double worstOddsThatAreGettingCanceledLay = Formulas.getWorstOddsThatCantBeReached(this.marketId, this.runnerId, Side.L, unmatchedLayAmounts, availableBackAmounts, false, false, maxWorstOdds);
+                final double worstOddsThatAreGettingCanceledLay = Formulas.getWorstOddsThatCantBeReached(this.marketId, this.runnerId, Side.L, unmatchedLayAmounts, availableBackAmounts, false, false,
+                                                                                                         true, maxWorstOdds);
                 if (worstOddsThatAreGettingCanceledLay == 0d) { // nothing to be done
                 } else {
-                    exposureHasBeenModified += SharedStatics.orderCache.cancelUnmatchedTooGoodOdds(this.marketId, this.runnerId, Side.L, worstOddsThatAreGettingCanceledLay, this, sendPostRequestRescriptMethod,
+                    exposureHasBeenModified += SharedStatics.orderCache.cancelUnmatchedTooGoodOdds(this.marketId, this.runnerId, Side.L, worstOddsThatAreGettingCanceledLay, this, sendPostRequestRescriptMethod, 10_000L,
                                                                                                    "cancelBetsAtTooGoodOrTooBadOdds unmatchedTooGood");
                 }
 
@@ -688,7 +715,8 @@ public class ManagedRunner
             sizePlaced = 0d;
         } else if (Formulas.oddsAreUsable(price)) {
             @NotNull final OrdersList myUnmatchedAmountsUnparsed, availableAmountsOnOppositeSideUnparsed;
-            @NotNull final TreeMap<Double, Double> myUnmatchedAmounts, availableAmountsOnOppositeSide;
+            @NotNull final TreeMap<Double, Double> myUnmatchedAmounts;
+            @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide;
             final double exposureICanPlace, oddsThatCanBeUsed;
             final double totalValueMatched = this.marketRunner.getTvEUR(existingFunds.currencyRate);
 
@@ -696,7 +724,7 @@ public class ManagedRunner
                 myUnmatchedAmountsUnparsed = SharedStatics.orderCache.getUnmatchedBackAmounts(this.marketId, this.runnerId);
                 availableAmountsOnOppositeSideUnparsed = this.marketRunner.getAvailableToLay(existingFunds.currencyRate);
                 myUnmatchedAmounts = myUnmatchedAmountsUnparsed.getOrdersThatAppearInRecords(availableAmountsOnOppositeSideUnparsed);
-                availableAmountsOnOppositeSide = availableAmountsOnOppositeSideUnparsed.getOrders();
+                availableAmountsOnOppositeSide = new AmountsNavigableMap(availableAmountsOnOppositeSideUnparsed.getOrders(), side.opposite());
 //                final double backTotalExposure = this.getBackMatchedExposure() + this.getBackUnmatchedExposure() + this.getBackTempExposure();
                 final double backTotalExposure = this.getBackTotalExposure();
                 final double availableBackExposure = Math.max(0d, this.idealBackExposure - backTotalExposure);
@@ -706,7 +734,7 @@ public class ManagedRunner
                 myUnmatchedAmountsUnparsed = SharedStatics.orderCache.getUnmatchedLayAmounts(this.marketId, this.runnerId);
                 availableAmountsOnOppositeSideUnparsed = this.marketRunner.getAvailableToBack(existingFunds.currencyRate);
                 myUnmatchedAmounts = myUnmatchedAmountsUnparsed.getOrdersThatAppearInRecords(availableAmountsOnOppositeSideUnparsed);
-                availableAmountsOnOppositeSide = availableAmountsOnOppositeSideUnparsed.getOrders();
+                availableAmountsOnOppositeSide = new AmountsNavigableMap(availableAmountsOnOppositeSideUnparsed.getOrders(), side.opposite());
 //                final double layTotalExposure = this.getLayMatchedExposure() + this.getLayUnmatchedExposure() + this.getLayTempExposure();
                 final double layTotalExposure = this.getLayTotalExposure();
                 final double availableLayExposure = Math.max(0d, this.idealLayExposure - layTotalExposure);
@@ -793,12 +821,12 @@ public class ManagedRunner
 
             if (backExposureDeficit >= .1d) { // I need to place a back bet, with profit that would cancel the excess
                 if (Formulas.oddsAreUsable(this.minBackOdds)) {
-                    final Side side = Side.B;
+                    @NotNull final Side side = Side.B;
                     @NotNull final OrdersList myUnmatchedAmountsUnparsed = SharedStatics.orderCache.getUnmatchedBackAmounts(this.marketId, this.runnerId);
                     @NotNull final OrdersList availableAmountsOnOppositeSideUnparsed = this.marketRunner.getAvailableToLay(existingFunds.currencyRate);
                     @NotNull final TreeMap<Double, Double> myUnmatchedAmounts = myUnmatchedAmountsUnparsed.getOrdersThatAppearInRecords(availableAmountsOnOppositeSideUnparsed);
-                    @NotNull final TreeMap<Double, Double> availableAmountsOnOppositeSide = availableAmountsOnOppositeSideUnparsed.getOrders();
-                    Formulas.removeOwnAmountsFromAvailableTreeMap(availableAmountsOnOppositeSide, myUnmatchedAmounts);
+                    @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide = new AmountsNavigableMap(availableAmountsOnOppositeSideUnparsed.getOrders(), side.opposite());
+                    availableAmountsOnOppositeSide.removeOwnAmountsFromAvailableTreeMap(myUnmatchedAmounts, reason);
                     SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(this.marketId, this.runnerId, side, myUnmatchedAmounts);
                     final double backTotalExposure = this.getBackTotalExposure();
                     final double availableBackExposure = Math.max(0d, this.idealBackExposure - backTotalExposure);
@@ -838,8 +866,8 @@ public class ManagedRunner
                     @NotNull final OrdersList myUnmatchedAmountsUnparsed = SharedStatics.orderCache.getUnmatchedLayAmounts(this.marketId, this.runnerId);
                     @NotNull final OrdersList availableAmountsOnOppositeSideUnparsed = this.marketRunner.getAvailableToBack(existingFunds.currencyRate);
                     @NotNull final TreeMap<Double, Double> myUnmatchedAmounts = myUnmatchedAmountsUnparsed.getOrdersThatAppearInRecords(availableAmountsOnOppositeSideUnparsed);
-                    @NotNull final TreeMap<Double, Double> availableAmountsOnOppositeSide = availableAmountsOnOppositeSideUnparsed.getOrders();
-                    Formulas.removeOwnAmountsFromAvailableTreeMap(availableAmountsOnOppositeSide, myUnmatchedAmounts);
+                    @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide = new AmountsNavigableMap(availableAmountsOnOppositeSideUnparsed.getOrders(), side.opposite());
+                    availableAmountsOnOppositeSide.removeOwnAmountsFromAvailableTreeMap(myUnmatchedAmounts, reason);
                     SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(this.marketId, this.runnerId, side, myUnmatchedAmounts);
                     final double layTotalExposure = this.getLayTotalExposure();
                     final double availableLayExposure = Math.max(0d, this.idealLayExposure - layTotalExposure);

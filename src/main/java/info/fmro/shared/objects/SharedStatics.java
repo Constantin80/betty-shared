@@ -19,9 +19,10 @@ public final class SharedStatics {
     public static final boolean reserveCanDecrease = true; // set as true only for testing, as it affects reserve protection
     public static final boolean noReserve = true; // set as true only for testing, as it removes reserve protection
     public static final long EXECUTOR_KEEP_ALIVE = 10_000L, PROGRAM_START_TIME = System.currentTimeMillis();
+    public static final double MINIMUM_BET_PAYOUT = 20d, MINIMUM_BET_SIZE = 1d; // minimum for EUR
     public static final AtomicReference<ProgramName> programName = new AtomicReference<>();
     public static final AlreadyPrintedMap alreadyPrintedMap = new AlreadyPrintedMap();
-    public static final AtomicBoolean mustStop = new AtomicBoolean(), mustWriteObjects = new AtomicBoolean(), needSessionToken = new AtomicBoolean(), denyBetting = new AtomicBoolean();
+    public static final AtomicBoolean mustStop = new AtomicBoolean(), mustWriteObjects = new AtomicBoolean(), needSessionToken = new AtomicBoolean(), denyBetting = new AtomicBoolean(), resetTestMarker = new AtomicBoolean();
     public static final AtomicReference<String> appKey = new AtomicReference<>();
     public static final AtomicLong timeLastSaveToDisk = new AtomicLong();
     public static final TimeStamps timeStamps = new TimeStamps();
@@ -50,5 +51,10 @@ public final class SharedStatics {
     @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public static boolean programHasRecentlyStarted(final long currentTime) {
         return currentTime - PROGRAM_START_TIME <= Generic.MINUTE_LENGTH_MILLISECONDS;
+    }
+
+    public static void clearCachedObjects() {
+        marketCache.clearCachedObjects();
+        orderCache.clearCachedObjects();
     }
 }

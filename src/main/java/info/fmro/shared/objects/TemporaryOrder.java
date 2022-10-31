@@ -41,7 +41,7 @@ public class TemporaryOrder
         this.runnerId = runnerId;
         this.side = side;
         this.price = price;
-        this.size = Generic.roundDoubleAmount(size);
+        this.size = Generic.roundDouble(size);
         this.sizeReduction = null;
         this.reasonId = reasonId;
         this.creationTime = System.currentTimeMillis();
@@ -56,7 +56,7 @@ public class TemporaryOrder
         this.runnerId = runnerId;
         this.side = side;
         this.price = price;
-        this.size = Generic.roundDoubleAmount(size);
+        this.size = Generic.roundDouble(size);
         this.reasonId = reasonId;
         this.creationTime = System.currentTimeMillis();
         this.expirationTime = this.creationTime + (bettingDisabled ? Generic.DAY_LENGTH_MILLISECONDS : (Generic.MINUTE_LENGTH_MILLISECONDS << 1)); // default, I can't let the default be 0
@@ -66,7 +66,7 @@ public class TemporaryOrder
             //noinspection ThisEscapedInObjectConstruction
             logger.error("temporaryOrder sizeReduction {} larger than size {} for: {}", sizeReduction, size, Generic.objectToString(this));
         } else {
-            this.sizeReduction = sizeReduction == null ? null : Generic.roundDoubleAmount(sizeReduction);
+            this.sizeReduction = sizeReduction == null ? null : Generic.roundDouble(sizeReduction);
         }
     }
 

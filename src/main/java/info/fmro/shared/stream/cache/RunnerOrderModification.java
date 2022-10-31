@@ -2,6 +2,7 @@ package info.fmro.shared.stream.cache;
 
 import com.google.common.math.DoubleMath;
 import info.fmro.shared.stream.enums.Side;
+import info.fmro.shared.utility.Formulas;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -12,6 +13,7 @@ public class RunnerOrderModification
         implements Serializable {
     @Serial
     private static final long serialVersionUID = -5229377916669814958L;
+    public static final double MODIFICATION_SIZE_UNKNOWN = Double.NaN;
     private final double price, size;
     @NotNull
     private final Side side;
@@ -38,11 +40,16 @@ public class RunnerOrderModification
         return this.size;
     }
 
+    public boolean modificationSizeUnknown() {
+        return Double.isNaN(this.size);
+    }
+
     public long getTimeStamp() {
         return this.timeStamp;
     }
 
     public boolean contains(@NotNull final RunnerOrderModification containedObject) {
-        return this.side == containedObject.getSide() && DoubleMath.fuzzyEquals(this.price, containedObject.getPrice(), 0.002d) && DoubleMath.fuzzyCompare(this.size, containedObject.getSize(), 0.001d) >= 0;
+        return Formulas.sidesAreOpposite(this.side, containedObject.getSide()) && DoubleMath.fuzzyEquals(this.price, containedObject.getPrice(), 0.002d) &&
+               (this.modificationSizeUnknown() || containedObject.modificationSizeUnknown() || DoubleMath.fuzzyCompare(this.size, containedObject.getSize(), Math.abs(this.size / 100d)) >= 0); // todo math.abs ? not clear if correct
     }
 }

@@ -2,7 +2,11 @@ package info.fmro.shared.stream.definitions;
 
 import info.fmro.shared.enums.MarketBettingType;
 import info.fmro.shared.enums.MarketStatus;
+import info.fmro.shared.enums.PriceLadderType;
+import info.fmro.shared.utility.Generic;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -14,6 +18,7 @@ import java.util.List;
 @SuppressWarnings("OverlyComplexClass")
 public class MarketDefinition
         implements Serializable {
+    private static final Logger logger = LoggerFactory.getLogger(MarketDefinition.class);
     @Serial
     private static final long serialVersionUID = 5416387683049486627L;
     private Long betDelay;
@@ -251,6 +256,18 @@ public class MarketDefinition
 
     public synchronized void setPriceLadderDefinition(final PriceLadderDefinition priceLadderDefinition) {
         this.priceLadderDefinition = priceLadderDefinition;
+    }
+
+    @Nullable
+    public synchronized PriceLadderType getPriceLadderType() {
+        @Nullable final PriceLadderType returnValue;
+        if (this.priceLadderDefinition == null) {
+            logger.error("null priceLadderDefinition in getPriceLadderType for: {}", Generic.objectToString(this));
+            returnValue = null;
+        } else {
+            returnValue = this.priceLadderDefinition.getType();
+        }
+        return returnValue;
     }
 
     public synchronized String getRaceType() {

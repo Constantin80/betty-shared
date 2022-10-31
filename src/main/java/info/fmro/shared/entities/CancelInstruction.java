@@ -22,6 +22,6 @@ public class CancelInstruction {
     }
 
     public synchronized void setSizeReduction(@Nullable final Double sizeReduction) {
-        this.sizeReduction = sizeReduction == null ? null : Generic.roundDoubleAmount(sizeReduction);
+        this.sizeReduction = sizeReduction == null ? null : Generic.roundDouble(sizeReduction);
     }
 }

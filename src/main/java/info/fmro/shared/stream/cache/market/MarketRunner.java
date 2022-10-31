@@ -1,6 +1,7 @@
 package info.fmro.shared.stream.cache.market;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import info.fmro.shared.objects.AmountsNavigableMap;
 import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.cache.OrdersList;
 import info.fmro.shared.stream.cache.RunnerOrderModification;
@@ -29,15 +30,15 @@ public class MarketRunner
         implements Serializable { // amounts are in underlying currency (GBP), but the only way to get amounts from PriceSize object is with getSizeEUR method
     @Serial
     private static final long serialVersionUID = -7071355306184374342L;
-    private static final long recentModificationPeriod = 1_000L; // milliseconds for a modification to be recent
+    public static final long recentModificationPeriod = 1_000L; // milliseconds for a modification to be recent
     private static final Logger logger = LoggerFactory.getLogger(MarketRunner.class);
     //    private final Market market;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final String marketId;
     private final RunnerId runnerId;
     private final LinkedList<RunnerOrderModification> recentModifications = new LinkedList<>(); // will contain sizes in GBP, and will only be extracted after conversion to EUR
-
-    // Level / Depth Based Ladders
+// todo hold a record of recent knowledge, remove non recent knowledge when expiredModifications are removed, return modifications + worst recent knowledge; everything modification outside worst knowledge is possible
+    // Full depth Ladders
 //    private MarketRunnerPrices marketRunnerPrices = new MarketRunnerPrices();
     private final PriceSizeLadder atlPrices = PriceSizeLadder.newLay(); // available to lay
     private final PriceSizeLadder atbPrices = PriceSizeLadder.newBack(); // available to back
@@ -45,11 +46,11 @@ public class MarketRunner
     private final PriceSizeLadder spbPrices = PriceSizeLadder.newBack();
     private final PriceSizeLadder splPrices = PriceSizeLadder.newLay();
 
-    // Full depth Ladders
-    private final LevelPriceSizeLadder batbPrices = new LevelPriceSizeLadder();
-    private final LevelPriceSizeLadder batlPrices = new LevelPriceSizeLadder();
-    private final LevelPriceSizeLadder bdatbPrices = new LevelPriceSizeLadder();
-    private final LevelPriceSizeLadder bdatlPrices = new LevelPriceSizeLadder();
+    // Level / Depth Based Ladders
+    private final LevelPriceSizeLadder batbPrices = new LevelPriceSizeLadder(Side.B);
+    private final LevelPriceSizeLadder batlPrices = new LevelPriceSizeLadder(Side.L);
+    private final LevelPriceSizeLadder bdatbPrices = new LevelPriceSizeLadder(Side.B);
+    private final LevelPriceSizeLadder bdatlPrices = new LevelPriceSizeLadder(Side.L);
 
     // special prices
     private double spn; // starting price near projected
@@ -102,6 +103,9 @@ public class MarketRunner
     synchronized void onPriceChange(final boolean isImage, @NotNull final RunnerChange runnerChange) {
         addRecentModifications(this.atlPrices.onPriceChangeGetModifications(isImage, runnerChange.getAtl()));
         addRecentModifications(this.atbPrices.onPriceChangeGetModifications(isImage, runnerChange.getAtb()));
+        addRecentModifications(this.batlPrices.onPriceChangeGetModifications(isImage, runnerChange.getBatl()));
+        addRecentModifications(this.batbPrices.onPriceChangeGetModifications(isImage, runnerChange.getBatb()));
+
         this.trdPrices.onPriceChange(isImage, runnerChange.getTrd());
         this.spbPrices.onPriceChange(isImage, runnerChange.getSpb());
         this.splPrices.onPriceChange(isImage, runnerChange.getSpl());
@@ -220,7 +224,7 @@ public class MarketRunner
     }
 
     @NotNull
-    public synchronized OrdersList getAvailableToLay(@NotNull final AtomicDouble currencyRate) {
+    public synchronized OrdersList getFullAvailableToLay(@NotNull final AtomicDouble currencyRate) { // full ladder, not used now
         removeExpiredModifications();
         final double currencyRatePrimitive = currencyRate.get();
         final TreeMap<Double, Double> orders = this.atlPrices.getSimpleTreeMap(currencyRatePrimitive);
@@ -237,11 +241,32 @@ public class MarketRunner
                 }
             }
         }
-        return new OrdersList(orders, layRecentModifications);
+        return new OrdersList(orders, layRecentModifications, Side.L, AmountsNavigableMap.NOT_PRESENT);
     }
 
     @NotNull
-    public synchronized OrdersList getAvailableToBack(@NotNull final AtomicDouble currencyRate) {
+    public synchronized OrdersList getAvailableToLay(@NotNull final AtomicDouble currencyRate) {
+        removeExpiredModifications();
+        final double currencyRatePrimitive = currencyRate.get();
+        final TreeMap<Double, Double> orders = this.batlPrices.getSimpleTreeMap(currencyRatePrimitive);
+        final LinkedList<RunnerOrderModification> layRecentModifications = new LinkedList<>();
+        for (final RunnerOrderModification runnerOrderModification : this.recentModifications) {
+            if (runnerOrderModification == null) {
+                SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.ERROR, "null runnerOrderModification in getAvailableToLay");
+            } else {
+                final Side side = runnerOrderModification.getSide();
+                if (side == Side.L) {
+                    final RunnerOrderModification runnerOrderModificationEUR = new RunnerOrderModification(side, runnerOrderModification.getPrice(), runnerOrderModification.getSize() * currencyRatePrimitive);
+                    layRecentModifications.add(runnerOrderModificationEUR);
+                } else { // not the side I want
+                }
+            }
+        }
+        return new OrdersList(orders, layRecentModifications, Side.L, this.batlPrices.getWorstOdds());
+    }
+
+    @NotNull
+    public synchronized OrdersList getFullAvailableToBack(@NotNull final AtomicDouble currencyRate) { // full ladder, not used now
         removeExpiredModifications();
         final double currencyRatePrimitive = currencyRate.get();
         final TreeMap<Double, Double> orders = this.atbPrices.getSimpleTreeMap(currencyRatePrimitive);
@@ -258,6 +283,27 @@ public class MarketRunner
                 }
             }
         }
-        return new OrdersList(orders, backRecentModifications);
+        return new OrdersList(orders, backRecentModifications, Side.B, AmountsNavigableMap.NOT_PRESENT);
+    }
+
+    @NotNull
+    public synchronized OrdersList getAvailableToBack(@NotNull final AtomicDouble currencyRate) {
+        removeExpiredModifications();
+        final double currencyRatePrimitive = currencyRate.get();
+        final TreeMap<Double, Double> orders = this.batbPrices.getSimpleTreeMap(currencyRatePrimitive);
+        final LinkedList<RunnerOrderModification> backRecentModifications = new LinkedList<>();
+        for (final RunnerOrderModification runnerOrderModification : this.recentModifications) {
+            if (runnerOrderModification == null) {
+                SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.ERROR, "null runnerOrderModification in getAvailableToBack");
+            } else {
+                final Side side = runnerOrderModification.getSide();
+                if (side == Side.B) {
+                    final RunnerOrderModification runnerOrderModificationEUR = new RunnerOrderModification(side, runnerOrderModification.getPrice(), runnerOrderModification.getSize() * currencyRatePrimitive);
+                    backRecentModifications.add(runnerOrderModificationEUR);
+                } else { // not the side I want
+                }
+            }
+        }
+        return new OrdersList(orders, backRecentModifications, Side.B, this.batbPrices.getWorstOdds());
     }
 }

@@ -17,9 +17,9 @@ class LevelPriceSize
     private static final Logger logger = LoggerFactory.getLogger(LevelPriceSize.class);
     @Serial
     private static final long serialVersionUID = 996457594745721075L;
-    private final int level;
+    private final int level; // 0 - 9, 0 best odds, 9 last odds
     private final double price;
-    private final double size; // markets stream has amounts in GBP
+    private double size; // markets stream has amounts in GBP
 
     LevelPriceSize(final List<Double> levelPriceSize) {
         if (levelPriceSize != null) {
@@ -63,9 +63,27 @@ class LevelPriceSize
         return this.size;
     }
 
+    synchronized double getSizeGBP() {
+        return getSize();
+    }
+
     @SuppressWarnings("unused")
     public synchronized double getSizeEUR(@NotNull final AtomicDouble currencyRate) {
         return getSize() * currencyRate.get();
+    }
+
+    synchronized void removeAmountGBP(final double sizeToRemove) { // package private method
+        if (this.size < 0d) {
+            logger.error("negative size {} in PriceSize for: {}", this.size, Generic.objectToString(this));
+        } else if (sizeToRemove < 0d) {
+            logger.error("negative sizeToRemove {} in PriceSize.removeAmount for: {}", sizeToRemove, Generic.objectToString(this));
+        } else {
+            this.size -= sizeToRemove;
+            if (this.size < 0d) {
+                this.size = 0d;
+            } else { // new size is fine, nothing to be done
+            }
+        }
     }
 
     @Contract(value = "null -> false", pure = true)
@@ -79,17 +97,16 @@ class LevelPriceSize
         }
         final LevelPriceSize that = (LevelPriceSize) obj;
         return this.level == that.level &&
-               Double.compare(that.price, this.price) == 0 &&
-               Double.compare(that.size, this.size) == 0;
+               Double.compare(that.price, this.price) == 0;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(this.level, this.price, this.size);
+        return Objects.hash(this.level, this.price);
     }
 
-    @Override
-    public String toString() {
-        return this.level + ":" + this.size + "@" + this.price;
-    }
+    //    @Override
+//    public String toString() {
+//        return this.level + ":" + this.size + "@" + this.price;
+//    }
 }

@@ -39,6 +39,7 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -355,7 +356,7 @@ public final class Generic {
         return roundDouble(value, places, RoundingMode.HALF_DOWN);
     }
 
-    public static double roundDoubleAmount(final double value) {
+    public static double roundDouble(final double value) {
         if (value < 0d) { // values should always be positive, as these are amount to be placed on bets, but the method works fine with negative
             logger.error("negative value in roundDoubleAmount: {}", value);
         } else { // no error, nothing to be done on branch
@@ -676,6 +677,8 @@ public final class Generic {
             logger.error("STRANGE noSuchFieldException in changeDefaultCharset for: {}", newCharset, noSuchFieldException);
         } catch (IllegalAccessException illegalAccessException) {
             logger.error("STRANGE illegalAccessException in changeDefaultCharset for: {}", newCharset, illegalAccessException);
+        } catch (InaccessibleObjectException inaccessibleObjectException) {
+            logger.error("inaccessibleObjectException in changeDefaultCharset, use \"--add-opens=java.base/java.nio.charset=ALL-UNNAMED\" for: {}", newCharset, inaccessibleObjectException);
         }
     }
 
@@ -2631,8 +2634,7 @@ public final class Generic {
                         } else if (object instanceof Map<?, ?>) {
                             final Object[] arrayValue = ((Map<?, ?>) object).entrySet().toArray(); // never null due to instanceof always being false for null
                             returnStringBuilder.append(objectToString(arrayValue, printDefaultValueFields, printFinalFields, useToStringMethod, recursionCounter + 1, excludePatterns));
-                        } else if (object instanceof Entry<?, ?>) {
-                            final Entry<?, ?> entry = (Entry<?, ?>) object;
+                        } else if (object instanceof final Entry<?, ?> entry) {
                             final Object key = entry.getKey(); // never null due to instanceof always being false for null
                             final Object value = entry.getValue(); // never null due to instanceof always being false for null
                             returnStringBuilder.append("(key=").

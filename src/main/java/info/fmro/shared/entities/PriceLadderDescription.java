@@ -11,8 +11,12 @@ class PriceLadderDescription
         implements Serializable {
     @Serial
     private static final long serialVersionUID = -6000098777316431103L;
-    @SuppressWarnings("unused")
+    @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     private PriceLadderType type; // The type of price ladder.
+
+    public synchronized PriceLadderType getType() {
+        return this.type;
+    }
 
     @SuppressWarnings("NonFinalFieldReferenceInEquals")
     @Override

@@ -66,25 +66,6 @@ public final class PriceSizeLadder
         return side;
     }
 
-//    @NotNull
-//    public synchronized PriceSizeLadder copy() {
-//        final PriceSizeLadder result;
-//        Comparator<? super Double> comparator = this.priceToSize.comparator();
-//        if (comparator == null) {
-//            logger.error("null comparator in PriceSizeLadder.copy for: {}", Generic.objectToString(this));
-//            comparator = Comparator.naturalOrder();
-//        } else { // normal case, everything is fine, nothing to be done
-//        }
-//        result = new PriceSizeLadder(comparator);
-//        result.updateTreeMap(this.priceToSize);
-//
-//        return result;
-//    }
-//
-//    private synchronized void updateTreeMap(final Map<Double, ? extends PriceSize> map) {
-//        this.priceToSize.putAll(map);
-//    }
-
     @NotNull
     synchronized TreeMap<Double, Double> getSimpleTreeMap(final double currencyRate) {
         final TreeMap<Double, Double> result = new TreeMap<>(this.priceToSize.comparator());
@@ -105,7 +86,6 @@ public final class PriceSizeLadder
     public synchronized double getMatchedSize(final double price, @NotNull final AtomicDouble currencyRate) {
         final double matchedSize;
 
-//        if (this.priceToSize != null) {
         if (this.priceToSize.containsKey(price)) {
             final PriceSize priceSize = this.priceToSize.get(price);
             if (priceSize != null) {
@@ -117,10 +97,6 @@ public final class PriceSizeLadder
         } else { // normal case, proper price not found
             matchedSize = 0d;
         }
-//        } else {
-//            logger.error("null priceToSize in getMatchedSize for: {} {}", price, Generic.objectToString(this));
-//            matchedSize = 0d;
-//        }
 
         return matchedSize;
     }
@@ -129,7 +105,6 @@ public final class PriceSizeLadder
     synchronized List<RunnerOrderModification> onPriceChangeGetModifications(final boolean isImage, final Iterable<? extends List<Double>> prices) {
         final Map<Double, PriceSize> initialMap = new HashMap<>(this.priceToSize);
         onPriceChange(isImage, prices);
-//        final Map<Double, PriceSize> finalMap = new HashMap<>(this.priceToSize);
 
         final Collection<Double> pricesSet = new HashSet<>(initialMap.keySet());
         pricesSet.addAll(this.priceToSize.keySet());
@@ -180,10 +155,6 @@ public final class PriceSizeLadder
     public synchronized double getBestPrice(final double calculatedLimit, @NotNull final AtomicDouble currencyRate) {
         double result = 0d;
         final double currencyRatePrimitive = currencyRate.get();
-//        if (this.priceToSize == null) {
-//            logger.error("null priceToSize in getBestPrice for: {}", Generic.objectToString(this));
-//            result = 0d;
-//        } else
         if (this.priceToSize.isEmpty()) {
             result = 0d;
         } else {

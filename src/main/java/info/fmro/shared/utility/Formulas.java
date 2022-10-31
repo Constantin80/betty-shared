@@ -6,7 +6,9 @@ import info.fmro.shared.entities.Event;
 import info.fmro.shared.entities.EventType;
 import info.fmro.shared.entities.MarketCatalogue;
 import info.fmro.shared.entities.MarketDescription;
+import info.fmro.shared.enums.TemporaryOrderType;
 import info.fmro.shared.logic.ManagedRunner;
+import info.fmro.shared.objects.AmountsNavigableMap;
 import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.stream.cache.market.Market;
 import info.fmro.shared.stream.enums.Side;
@@ -22,12 +24,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.SortedMap;
@@ -191,6 +193,30 @@ public final class Formulas {
         pricesList = List.copyOf(localPricesList);
     }
 
+    public static boolean sidesAreOpposite(final Side firstSide, final Side secondSide) {
+        return (firstSide == Side.B && secondSide == Side.L) || (firstSide == Side.L && secondSide == Side.B);
+    }
+
+    public static double getNextBetterOdds(final double odds, @NotNull final Side side) {
+        final double betterOdds;
+        if (side == Side.B) {
+            betterOdds = getNextOddsUp(odds, side);
+        } else {
+            betterOdds = getNextOddsDown(odds, side);
+        }
+        return betterOdds;
+    }
+
+    public static double getNextWorseOdds(final double odds, @NotNull final Side side) {
+        final double worseOdds;
+        if (side == Side.B) {
+            worseOdds = getNextOddsDown(odds, side);
+        } else {
+            worseOdds = getNextOddsUp(odds, side);
+        }
+        return worseOdds;
+    }
+
     public static double getNextOddsDown(final String stringOdds, @NotNull final Side side) {
         double odds;
         try {
@@ -303,7 +329,7 @@ public final class Formulas {
         } else {
             result = odds / 100d;
         }
-        return Generic.roundDoubleAmount(result);
+        return Generic.roundDouble(result);
     }
 
     @SuppressWarnings({"OverloadedMethodsWithSameNumberOfParameters", "WeakerAccess", "RedundantSuppression"})
@@ -339,7 +365,7 @@ public final class Formulas {
             }
 //            final int resultPosition = Math.max(Math.min(baseOddsPosition + nSteps, listSize - 1), 0);
         }
-        return Generic.roundDoubleAmount(result);
+        return Generic.roundDouble(result);
     }
 
     @Contract(pure = true)
@@ -437,7 +463,7 @@ public final class Formulas {
         return result;
     }
 
-    public static double maxOdds(final double firstOdds, final double secondOdds, final Side side) {
+    public static double bestOdds(final double firstOdds, final double secondOdds, final Side side) {
         final double result;
         if (oddsCompare(firstOdds, secondOdds, side) < 0) {
             result = secondOdds;
@@ -447,7 +473,7 @@ public final class Formulas {
         return result;
     }
 
-    public static double minOdds(final double firstOdds, final double secondOdds, final Side side) {
+    public static double worstOdds(final double firstOdds, final double secondOdds, final Side side) {
         final double result;
         if (oddsCompare(firstOdds, secondOdds, side) > 0) {
             result = secondOdds;
@@ -489,6 +515,21 @@ public final class Formulas {
             exposure = 0d;
         }
         return exposure;
+    }
+
+    public static boolean betObeysMinimumLimits(final Side side, final double price, final double size) {
+        return size >= SharedStatics.MINIMUM_BET_SIZE || (side == Side.L && calculateExposure(side, price, size) >= SharedStatics.MINIMUM_BET_PAYOUT);
+    }
+
+    public static double calculateLayBetMinimumSize(final double price) {
+        final double minSize;
+        if (oddsAreUsable(price)) {
+            minSize = Math.min(SharedStatics.MINIMUM_BET_SIZE, SharedStatics.MINIMUM_BET_PAYOUT / (price - 1d));
+        } else {
+            logger.error("bad price in calculateLayBetMinimumSize: {}", price);
+            minSize = Double.MAX_VALUE / 256d;
+        }
+        return minSize;
     }
 
     public static double calculateProfit(final Side side, final double price, final double size) {
@@ -575,35 +616,6 @@ public final class Formulas {
             returnValue = newPrice == null ? currentPrice : newPrice;
         }
         return returnValue;
-    }
-
-    public static void removeOwnAmountsFromAvailableTreeMap(@NotNull final Map<Double, Double> availableAmounts, @NotNull final TreeMap<Double, Double> amountsFromMyUnmatchedOrders) {
-        //noinspection ForLoopWithMissingComponent
-        for (final Iterator<Map.Entry<Double, Double>> iterator = availableAmounts.entrySet().iterator(); iterator.hasNext(); ) {
-            final Map.Entry<Double, Double> entry = iterator.next();
-            final Double price = entry.getKey();
-            if (price == null) {
-                logger.error("null price in removeOwnAmountsFromAvailableTreeMap for: {} {}", Generic.objectToString(availableAmounts), Generic.objectToString(amountsFromMyUnmatchedOrders));
-            } else {
-                final Double availableAmount = entry.getValue();
-                final double availableAmountPrimitive = availableAmount == null ? 0d : availableAmount;
-                final Double myAmount = amountsFromMyUnmatchedOrders.get(price);
-                final double myAmountPrimitive = myAmount == null ? 0d : myAmount;
-                final double amountFromOthers = availableAmountPrimitive - myAmountPrimitive;
-                if (amountFromOthers < 0.01d) {
-//                    availableAmounts.remove(price);
-                    iterator.remove();
-                    if (amountFromOthers <= -0.01d) {
-                        logger.error("negative amount from others {} in removeOwnAmountsFromAvailableTreeMap for: {} {} {} {} {}", amountFromOthers, price, myAmount, availableAmount, Generic.objectToString(amountsFromMyUnmatchedOrders),
-                                     Generic.objectToString(availableAmounts));
-                    } else { // no error, nothing to print
-                    }
-                } else {
-//                    availableAmounts.replace(price, amountFromOthers);
-                    entry.setValue(amountFromOthers);
-                }
-            }
-        }
     }
 
     public static Market getMarket(final String marketId) {
@@ -718,15 +730,15 @@ public final class Formulas {
     }
 
     public static double getBestOddsThatCanBeUsed(final String marketId, final RunnerId runnerId, @NotNull final Side side, final double exposureToBePlaced, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
-                                                  @NotNull final TreeMap<Double, Double> availableAmountsOnOppositeSide, final double totalValueMatched) {
+                                                  @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide, final double totalValueMatched) {
         return getBestOddsThatCanBeUsed(marketId, runnerId, side, exposureToBePlaced, myUnmatchedAmounts, availableAmountsOnOppositeSide, totalValueMatched, true);
     }
 
     @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
     public static double getBestOddsThatCanBeUsed(final String marketId, final RunnerId runnerId, @NotNull final Side side, final double exposureToBePlaced, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
-                                                  @NotNull final TreeMap<Double, Double> availableAmountsOnOppositeSide, final double totalValueMatched, final boolean collectionsNeedParsing) {
+                                                  @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide, final double totalValueMatched, final boolean collectionsNeedParsing) {
         if (collectionsNeedParsing) {
-            removeOwnAmountsFromAvailableTreeMap(availableAmountsOnOppositeSide, myUnmatchedAmounts);
+            availableAmountsOnOppositeSide.removeOwnAmountsFromAvailableTreeMap(myUnmatchedAmounts, "getBestOddsThatCanBeUsed");
             SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(marketId, runnerId, side, myUnmatchedAmounts);
         } else { // collections are already parsed
         }
@@ -735,15 +747,8 @@ public final class Formulas {
         final List<Integer> fullPricesList = side == Side.B ? Lists.reverse(pricesList) : pricesList;
         double bestOddsThatCanBeUsed = 0d;
         double myAmountsSum = exposureToBePlaced;
-        double otherAmountsSum = 0d;
-        for (@NotNull final Map.Entry<Double, Double> entry : availableAmountsOnOppositeSide.entrySet()) {
-//            final Double price = entry.getKey();
-//            final double pricePrimitive = price == null ? 1d : price;
-            final Double amount = entry.getValue();
-            final double amountPrimitive = amount == null ? 0d : amount;
-//            otherAmountsSum += amountPrimitive * (pricePrimitive - 1d);
-            otherAmountsSum += amountPrimitive;
-        }
+        double otherAmountsSum = availableAmountsOnOppositeSide.getAmountsSum();
+
         final double myAmountsSumLimit = Math.max(10d, Math.min(totalValueMatched, otherAmountsSum / 4d));
 
         final Iterator<Double> myPricesIterator = myUnmatchedPrices.iterator();
@@ -791,34 +796,38 @@ public final class Formulas {
 
             if (otherAmountsSum <= ManagedRunner.PLACE_BET_THRESHOLD * Math.min(myAmountsSum, myAmountsSumLimit)) {
                 // myAmountsSum always increases, otherAmountsSum always decreases, so when this branch is entered once, it would be entered on all next loop iterations
-                bestOddsThatCanBeUsed = Generic.roundDoubleAmount(doublePrice);
-                SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.INFO, "bestOddsThatCanBeUsed {} for: {} {} {} {}", bestOddsThatCanBeUsed, marketId, runnerId, side, exposureToBePlaced);
+                bestOddsThatCanBeUsed = Generic.roundDouble(doublePrice);
+                SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.INFO, "bestOddsThatCanBeUsed {} for: {} {} {} expToBePlaced:{}", bestOddsThatCanBeUsed, marketId, runnerId, side, exposureToBePlaced);
                 break;
             } else { // I'll keep iterating, nothing to be done
             }
 
             previousDoublePrice = doublePrice;
         }
-        return bestOddsThatCanBeUsed;
+        return availableAmountsOnOppositeSide.keepOddsWithinLimits(bestOddsThatCanBeUsed);
     }
 
     public static double getWorstOddsThatCantBeReached(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
-                                                       @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide) { // this form is used when checking if existing orders needs to be canceled
-        return getWorstOddsThatCantBeReached(marketId, runnerId, side, myUnmatchedAmounts, availableAmountsOnOppositeSide, false, true);
+                                                       @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide) { // this form is used when checking if existing orders needs to be canceled
+        return getWorstOddsThatCantBeReached(marketId, runnerId, side, myUnmatchedAmounts, availableAmountsOnOppositeSide, false, true, true);
     }
 
     public static double getWorstOddsThatCantBeReached(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
-                                                       @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide, final boolean placingNewOrder, final boolean collectionsNeedParsing) {
-        return getWorstOddsThatCantBeReached(marketId, runnerId, side, myUnmatchedAmounts, availableAmountsOnOppositeSide, placingNewOrder, collectionsNeedParsing, side == Side.L ? 1_001d : 1d);
+                                                       @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide, final boolean placingNewOrder, final boolean availableAmountsNeedParsing, final boolean ownAmountsNeedParsing) {
+        return getWorstOddsThatCantBeReached(marketId, runnerId, side, myUnmatchedAmounts, availableAmountsOnOppositeSide, placingNewOrder, availableAmountsNeedParsing, ownAmountsNeedParsing, side == Side.L ? 1_001d : 1d);
     }
 
     public static double getWorstOddsThatCantBeReached(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
-                                                       @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide, final boolean placingNewOrder, final boolean collectionsNeedParsing, final double worstOddsLimit) {
+                                                       @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide, final boolean placingNewOrder, final boolean availableAmountsNeedParsing, final boolean ownAmountsNeedParsing,
+                                                       final double worstOddsLimit) {
         // boolean placingNewOrder or canceling an existing order
-        if (collectionsNeedParsing) {
-            removeOwnAmountsFromAvailableTreeMap(availableAmountsOnOppositeSide, myUnmatchedAmounts);
+        if (availableAmountsNeedParsing) {
+            availableAmountsOnOppositeSide.removeOwnAmountsFromAvailableTreeMap(myUnmatchedAmounts, "getWorstOddsThatCantBeReached");
+        } else { // availableAmounts are already parsed
+        }
+        if (ownAmountsNeedParsing) {
             SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(marketId, runnerId, side, myUnmatchedAmounts);
-        } else { // collections are already parsed
+        } else { // ownAmounts are already parsed
         }
         final NavigableSet<Double> myUnmatchedPrices = myUnmatchedAmounts.descendingKeySet(); // results in descending order for back and ascending order for lay
         double worstOddsThatCantBeReached = 0d;
@@ -855,20 +864,21 @@ public final class Formulas {
             }
 //            }
         } // end for
-        return worstOddsThatCantBeReached;
+        return availableAmountsOnOppositeSide.keepOddsWithinOneStepOutsideLimits(worstOddsThatCantBeReached);
     }
 
-    public static double getBestOddsWhereICanMoveAmountsToBetterOdds(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
-                                                                     @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide) {
-        return getBestOddsWhereICanMoveAmountsToBetterOdds(marketId, runnerId, side, myUnmatchedAmounts, availableAmountsOnOppositeSide, true);
+    public static double getBestOddsWhereICanMoveAmountsToBetterOdds(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final HashMap<Double, Double> mandatoryPlaceAmounts,
+                                                                     @NotNull final TreeMap<Double, Double> myUnmatchedAmounts, @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide) {
+        return getBestOddsWhereICanMoveAmountsToBetterOdds(marketId, runnerId, side, mandatoryPlaceAmounts, myUnmatchedAmounts, availableAmountsOnOppositeSide, true);
     }
 
     @SuppressWarnings({"WeakerAccess", "RedundantSuppression"})
-    public static double getBestOddsWhereICanMoveAmountsToBetterOdds(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> myUnmatchedAmounts,
-                                                                     @NotNull final NavigableMap<Double, Double> availableAmountsOnOppositeSide, final boolean collectionsNeedParsing) {
+    public static double getBestOddsWhereICanMoveAmountsToBetterOdds(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final HashMap<Double, Double> mandatoryPlaceAmounts,
+                                                                     @NotNull final TreeMap<Double, Double> myUnmatchedAmounts, @NotNull final AmountsNavigableMap availableAmountsOnOppositeSide, final boolean collectionsNeedParsing) {
         if (collectionsNeedParsing) {
-            removeOwnAmountsFromAvailableTreeMap(availableAmountsOnOppositeSide, myUnmatchedAmounts);
-//            SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(marketId, runnerId, side, myUnmatchedAmounts);
+            availableAmountsOnOppositeSide.removeOwnAmountsFromAvailableTreeMap(myUnmatchedAmounts, "getBestOddsWhereICanMoveAmountsToBetterOdds");
+            SharedStatics.orderCache.addTemporaryAmountsToOwnAmounts(marketId, runnerId, side, myUnmatchedAmounts, TemporaryOrderType.CANCEL);
+            removeAmountsFromTreeMap(myUnmatchedAmounts, mandatoryPlaceAmounts, "getBestOddsWhereICanMoveAmountsToBetterOdds removeMandatoryPlace");
         } else { // collections are already parsed
         }
         final NavigableSet<Double> myUnmatchedPrices = myUnmatchedAmounts.descendingKeySet(); // results in descending order for back and ascending order for lay
@@ -905,6 +915,41 @@ public final class Formulas {
             }
 //            }
         } // end for
-        return bestOddsWhereICanMoveAmountsToBetterOdds;
+        return availableAmountsOnOppositeSide.keepOddsWithinOneStepInsideLimits(bestOddsWhereICanMoveAmountsToBetterOdds);
+    }
+
+    public static void removeAmountsFromTreeMap(@NotNull final Map<Double, Double> availableAmounts, @NotNull final Map<Double, Double> amountsToRemove, final String reason) {
+        //noinspection ForLoopWithMissingComponent
+        for (final Iterator<Map.Entry<Double, Double>> iterator = availableAmounts.entrySet().iterator(); iterator.hasNext(); ) {
+            final Map.Entry<Double, Double> entry = iterator.next();
+            final Double price = entry.getKey();
+            if (price == null) {
+                logger.error("null price in removeAmountsFromTreeMap for: {} {} {}", Generic.objectToString(availableAmounts), Generic.objectToString(amountsToRemove), reason);
+            } else {
+                final Double availableAmount = entry.getValue();
+                final double availableAmountPrimitive = availableAmount == null ? 0d : availableAmount;
+                final Double myAmount = amountsToRemove.get(price);
+                final double myAmountPrimitive = myAmount == null ? 0d : myAmount;
+                final double amountFromOthers = availableAmountPrimitive - myAmountPrimitive;
+                if (amountFromOthers < 0.01d) {
+//                    availableAmounts.remove(price);
+                    iterator.remove();
+                    if (amountFromOthers <= -0.01d) {
+                        if (availableAmountPrimitive / myAmountPrimitive > .995d) { // tiny difference caused most likely by currency conversion and roundings
+                        } else {
+                            if (reason.contains("Mandatory")) { // normal to get negative amounts, no need to print anything
+                            } else {
+                                logger.error("negative amount from others {} in removeAmountsFromTreeMap for {}: {} {} {} {} {}", amountFromOthers, reason, price, myAmount, availableAmount, Generic.objectToString(amountsToRemove),
+                                             Generic.objectToString(availableAmounts));
+                            }
+                        }
+                    } else { // no error, nothing to print
+                    }
+                } else {
+//                    availableAmounts.replace(price, amountFromOthers);
+                    entry.setValue(amountFromOthers);
+                }
+            }
+        }
     }
 }

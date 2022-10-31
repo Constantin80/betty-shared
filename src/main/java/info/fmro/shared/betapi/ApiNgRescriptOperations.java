@@ -88,13 +88,15 @@ public final class ApiNgRescriptOperations {
 
     @NotNull
     public static HashSet<CurrentOrderSummary> listCurrentOrders(final Set<String> betIds, final Set<String> marketIds, final OrderProjection orderProjection, final TimeRange placedDateRange, final OrderBy orderBy, final SortDir sortDir,
-                                                                 final int fromRecord, final int recordCount, final RescriptResponseHandler rescriptResponseHandler, @NotNull final Method sendPostRequestRescriptMethod) {
+                                                                 final int fromRecord, final int recordCount, final boolean includeItemDescription, final RescriptResponseHandler rescriptResponseHandler,
+                                                                 @NotNull final Method sendPostRequestRescriptMethod) {
         final HashSet<CurrentOrderSummary> currentOrderSummarySet = new HashSet<>(16, 0.75f); // empty in the beginning; its size will be used in the loop
         boolean moreAvailable;
         int counterWhile = 0;
         do {
             final int localFromRecord = fromRecord + currentOrderSummarySet.size();
-            final CurrentOrderSummaryReport currentOrderSummaryReport = listCurrentOrdersReport(betIds, marketIds, orderProjection, placedDateRange, orderBy, sortDir, localFromRecord, recordCount, rescriptResponseHandler, sendPostRequestRescriptMethod);
+            final CurrentOrderSummaryReport currentOrderSummaryReport =
+                    listCurrentOrdersReport(betIds, marketIds, orderProjection, placedDateRange, orderBy, sortDir, localFromRecord, recordCount, includeItemDescription, rescriptResponseHandler, sendPostRequestRescriptMethod);
 
             if (currentOrderSummaryReport != null) {
                 final List<CurrentOrderSummary> currentOrderSummaryList = currentOrderSummaryReport.getCurrentOrders();
@@ -121,7 +123,8 @@ public final class ApiNgRescriptOperations {
     }
 
     private static CurrentOrderSummaryReport listCurrentOrdersReport(final Set<String> betIds, final Set<String> marketIds, final OrderProjection orderProjection, final TimeRange placedDateRange, final OrderBy orderBy, final SortDir sortDir,
-                                                                     final int fromRecord, final int recordCount, final RescriptResponseHandler rescriptResponseHandler, @NotNull final Method sendPostRequestRescriptMethod) {
+                                                                     final int fromRecord, final int recordCount, final boolean includeItemDescription, final RescriptResponseHandler rescriptResponseHandler,
+                                                                     @NotNull final Method sendPostRequestRescriptMethod) {
         final Map<String, Object> paramsHashMap = new HashMap<>(16, 0.75f);
         paramsHashMap.put(BET_IDS, betIds);
         paramsHashMap.put(MARKET_IDS, marketIds);
@@ -131,6 +134,7 @@ public final class ApiNgRescriptOperations {
         paramsHashMap.put(SORT_DIR, sortDir);
         paramsHashMap.put(FROM_RECORD, fromRecord);
         paramsHashMap.put(RECORD_COUNT, recordCount);
+        paramsHashMap.put(INCLUDE_ITEM_DESCRIPTION, includeItemDescription);
         final String responseString = makeRequest(ApiNgOperation.LISTCURRENTORDERS.getOperationName(), paramsHashMap, rescriptResponseHandler, sendPostRequestRescriptMethod);
 //        if (Statics.debugLevel.check(3, 200)) {
 //            logger.info("params: {} Response: {} timeStamp={}", Generic.objectToString(paramsHashMap, false, false), responseString, System.currentTimeMillis());

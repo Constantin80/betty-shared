@@ -1,7 +1,11 @@
 package info.fmro.shared.entities;
 
 import info.fmro.shared.enums.MarketBettingType;
+import info.fmro.shared.enums.PriceLadderType;
+import info.fmro.shared.utility.Generic;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -11,6 +15,7 @@ import java.util.Objects;
 @SuppressWarnings({"unused", "FieldAccessedSynchronizedAndUnsynchronized"})
 public class MarketDescription
         implements Serializable {
+    private static final Logger logger = LoggerFactory.getLogger(MarketDescription.class);
     @Serial
     private static final long serialVersionUID = -2877536783333417777L;
     private Boolean persistenceEnabled;
@@ -129,6 +134,26 @@ public class MarketDescription
 
     public synchronized MarketLineRangeInfo getLineRangeInfo() {
         return this.lineRangeInfo;
+    }
+
+    public synchronized String getRaceType() {
+        return this.raceType;
+    }
+
+    public synchronized PriceLadderDescription getPriceLadderDescription() {
+        return this.priceLadderDescription;
+    }
+
+    @Nullable
+    public synchronized PriceLadderType getPriceLadderType() {
+        @Nullable final PriceLadderType returnValue;
+        if (this.priceLadderDescription == null) {
+            logger.error("null priceLadderDescription in getPriceLadderType for: {}", Generic.objectToString(this));
+            returnValue = null;
+        } else {
+            returnValue = this.priceLadderDescription.getType();
+        }
+        return returnValue;
     }
 
     @SuppressWarnings("NonFinalFieldReferenceInEquals")

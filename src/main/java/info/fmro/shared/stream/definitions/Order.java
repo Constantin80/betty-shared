@@ -54,8 +54,29 @@ public class Order
     private Double sr; // Size Remaining - the amount of the order that is remaining unmatched
     private OrderStatus status; // Status - the status of the order (E = EXECUTABLE, EC = EXECUTION_COMPLETE)
     private Double sv; // Size Voided - the amount of the order that has been voided
+    @Nullable
+    private Date cd; // Canceled Date - the date the order was cancelled (null if the order is not cancelled)
     //    private double backExposure, layExposure, backProfit, layProfit;
     private transient double sizeTempCanceled;
+
+    public synchronized long getAgeMillis() {
+        return getAgeMillis(System.currentTimeMillis());
+    }
+
+    public synchronized long getAgeMillis(final long currentTime) {
+        return currentTime - getPlacedDateMillis();
+    }
+
+    public synchronized long getPlacedDateMillis() {
+        final long placedDateMillis;
+        if (this.pd == null) {
+            logger.error("null placedDate during getPlacedDateMillis for: {}", Generic.objectToString(this));
+            placedDateMillis = 0L;
+        } else {
+            placedDateMillis = this.pd.getTime();
+        }
+        return placedDateMillis;
+    }
 
     public synchronized void calculateExposureAndProfit(@NotNull final Exposure exposure) {
         if (this.p == null || this.p <= 1d || this.sr == null || this.status == null || this.side == null) {
@@ -102,7 +123,7 @@ public class Order
         if (this.p == null || this.side == null || this.id == null || !Formulas.oddsAreUsable(this.p)) {
             logger.error("null variables or bad odds during removeExposure for: {} {} {} {} {} {} {} {} {}", marketId, runnerId, sideToRemove, excessExposure, this.p, this.side, this.id, reason, Generic.objectToString(this));
             exposureReduction = 0d;
-        } else if (Generic.roundDoubleAmount(excessExposure) == 0d) {
+        } else if (excessExposure <= 0d || Generic.roundDouble(excessExposure) == 0d) {
             exposureReduction = 0d;
         } else if (sideToRemove == this.side && (sideToRemove == Side.B || sideToRemove == Side.L)) {
             final double sizeRemaining = this.sr == null ? 0d : this.sr;
@@ -279,6 +300,15 @@ public class Order
 
     public synchronized void setPd(final Date pd) {
         this.pd = pd == null ? null : (Date) pd.clone();
+    }
+
+    @Nullable
+    public synchronized Date getCd() {
+        return this.cd == null ? null : (Date) this.cd.clone();
+    }
+
+    public synchronized void setCd(final Date cd) {
+        this.cd = cd == null ? null : (Date) cd.clone();
     }
 
     public synchronized Double getAvp() {

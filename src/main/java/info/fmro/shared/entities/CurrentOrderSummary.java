@@ -48,6 +48,8 @@ public final class CurrentOrderSummary
     private String regulatorCode;
     private String customerOrderRef; // The order reference defined by the customer for this bet
     private String customerStrategyRef; // The strategy reference defined by the customer for this bet
+    @Nullable
+    private CurrentItemDescription currentItemDescription; // A container for all the ancillary data for this Item
     @SuppressWarnings("FieldHasSetterButNoGetter")
     private String eventId; // created using the marketId
 
@@ -269,6 +271,15 @@ public final class CurrentOrderSummary
 
     public synchronized void setCustomerStrategyRef(final String customerStrategyRef) {
         this.customerStrategyRef = customerStrategyRef;
+    }
+
+    @Nullable
+    public synchronized CurrentItemDescription getCurrentItemDescription() {
+        return this.currentItemDescription;
+    }
+
+    public synchronized void setCurrentItemDescription(@Nullable final CurrentItemDescription currentItemDescription) {
+        this.currentItemDescription = currentItemDescription;
     }
 
     @SuppressWarnings("MethodWithMultipleReturnPoints")

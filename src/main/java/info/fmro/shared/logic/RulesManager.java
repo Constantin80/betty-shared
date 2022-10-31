@@ -88,6 +88,11 @@ public class RulesManager
         return SerializationUtils.clone(this);
     }
 
+    public synchronized void clearCachedObjects() {
+        this.events.clear();
+        this.markets.clear();
+    }
+
     public synchronized boolean copyFromStream(final RulesManager other) {
         return copyFrom(other, true);
     }
@@ -722,7 +727,6 @@ public class RulesManager
 //        this.marketsMapModified.set(false);
         final double totalLimit = safetyLimits.getTotalLimit();
         Utils.calculateMarketLimits(totalLimit, this.markets.valuesCopy(), true, true, safetyLimits, marketCataloguesMap, this);
-
         for (final ManagedEvent managedEvent : this.events.valuesCopy()) {
             managedEvent.calculateMarketLimits(this, safetyLimits, marketCataloguesMap);
         }

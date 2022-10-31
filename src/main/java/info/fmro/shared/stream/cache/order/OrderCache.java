@@ -7,12 +7,14 @@ import info.fmro.shared.entities.LimitOrder;
 import info.fmro.shared.entities.PlaceInstruction;
 import info.fmro.shared.enums.OrderType;
 import info.fmro.shared.enums.PersistenceType;
+import info.fmro.shared.enums.ProgramName;
 import info.fmro.shared.enums.RulesManagerModificationCommand;
 import info.fmro.shared.enums.TemporaryOrderType;
 import info.fmro.shared.logic.BetFrequencyLimit;
 import info.fmro.shared.logic.ExistingFunds;
 import info.fmro.shared.logic.ManagedRunner;
 import info.fmro.shared.logic.RulesManager;
+import info.fmro.shared.objects.AmountsNavigableMap;
 import info.fmro.shared.objects.Exposure;
 import info.fmro.shared.objects.SharedStatics;
 import info.fmro.shared.objects.TemporaryOrder;
@@ -73,10 +75,20 @@ public class OrderCache
         in.defaultReadObject();
         this.listOfQueues = new ListOfQueues();
         this.initializedStamp = new AtomicLong();
+
+        if (SharedStatics.programName.get() == ProgramName.CLIENT) {
+            this.initializedStamp.set(System.currentTimeMillis());
+        } else { // I only need to set the stamp in client
+        }
     }
 
     public synchronized OrderCache getCopy() {
         return SerializationUtils.clone(this);
+    }
+
+    public synchronized void clearCachedObjects() {
+        this.markets.clear();
+        this.temporaryOrders.clear();
     }
 
     @SuppressWarnings("NonPrivateFieldAccessedInSynchronizedContext")
@@ -95,7 +107,7 @@ public class OrderCache
             this.temporaryOrders.clear(); // no need to send these through stream, the whole OrderCache object is sent
             this.temporaryOrders.addAll(other.temporaryOrders);
             addAllTempCancelToOrderMarketRunner();
-
+            this.initializedStamp.set(other.initializedStamp.get());
             readSuccessful = true;
         }
 
@@ -259,13 +271,13 @@ public class OrderCache
     @NotNull
     public synchronized OrdersList getUnmatchedBackAmounts(final String marketId, @NotNull final RunnerId runnerId) {
         final OrderMarketRunner runner = getOrderMarketRunner(marketId, runnerId);
-        return runner == null ? new OrdersList(new TreeMap<>(Comparator.naturalOrder()), new LinkedList<>()) : runner.getUnmatchedBackAmounts();
+        return runner == null ? new OrdersList(new TreeMap<>(Comparator.naturalOrder()), new LinkedList<>(), Side.B, AmountsNavigableMap.NOT_PRESENT) : runner.getUnmatchedBackAmounts();
     }
 
     @NotNull
     public synchronized OrdersList getUnmatchedLayAmounts(final String marketId, @NotNull final RunnerId runnerId) {
         final OrderMarketRunner runner = getOrderMarketRunner(marketId, runnerId);
-        return runner == null ? new OrdersList(new TreeMap<>(Comparator.reverseOrder()), new LinkedList<>()) : runner.getUnmatchedLayAmounts();
+        return runner == null ? new OrdersList(new TreeMap<>(Comparator.reverseOrder()), new LinkedList<>(), Side.L, AmountsNavigableMap.NOT_PRESENT) : runner.getUnmatchedLayAmounts();
     }
 
     public synchronized double cancelUnmatchedAmounts(final String marketId, @NotNull final RunnerId runnerId, final double backExcessExposure, final double layExcessExposure, @NotNull final ManagedRunner managedRunner,
@@ -287,40 +299,41 @@ public class OrderCache
 
     public synchronized int cancelUnmatched(final String marketId, @NotNull final RunnerId runnerId, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         // cancel all unmatched orders
-        return cancelUnmatchedAtWorseOdds(marketId, runnerId, null, 0d, Double.MAX_VALUE, managedRunner, sendPostRequestRescriptMethod, false, reason);
+        return cancelUnmatchedAtWorseOdds(marketId, runnerId, null, 0d, Double.MAX_VALUE, new HashMap<>(1), managedRunner, sendPostRequestRescriptMethod, false, 0L, reason);
     }
 
     public synchronized int cancelUnmatched(final String marketId, @NotNull final RunnerId runnerId, final Side sideToCancel, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         // cancel all unmatched orders on that side
-        return cancelUnmatchedAtWorseOdds(marketId, runnerId, sideToCancel, 0d, Double.MAX_VALUE, managedRunner, sendPostRequestRescriptMethod, false, reason);
+        return cancelUnmatchedAtWorseOdds(marketId, runnerId, sideToCancel, 0d, Double.MAX_VALUE, new HashMap<>(1), managedRunner, sendPostRequestRescriptMethod, false, 0L, reason);
     }
 
     public synchronized int cancelUnmatched(final String marketId, @NotNull final RunnerId runnerId, final Side sideToCancel, final double worstNotCanceledOdds, @NotNull final ManagedRunner managedRunner,
                                             @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         // cancel all unmatched orders
-        return cancelUnmatchedAtWorseOdds(marketId, runnerId, sideToCancel, worstNotCanceledOdds, Double.MAX_VALUE, managedRunner, sendPostRequestRescriptMethod, false, reason);
+        return cancelUnmatchedAtWorseOdds(marketId, runnerId, sideToCancel, worstNotCanceledOdds, Double.MAX_VALUE, new HashMap<>(1), managedRunner, sendPostRequestRescriptMethod, false, 0L, reason);
     }
 
     public synchronized int cancelUnmatchedAtWorseOdds(final String marketId, @NotNull final RunnerId runnerId, final Side sideToCancel, final double worstNotCanceledOdds, @NotNull final ManagedRunner managedRunner,
                                                        @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
-        return cancelUnmatchedAtWorseOdds(marketId, runnerId, sideToCancel, worstNotCanceledOdds, Double.MAX_VALUE, managedRunner, sendPostRequestRescriptMethod, false, reason);
+        return cancelUnmatchedAtWorseOdds(marketId, runnerId, sideToCancel, worstNotCanceledOdds, Double.MAX_VALUE, new HashMap<>(1), managedRunner, sendPostRequestRescriptMethod, false, 0L, reason);
     }
 
-    public synchronized int cancelUnmatchedAtWorseOdds(final String marketId, @NotNull final RunnerId runnerId, final Side sideToCancel, final double worstNotCanceledOdds, @NotNull final ManagedRunner managedRunner,
-                                                       @NotNull final Method sendPostRequestRescriptMethod, final boolean includeTheProvidedOdds, final String reason) {
-        return cancelUnmatchedAtWorseOdds(marketId, runnerId, sideToCancel, worstNotCanceledOdds, Double.MAX_VALUE, managedRunner, sendPostRequestRescriptMethod, includeTheProvidedOdds, reason);
+    public synchronized int cancelUnmatchedAtWorseOdds(final String marketId, @NotNull final RunnerId runnerId, final Side sideToCancel, final double worstNotCanceledOdds, @NotNull final HashMap<Double, Double> mandatoryPlaceAmounts,
+                                                       @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final boolean includeTheProvidedOdds, final long minAgeMillis, final String reason) {
+        return cancelUnmatchedAtWorseOdds(marketId, runnerId, sideToCancel, worstNotCanceledOdds, Double.MAX_VALUE, mandatoryPlaceAmounts, managedRunner, sendPostRequestRescriptMethod, includeTheProvidedOdds, minAgeMillis, reason);
     }
 
-    public synchronized int cancelUnmatchedAtWorseOdds(final String marketId, @NotNull final RunnerId runnerId, final Side sideToCancel, final double worstNotCanceledOdds, final double excessExposure, @NotNull final ManagedRunner managedRunner,
-                                                       @NotNull final Method sendPostRequestRescriptMethod, final boolean includeTheProvidedOdds, final String reason) {
+    public synchronized int cancelUnmatchedAtWorseOdds(final String marketId, @NotNull final RunnerId runnerId, final Side sideToCancel, final double worstNotCanceledOdds, final double excessExposure,
+                                                       @NotNull final HashMap<Double, Double> mandatoryPlaceAmounts, @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final boolean includeTheProvidedOdds,
+                                                       final long minAgeMillis, final String reason) {
         final OrderMarketRunner runner = getOrderMarketRunner(marketId, runnerId);
-        return runner == null ? 0 : runner.cancelUnmatchedAtWorseOdds(sideToCancel, worstNotCanceledOdds, excessExposure, managedRunner, sendPostRequestRescriptMethod, includeTheProvidedOdds, reason);
+        return runner == null ? 0 : runner.cancelUnmatchedAtWorseOdds(sideToCancel, worstNotCanceledOdds, excessExposure, mandatoryPlaceAmounts, managedRunner, sendPostRequestRescriptMethod, includeTheProvidedOdds, minAgeMillis, reason);
     }
 
     public synchronized int cancelUnmatchedTooGoodOdds(final String marketId, @NotNull final RunnerId runnerId, @NotNull final Side sideToCancel, final double worstOddsThatAreGettingCanceled, @NotNull final ManagedRunner managedRunner,
-                                                       @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
+                                                       @NotNull final Method sendPostRequestRescriptMethod, final long minAgeMillis, final String reason) {
         final OrderMarketRunner runner = getOrderMarketRunner(marketId, runnerId);
-        return runner == null ? 0 : runner.cancelUnmatchedTooGoodOdds(sideToCancel, worstOddsThatAreGettingCanceled, managedRunner, sendPostRequestRescriptMethod, reason);
+        return runner == null ? 0 : runner.cancelUnmatchedTooGoodOdds(sideToCancel, worstOddsThatAreGettingCanceled, managedRunner, sendPostRequestRescriptMethod, minAgeMillis, reason);
     }
 
     public synchronized void updateExposure(@NotNull final ManagedRunner managedRunner) {
@@ -493,7 +506,7 @@ public class OrderCache
 
         final double existingTotalExposure = side == Side.B ? exposure.getBackTotalExposure() : exposure.getLayTotalExposure();
         final double availableExposure = exposureLimit - existingTotalExposure;
-        final double maxSize = Generic.roundDoubleAmount(Formulas.calculateBetSizeFromExposure(side, price, availableExposure));
+        final double maxSize = Generic.roundDouble(Formulas.calculateBetSizeFromExposure(side, price, availableExposure));
         if (maxSize >= size) { // normal, no log message needed
         } else {
             logger.error("limit breached {} vs {} in checkLimitsAreRespected for: {} {} {} {} {}", size, maxSize, marketId, runnerId, side, price, exposureLimit);
@@ -508,7 +521,7 @@ public class OrderCache
         final double sizePlaced;
         if (isInitialized()) {
             if (marketId != null && runnerId != null && side != null && price > 0d && size > 0d && Formulas.oddsAreUsable(price)) {
-                final double sizeToPlace = Generic.roundDoubleAmount(size);
+                final double sizeToPlace = Generic.roundDouble(size);
 //                final TemporaryOrder temporaryOrderUsedForDuplicateCheck = new TemporaryOrder(marketId, runnerId, side, price, sizeToPlace, SharedStatics.notPlacingOrders || SharedStatics.denyBetting.get(), reason);
 //                if (this.temporaryOrders.contains(temporaryOrderUsedForDuplicateCheck)) { // check is done with sizeToPlace, and not with sizeToPlaceWithinLimits, because sizeToPlaceWithinLimits is calculated considering existing temporaryOrders
 //                    // this first if branch might no longer be necessary, as this error is always caught on the second branch; I'll keep it, for now at least, to distinguish between the 2 errors
@@ -526,9 +539,9 @@ public class OrderCache
                         SharedStatics.alreadyPrintedMap.logOnce(logger, LogLevel.INFO, "not placing order because reserve breached, available:{} reserve:{} for: {} {} {} {} p:{} size:{} lim:{}", existingFunds.getAvailableFunds(),
                                                                 existingFunds.getReserve(), reason, marketId, runnerId, side, price, sizeToPlace, exposureLimit);
                         sizePlaced = 0d;
-                    } else if (sizeToPlace >= 2d || Formulas.calculateExposure(side, price, sizeToPlace) >= 2d) {
+                    } else if (Formulas.betObeysMinimumLimits(side, price, sizeToPlace)) {
                         final double sizeToPlaceWithinLimits = checkLimitsAreRespected(marketId, runnerId, side, price, sizeToPlace, exposureLimit);
-                        if (sizeToPlaceWithinLimits >= 2d || Formulas.calculateExposure(side, price, sizeToPlaceWithinLimits) >= 2d) {
+                        if (Formulas.betObeysMinimumLimits(side, price, sizeToPlaceWithinLimits)) {
                             @NotNull final TemporaryOrder temporaryOrder = new TemporaryOrder(marketId, runnerId, side, price, sizeToPlaceWithinLimits, SharedStatics.notPlacingOrders || SharedStatics.denyBetting.get(), reason);
                             addTempOrder(temporaryOrder, managedRunner);
 //                                this.temporaryOrders.add(temporaryOrder);
@@ -558,7 +571,7 @@ public class OrderCache
                             sizePlaced = 0d;
                         }
                     } else { // size too small to place order
-                        logger.info("too small but not zero value {} for sizeToPlace in addPlaceOrder for: {} {} {} p:{} size:{} {}", sizeToPlace, marketId, runnerId, side, price, size, reason);
+                        logger.debug("too small but not zero value {} for sizeToPlace in addPlaceOrder for: {} {} {} p:{} size:{} {}", sizeToPlace, marketId, runnerId, side, price, size, reason);
                         sizePlaced = 0d;
                     }
                 } else if (sizeToPlace == 0d) {
@@ -583,31 +596,36 @@ public class OrderCache
                                               @NotNull final ManagedRunner managedRunner, @NotNull final Method sendPostRequestRescriptMethod, final String reason) {
         // runnerId, side, price, size are needed to identify the order in the stream, or not, but they might have some use; size in this case is sizeRemaining
         final double exposureCanceled;
-        if (marketId != null && betId != null && (sizeReduction == null || Generic.roundDoubleAmount(sizeReduction) > 0d)) {
-            @NotNull final TemporaryOrder temporaryOrder = new TemporaryOrder(marketId, runnerId, side, price, size, betId, sizeReduction, SharedStatics.notPlacingOrders || SharedStatics.denyBetting.get(), reason);
+        if (marketId != null && betId != null && (sizeReduction == null || Generic.roundDouble(sizeReduction) > 0d)) {
+            if (sizeMinusSizeTempCanceled >= .005d) {
+                @NotNull final TemporaryOrder temporaryOrder = new TemporaryOrder(marketId, runnerId, side, price, size, betId, sizeReduction, SharedStatics.notPlacingOrders || SharedStatics.denyBetting.get(), reason);
 //            if (this.temporaryOrders.contains(temporaryOrder)) {
 //                final TemporaryOrder existingTempOrder = getExistingTemporaryOrderThatEquals(temporaryOrder);
 //                logger.info("will not post duplicate cancelOrder existingReason={}: {}", existingTempOrder == null ? "ERROR null Order" : existingTempOrder.getReasonId(), Generic.objectToString(temporaryOrder));
 //                exposureCanceled = 0d;
 //            } else {
-            addTempOrder(temporaryOrder, managedRunner);
+                addTempOrder(temporaryOrder, managedRunner);
 //                this.temporaryOrders.add(temporaryOrder);
 //                //noinspection NonPrivateFieldAccessedInSynchronizedContext
 //                this.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.addTempOrder, temporaryOrder));
 //                this.newOrderAdded.set(true);
 
-            final CancelInstruction cancelInstruction = new CancelInstruction();
-            cancelInstruction.setBetId(betId);
-            cancelInstruction.setSizeReduction(sizeReduction);
+                final CancelInstruction cancelInstruction = new CancelInstruction();
+                cancelInstruction.setBetId(betId);
+                cancelInstruction.setSizeReduction(sizeReduction);
 
-            final List<CancelInstruction> cancelInstructionsList = new ArrayList<>(1);
-            cancelInstructionsList.add(cancelInstruction);
+                final List<CancelInstruction> cancelInstructionsList = new ArrayList<>(1);
+                cancelInstructionsList.add(cancelInstruction);
 
-            SharedStatics.threadPoolExecutorImportant.execute(new CancelOrdersThread(marketId, cancelInstructionsList, temporaryOrder, sendPostRequestRescriptMethod));
-            exposureCanceled = Formulas.calculateExposure(side, price, sizeReduction == null ? sizeMinusSizeTempCanceled : Math.min(Generic.roundDoubleAmount(sizeReduction), sizeMinusSizeTempCanceled));
+                SharedStatics.threadPoolExecutorImportant.execute(new CancelOrdersThread(marketId, cancelInstructionsList, temporaryOrder, sendPostRequestRescriptMethod));
+                exposureCanceled = Formulas.calculateExposure(side, price, sizeReduction == null ? sizeMinusSizeTempCanceled : Math.min(Generic.roundDouble(sizeReduction), sizeMinusSizeTempCanceled));
 //            }
+            } else {
+                logger.debug("not posting further cancel order, sizeMinusSizeTempCanceled={} for: {} {} {} {} {} {} {}", sizeMinusSizeTempCanceled, marketId, runnerId, side, price, size, sizeReduction, reason);
+                exposureCanceled = 0d;
+            }
         } else {
-            logger.error("bogus arguments in addCancelOrder: {} {} {} {}", marketId, betId, sizeReduction, reason);
+            logger.error("bogus arguments in addCancelOrder: {} {} {} {} {}", marketId, runnerId, betId, sizeReduction, reason);
             exposureCanceled = 0d;
         }
 //        Generic.addToAtomicDouble(removedExposureDuringThisManageIteration, exposureCanceled);
@@ -627,8 +645,12 @@ public class OrderCache
         return existingTempOrder;
     }
 
-    @SuppressWarnings("OverlyNestedMethod")
     public synchronized void addTemporaryAmountsToOwnAmounts(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> tree) {
+        addTemporaryAmountsToOwnAmounts(marketId, runnerId, side, tree, null);
+    }
+
+    @SuppressWarnings("OverlyNestedMethod")
+    public synchronized void addTemporaryAmountsToOwnAmounts(final String marketId, final RunnerId runnerId, @NotNull final Side side, @NotNull final TreeMap<Double, Double> tree, @Nullable final TemporaryOrderType typeToParse) {
         for (final TemporaryOrder temporaryOrder : this.temporaryOrders) {
             if (temporaryOrder == null) { // should never happen; if it does happen, it gets removed in checkForExpiredOrders()
                 logger.error("null temporaryOrder in addTemporaryAmountsToOwnAmounts");
@@ -644,20 +666,26 @@ public class OrderCache
                             final Double sizeInTree = tree.get(price); // can easily be null if element not found
                             final double primitiveSizeInTree = sizeInTree == null ? 0d : sizeInTree;
                             if (type == TemporaryOrderType.PLACE) {
-                                tree.put(price, primitiveSizeInTree + size);
+                                if (typeToParse == null || typeToParse == type) {
+                                    tree.put(price, primitiveSizeInTree + size);
+                                } else { // won't use PLACE orders
+                                }
                             } else if (type == TemporaryOrderType.CANCEL) {
-                                @Nullable final Double sizeReduction = temporaryOrder.getSizeReduction();
-                                final double sizeReductionPrimitive = sizeReduction == null ? size : sizeReduction;
-                                final double remainingSize = primitiveSizeInTree - sizeReductionPrimitive;
-                                if (remainingSize >= 0.01d) {
-                                    tree.replace(price, remainingSize);
-                                } else {
-                                    if (remainingSize <= -0.01d) {
-                                        logger.error("negative remainingSize {} in addTemporaryAmountsToOwnAmounts for: {} {} {} {} {} {} {} {}", remainingSize, primitiveSizeInTree, sizeReductionPrimitive, marketId, runnerId, side,
-                                                     price, Generic.objectToString(temporaryOrder), Generic.objectToString(tree));
-                                    } else { // no error, nothing to print
+                                if (typeToParse == null || typeToParse == type) {
+                                    @Nullable final Double sizeReduction = temporaryOrder.getSizeReduction();
+                                    final double sizeReductionPrimitive = sizeReduction == null ? size : sizeReduction;
+                                    final double remainingSize = primitiveSizeInTree - sizeReductionPrimitive;
+                                    if (remainingSize >= 0.01d) {
+                                        tree.replace(price, remainingSize);
+                                    } else {
+                                        if (remainingSize <= -0.01d) {
+                                            logger.error("negative remainingSize {} in addTemporaryAmountsToOwnAmounts for: {} {} {} {} {} {} {} {}", remainingSize, primitiveSizeInTree, sizeReductionPrimitive, marketId, runnerId, side,
+                                                         price, Generic.objectToString(temporaryOrder), Generic.objectToString(tree));
+                                        } else { // no error, nothing to print
+                                        }
+                                        tree.remove(price);
                                     }
-                                    tree.remove(price);
+                                } else { // won't use CANCEL orders
                                 }
                             } else {
                                 logger.error("unknown TemporaryOrderType {} in addTemporaryAmountsToOwnAmounts for: {}", type, Generic.objectToString(temporaryOrder));

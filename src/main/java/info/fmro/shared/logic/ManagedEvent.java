@@ -176,7 +176,7 @@ public class ManagedEvent
         Utils.calculateMarketLimits(maxEventLimit, this.marketsMap.valuesCopy(rulesManager.markets), true, true, safetyLimits, marketCataloguesMap, rulesManager);
     }
 
-    public double calculateExposure() { // not synchronized; assumes market exposures have already been calculated
+    public double calculateExposureWithMarketExposuresAlreadyCalculated() { // not synchronized; assumes market exposures have already been calculated
         double eventExposure = 0d;
         final Collection<ManagedMarket> markets = this.marketsMap.valuesCopy();
         if (markets == null) { // error message was already printed

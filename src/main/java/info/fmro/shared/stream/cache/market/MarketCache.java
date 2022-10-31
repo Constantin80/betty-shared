@@ -45,6 +45,10 @@ public class MarketCache
         return SerializationUtils.clone(this);
     }
 
+    public synchronized void clearCachedObjects() {
+        this.markets.clear();
+    }
+
     @SuppressWarnings("NonPrivateFieldAccessedInSynchronizedContext")
     public synchronized boolean copyFromStream(final MarketCache other) {
         final boolean readSuccessful;
