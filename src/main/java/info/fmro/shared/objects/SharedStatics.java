@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-@SuppressWarnings("UtilityClass")
+@SuppressWarnings({"UtilityClass", "StaticCollection"})
 public final class SharedStatics {
     public static final boolean notPlacingOrders = true; // hard stop for order placing; true for testing, false enables order placing
     public static final boolean reserveCanDecrease = true; // set as true only for testing, as it affects reserve protection
