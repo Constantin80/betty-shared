@@ -47,16 +47,20 @@ import java.util.stream.Collectors;
 @SuppressWarnings({"ClassWithTooManyMethods", "OverlyComplexClass", "WeakerAccess", "PackageVisibleField", "OverlyCoupledClass"})
 public class ManagedMarket
         implements Serializable {
-    private static final Logger logger = LoggerFactory.getLogger(ManagedMarket.class);
-    @Serial
-    private static final long serialVersionUID = -7958840665816144122L;
     public static final long recentCalculatedLimitPeriod = 30_000L;
     public static final long almostLivePeriod = Generic.HOUR_LENGTH_MILLISECONDS;
     public static final long veryRecentPeriod = 10_000L;
+    private static final Logger logger = LoggerFactory.getLogger(ManagedMarket.class);
+    @Serial
+    private static final long serialVersionUID = -7958840665816144122L;
     public final AtomicBoolean cancelAllUnmatchedBets = new AtomicBoolean();
+    public final HighestLongContainer lastCheckMarketRequestStamp = new HighestLongContainer();
+    final String marketId; // marketId
     private final HashMap<RunnerId, ManagedRunner> runners = new HashMap<>(4); // this is the only place where managedRunners are stored permanently
     private final HashMap<RunnerId, Double> runnerMatchedExposureMap = new HashMap<>(4), runnerTotalExposureMap = new HashMap<>(4), runnerTotalExposureConsideringCanceledMap = new HashMap<>(4);
-    final String marketId; // marketId
+    private final AtomicBoolean enabledMarket = new AtomicBoolean(true), mandatoryPlace = new AtomicBoolean(), keepAtInPlay = new AtomicBoolean();
+    private final long creationTime;
+    transient AtomicBoolean isBeingManaged = new AtomicBoolean();
     @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     private String parentEventId;
     @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
@@ -69,10 +73,7 @@ public class ManagedMarket
     private long calculatedLimitStamp;
     private long manageMarketStamp;
     private boolean marketLiveOrAlmostLive;
-    private final AtomicBoolean enabledMarket = new AtomicBoolean(true), mandatoryPlace = new AtomicBoolean(), keepAtInPlay = new AtomicBoolean();
-    private final long creationTime;
     private long enabledTime;
-    transient AtomicBoolean isBeingManaged = new AtomicBoolean();
     @Nullable
     private transient ManagedMarketThread currentManageThread;
     @Nullable
@@ -80,7 +81,6 @@ public class ManagedMarket
     @SuppressWarnings("FieldAccessedSynchronizedAndUnsynchronized")
     @Nullable
     private transient Market market;
-    public final HighestLongContainer lastCheckMarketRequestStamp = new HighestLongContainer();
 //    @Nullable
 //    private transient OrderMarket orderMarket;
 //    private transient ArrayList<ManagedRunner> runnersOrderedList = new ArrayList<>(this.runners.values());
@@ -94,6 +94,11 @@ public class ManagedMarket
 //        this.setMarketName(Formulas.getMarketCatalogueName(marketId, marketCataloguesMap), rulesManager.listOfQueues);
         this.marketName = Formulas.getMarketCatalogueName(marketId, marketCataloguesMap);
         attachMarket(rulesManager, marketCataloguesMap, false);
+    }
+
+    private static int getSortPriorityForEntry(@NotNull final HashMap<RunnerId, Integer> sortPriorityMap, @NotNull final Map.Entry<RunnerId, ManagedRunner> entry) {
+        final Integer sortPriority = sortPriorityMap.get(entry.getKey());
+        return sortPriority == null ? Integer.MAX_VALUE : sortPriority;
     }
 
     @Serial
@@ -119,11 +124,6 @@ public class ManagedMarket
         final ArrayList<ManagedRunner> runnersOrderedList = new ArrayList<>(this.runners.values());
         runnersOrderedList.sort(Comparator.comparing(ManagedRunner::getLastTradedPrice, new ComparatorMarketPrices()));
         return runnersOrderedList;
-    }
-
-    private static int getSortPriorityForEntry(@NotNull final HashMap<RunnerId, Integer> sortPriorityMap, @NotNull final Map.Entry<RunnerId, ManagedRunner> entry) {
-        final Integer sortPriority = sortPriorityMap.get(entry.getKey());
-        return sortPriority == null ? Integer.MAX_VALUE : sortPriority;
     }
 
     synchronized ArrayList<ManagedRunner> simpleGetRunners() {
@@ -250,15 +250,19 @@ public class ManagedMarket
     public synchronized void setKeepAtInPlay(final boolean keepAtInPlay, @NotNull final RulesManager rulesManager) {
         if (this.keepAtInPlay.get() == keepAtInPlay) { // no update needed
         } else {
-            this.keepAtInPlay.set(keepAtInPlay);
-            rulesManager.rulesHaveChanged.set(true);
-            rulesManager.marketsMapModified.set(true);
-            if (rulesManager.marketsForOutsideCheck.add(this.marketId)) {
-                rulesManager.newMarketsOrEventsForOutsideCheck.set(true);
-            }
-            rulesManager.marketsToCheck.put(this.marketId, System.currentTimeMillis());
+            if (keepAtInPlay) {
+                logger.error("denying attempt to set keepAtInPlay true for: {} {}", this.marketId, this.marketName);
+            } else {
+                this.keepAtInPlay.set(keepAtInPlay);
+                rulesManager.rulesHaveChanged.set(true);
+                rulesManager.marketsMapModified.set(true);
+                if (rulesManager.marketsForOutsideCheck.add(this.marketId)) {
+                    rulesManager.newMarketsOrEventsForOutsideCheck.set(true);
+                }
+                rulesManager.marketsToCheck.put(this.marketId, System.currentTimeMillis());
 
-            rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMarketKeepAtInPlay, this.marketId, this.keepAtInPlay.get()));
+                rulesManager.listOfQueues.send(new SerializableObjectModification<>(RulesManagerModificationCommand.setMarketKeepAtInPlay, this.marketId, this.keepAtInPlay.get()));
+            }
         }
     }
 
@@ -410,12 +414,12 @@ public class ManagedMarket
         return this.matchedBackExposureSum;
     }
 
-    private synchronized double getUnmatchedBackExposureSum() {
-        return this.unmatchedBackExposureSum;
-    }
-
     private synchronized void setMatchedBackExposureSum(final double matchedBackExposureSum) {
         this.matchedBackExposureSum = matchedBackExposureSum;
+    }
+
+    private synchronized double getUnmatchedBackExposureSum() {
+        return this.unmatchedBackExposureSum;
     }
 
     private synchronized void setUnmatchedBackExposureSum(final double unmatchedBackExposureSum) {
